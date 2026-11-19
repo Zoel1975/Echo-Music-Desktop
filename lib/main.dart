@@ -25,8 +25,19 @@ import 'utils/router.dart';
 import 'ytmusic/ytmusic.dart';
 import 'services/yt_audio_stream.dart';
 
+/// Held for the whole process so no other instance can open the Hive boxes.
+RandomAccessFile? _instanceLock;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Single-instance guard: Hive locks its files, so launching the app twice
+  // used to produce a PathAccessException and a blank window.
+  _instanceLock = await _acquireInstanceLock();
+  if (_instanceLock == null) {
+    runApp(const _AlreadyRunningApp());
+    return;
+  }
 
   await initialiseHive();
 
@@ -128,6 +139,39 @@ class Echo extends StatelessWidget {
         themeMode: context.watch<SettingsManager>().themeMode,
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
+      ),
+    );
+  }
+}
+
+Future<RandomAccessFile?> _acquireInstanceLock() async {
+  try {
+    final support = await getApplicationSupportDirectory();
+    final dir = Directory('${support.path}/database');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final file = await File('${dir.path}/echo-single-instance.lock')
+        .open(mode: FileMode.write);
+    await file.lock();
+    return file;
+  } catch (_) {
+    return null;
+  }
+}
+
+class _AlreadyRunningApp extends StatelessWidget {
+  const _AlreadyRunningApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Text(
+            'Echo Music is already running.\nClose the other window first.',
+            textAlign: TextAlign.center,
+          ),
+        ),
       ),
     );
   }
