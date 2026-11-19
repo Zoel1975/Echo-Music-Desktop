@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/yt_audio_stream.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -13,8 +14,13 @@ import '../ytmusic/ytmusic.dart';
 import 'settings_manager.dart';
 import 'sleep_timer.dart';
 
+/// Hive box used by `MediaPlayer` for `STATE` — see `saveState`/`restoreLastPlayed`.
+Box _queueBox = Hive.box('QUEUE');
+
 class MediaPlayer extends ChangeNotifier {
   late final AudioPlayer _player;
+
+  final ValueNotifier<String?> playbackError = ValueNotifier<String?>(null);
 
   final _loudnessEnhancer = AndroidLoudnessEnhancer();
   AndroidEqualizer? _equalizer;
@@ -224,10 +230,37 @@ class MediaPlayer extends ChangeNotifier {
     _player.playbackEventStream.listen(
       (event) {},
       onError: (Object e, StackTrace st) {
+        // Phase 1 remainder: surface the failure to the UI instead of failing
+        // silently into "paused".
+        playbackError.value = 'Playback error: ${e.toString()}';
         _buttonState.value = ButtonState.paused;
         notifyListeners();
       },
     );
+  }
+
+  /// Phase 1 remainder: persists the currently playing track so the app can
+  /// resume it on the next launch (`restoreLastPlayed`). Full-queue
+  /// persistence is TODO.
+  Future<void> saveState() async {
+    final song = _currentSongNotifier.value;
+    if (song == null) return;
+    await _queueBox.put('STATE', {
+      'videoId': song.id,
+      'position': _player.position,
+    });
+  }
+
+  /// Resumes the track that was playing when the app last stopped, so the
+  /// user lands back where they were instead of on a blank player.
+  Future<void> restoreLastPlayed() async {
+    final state = _queueBox.get('STATE');
+    if (state == null) return;
+    final videoId = state['videoId'] as String?;
+    if (videoId == null) return;
+    final details = await GetIt.I<YTMusic>().getSongDetails(videoId);
+    if (details == null) return;
+    await playSong(details);
   }
 
   void _listenToCurrentPosition() {
@@ -537,6 +570,8 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    // Persist the track that was playing so the next launch can resume it.
+    await saveState();
     await _player.stop();
     await _player.clearAudioSources();
     await _player.seek(Duration.zero, index: 0);

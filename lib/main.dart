@@ -84,6 +84,9 @@ void main() async {
   GetIt.I.registerSingleton<LibraryService>(libraryService);
   GetIt.I.registerSingleton<LyricsService>(LyricsService());
 
+  // Phase 1 remainder: resume the track that was playing at last shutdown.
+  await GetIt.I<MediaPlayer>().restoreLastPlayed();
+
   runApp(
     MultiProvider(
       providers: [
@@ -137,4 +140,5 @@ Future<void> initialiseHive() async {
   await Hive.openBox('SONG_HISTORY');
   await Hive.openBox('FAVOURITES');
   await Hive.openBox('DOWNLOADS');
+  await Hive.openBox('QUEUE');
 }

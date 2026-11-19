@@ -248,17 +248,32 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | Phase | Scope | Exit criteria |
 |---|---|---|
 | **0 — Foundations** | Toolchain, `pub get`, dead-dep fix, feature-first skeleton, `docs/PORTING_PLAN.md`, CI script | `flutter analyze` clean, `flutter build windows` ok, app boots with home + player |
-| **1 — Playback core** | Queue model (shuffle/repeat/reorder/skip-to), sleep timer, resume state, playback errors, mini-player parity | Queue ops covered by tests; app survives 30 min playback + restarts |
-| **2 — Shell & design system** *(starting)* | Echo tokens (radii/alpha/spacing from `DESIGN.md`), glass surface, floating tab bar, responsive rail, player layouts, adaptive widgets | Side-by-side screenshots match Android within tolerance |
-| **3 — Discovery & detail** | Explore, new releases, album, artist, online playlist, search suggestions | Every Android home/browse tile leads to a real screen |
-| **4 — Library & account** | Library sub-tabs, cookie login, account, playlist CRUD, liked-song sync | Login persists; liked songs round-trip |
-| **5 — Lyrics suite** | 7 providers + registry ordering, word-by-word, translations (DeepL/Mistral/OpenRouter/ApiRoute) | Provider fallback tested; translation cached |
+| **1 — Playback core** *(partially done — 380b84e-era + 14a2b3f)* | Queue model, sleep timer, resume state, playback errors, mini-player parity | Sleep timer done; queue persistence (track resume) + playback error surfacing done — `MediaPlayer.playbackError` notifier, `saveState`/`restoreLastPlayed` on launch; queue sheet still read-only-ish; full queue persistence TODO |
+| **2 — Shell & design system** *(done — 12f43cf)* | Echo tokens, glass surface, floating tab bar, theme seed, bootable shell | Shell boots, all screens reachable; screenshots review scheduled before Phase 5 |
+| **3 — Discovery & detail** *(done — 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
+| **4 — Library & account** *(in progress)* | Library sub-tabs (albums/artists), cookie login, account, liked-song sync | Desktop has Favourites/Downloads/History/playlists; Android `LibrarySongsScreen` ≈ Favourites; cookie login + account + sub-tabs TODO |
+| **5 — Lyrics suite** | 7 providers + registry ordering, word-by-word, translations | Provider fallback tested; translation cached |
 | **6 — Social & cloud** | Listen Together, Discord RPC, LastFM/ListenBrainz, Jellyfin/Navidrome, Wrapped/stats | Two desktop clients sync a queue |
 | **7 — Podcasts** | Podcast home, episode progress, video podcast | Podcast episode resumes across sessions |
 | **8 — Mobile-only leftovers** | Extensions (320 kbps/lossless), Echo Find, Echo Brain, updater parity | Documented: feature / dropped / replaced |
+| **9 — Explore (MusicFlow)** | Resso-style vertical swipe discovery | Vertical feed with ranked songs |
+
+Notes for later phases:
+- **Explore / MusicFlow** (Android `ui/screens/musicflow/*`, 9 files): Resso-style
+  vertical swipe discovery with ranking from `musicflow/MusicFlowRanking.kt`.
+  Not yet started.
+- **Search suggestions parity**: desktop `lib/ytmusic/mixins/search.dart` already
+  returns `music/get_search_suggestions` results (`getSearchSuggestions`).
+  Android adds an `AppleMusicScraper` — to be compared later.
+- **Playback error surfacing** (Phase 1 remainder) and **queue persistence** — TODO.
+- **Explore in the FloatingNavBar?** Android's tab set is Home/Search/Explore/Library/Account;
+  the desktop tab set is Home/Search/Library/Settings. To match, an Explore
+  branch must be added first.
 
 (On **downloads**: see "Downloads: out of scope for now" below — this plan
-list treats local/download features as non-goals until re-opened.)
+list treats local/download features as non-goals until re-opened.
+Phase 4's "cookie login" is documented as *explored*, not implemented — see
+"Phase 4 — Library & account" below.)
 | **9 — Mobile-only leftovers** | Extensions (320 kbps/lossless), Echo Find, Echo Brain, updater parity | Documented: feature / dropped / replaced |
 
 ---
@@ -322,10 +337,10 @@ is listed in the risks below as a documented exclusion, not an accident.
 - Tests: `test/sleep_timer_test.dart` (7 cases) — replaces the stale
   counter boilerplate test, which could never have passed.
 
-Next: queue persistence across restarts, richer playback error surfacing, then
-Phase 3 (design tokens + glass shell — already started, see below) and beyond.
+Next: queue persistence + playback error surfacing (Phase 1 remainder).
+Phase 3 (discovery & detail) follows — see the entry below.
 
-### Phase 2 — started (shell & design system)
+### Phase 2 — done (shell & design system)
 
 - **Theme**: `ColorScheme.fromSeed(EchoTokens.seedColor)` — Android's `0xFFED5564`
   seed replaces the old `Colors.black`/`Colors.red` defaults in `AppTheme`.
@@ -340,10 +355,31 @@ Phase 3 (design tokens + glass shell — already started, see below) and beyond.
   counterpart of Android's `FloatingTabBar` (glass capsule, 20dp radius,
   centered, floating above the mini player, explicit `Positioned`).
 - **Shell** (`app_shell.dart`): wide layout now uses the floating glass tab bar
-  (Home / Search / Library / Settings); narrow layout keeps `NavigationBar`.
-- Tests: `test/tokens_test.dart` (7 invariants); suite total 13 passing.
+  (Home / Search / Library / Settings); narrow layout keeps the `NavigationBar`.
+- Tests: `test/tokens_test.dart` (7 invariants); suite total 18 passing.
 - Limitations: Apple's refraction/lens edge effects stay platform-gated; the
   tint/vibrancy is approximated by the translucent surface on desktop.
+- Verification: `flutter analyze` 0 errors; `flutter test` 18/18; `flutter build
+  windows --debug` → `echo.exe`; 15 s smoke run clean.
+
+### Phase 3 — started (discovery & detail) — done in 380b84e
+
+- New routes `/album`, `/artist`, `/playlist`:
+  - `lib/screens/detail/album_page.dart` — header (art, title, artists,
+    year/track count), Play + Add-to-library, songs section.
+  - `lib/screens/detail/artist_page.dart` — header, Play, songs + albums
+    sections via `SectionItem` (albums tap → `/album`).
+  - `lib/screens/detail/playlist_page.dart` — header, Play/Shuffle, song list.
+  - `lib/utils/playable.dart` — adapter YTMusic items → desktop `MediaPlayer`
+    shape (`artists` as `{name}`, `album` map).
+- `lib/core/widgets/section_item.dart` — `ItemList` taps on type `ALBUM`/`ARTIST`/
+  `PLAYLIST` navigate to the new detail routes instead of generic `/browse`.
+- Tests: `test/playable_test.dart` (5 cases). Suite total: 18 passing.
+- Verified: `flutter analyze` 0 errors, `flutter test` 18/18,
+  `flutter build windows --debug` → `echo.exe`, 15 s smoke run clean.
+
+**Explore (MusicFlow) is still TODO** — Android's Resso-style vertical swipe
+feed from `ui/screens/musicflow/*` (see plan notes above).
 
 Next: run the debug build, then Phase 3 (Explore / new releases / album /
 artist / online playlist / search suggestions).

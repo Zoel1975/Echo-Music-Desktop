@@ -75,7 +75,7 @@ class _AlbumPageState extends State<_AlbumPage> {
                   children: [
                     _AlbumHeader(header: header, songs: songs),
                     if (songsSection != null)
-                      SectionItem(section: songsSection!),
+                      SectionItem(section: songsSection),
                   ],
                 ),
               ),
