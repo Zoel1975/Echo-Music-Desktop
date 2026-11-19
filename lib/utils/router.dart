@@ -24,6 +24,9 @@ import 'package:Echo/screens/settings/player/player_settings_page.dart';
 import 'package:Echo/screens/settings/privacy/privacy_page.dart';
 import 'package:Echo/screens/settings/services/yt_music/yt_music_page.dart';
 import 'package:Echo/screens/settings/settings_page.dart';
+import 'package:Echo/screens/detail/album_page.dart';
+import 'package:Echo/screens/detail/artist_page.dart';
+import 'package:Echo/screens/detail/playlist_page.dart';
 import 'package:Echo/screens/shell/app_shell.dart';
 
 GoRouter router = GoRouter(
@@ -197,7 +200,44 @@ List<StatefulShellBranch> branches = [
             builder: (context, state) => const AboutPage(),
           ),
         ]),
-  ])
+  ]),
+  // --- Phase 3 detail pages (Album / Artist / Online Playlist) ---
+  StatefulShellBranch(
+    routes: [
+      GoRoute(
+        path: '/album',
+        builder: (context, state) {
+          final browseId =
+              (state.extra as Map<String, dynamic>)['browseId'];
+          return AlbumPage(browseId: browseId as String);
+        },
+      ),
+    ],
+  ),
+  StatefulShellBranch(
+    routes: [
+      GoRoute(
+        path: '/artist',
+        builder: (context, state) {
+          final browseId =
+              (state.extra as Map<String, dynamic>)['browseId'];
+          return ArtistPage(browseId: browseId as String);
+        },
+      ),
+    ],
+  ),
+  StatefulShellBranch(
+    routes: [
+      GoRoute(
+        path: '/playlist',
+        builder: (context, state) {
+          final playlistId =
+              (state.extra as Map<String, dynamic>)['playlistId'];
+          return OnlinePlaylistPage(playlistId: playlistId as String);
+        },
+      ),
+    ],
+  ),
 ];
 
 class MyPageView extends StatefulWidget {

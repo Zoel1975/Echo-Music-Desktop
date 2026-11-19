@@ -422,20 +422,41 @@ class _ItemListState extends State<ItemList> {
               child: AdaptiveInkWell(
                 padding: EdgeInsets.all(Platform.isWindows ? 12 : 0),
                 onTap: () async {
-                  if (widget.items[index]['chartUrl'] != null) {
+                  final item = widget.items[index];
+                  if (item['chartUrl'] != null) {
                     context.push('/chart_details',
-                        extra: widget.items[index]['chartUrl']);
-                  } else if (widget.items[index]['endpoint'] != null &&
-                      widget.items[index]['videoId'] == null) {
+                        extra: item['chartUrl']);
+                  } else if (item['type'] == 'ALBUM' &&
+                      item['endpoint']?['browseId'] != null) {
+                    // Phase 3: open the dedicated album detail page.
+                    context.push('/album',
+                        extra: {
+                          'browseId': item['endpoint']['browseId'],
+                        });
+                  } else if (item['type'] == 'ARTIST' &&
+                      item['endpoint']?['browseId'] != null) {
+                    context.push('/artist',
+                        extra: {
+                          'browseId': item['endpoint']['browseId'],
+                        });
+                  } else if (item['type'] == 'PLAYLIST' &&
+                      (item['endpoint'] != null || item['playlistId'] != null)) {
+                    Object? playlistId = item['playlistId'];
+                    playlistId ??= item['endpoint']?['browseId'];
+                    if (playlistId != null) {
+                      context.push('/playlist',
+                          extra: {'playlistId': playlistId.toString()});
+                    }
+                  } else if (item['endpoint'] != null &&
+                      item['videoId'] == null) {
                     context.push(
                       '/browse',
                       extra: {
-                        'endpoint': widget.items[index]['endpoint'],
+                        'endpoint': item['endpoint'],
                       },
                     );
                   } else {
-                    await GetIt.I<MediaPlayer>()
-                        .playSong(Map.from(widget.items[index]));
+                    await GetIt.I<MediaPlayer>().playSong(Map.from(item));
                   }
                 },
                 onSecondaryTap: () {
