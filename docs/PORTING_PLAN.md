@@ -251,7 +251,7 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **1 — Playback core** *(partially done — 380b84e-era + 14a2b3f)* | Queue model, sleep timer, resume state, playback errors, mini-player parity | Sleep timer done; queue persistence (track resume) + playback error surfacing done — `MediaPlayer.playbackError` notifier, `saveState`/`restoreLastPlayed` on launch; queue sheet still read-only-ish; full queue persistence TODO |
 | **2 — Shell & design system** *(done — 12f43cf)* | Echo tokens, glass surface, floating tab bar, theme seed, bootable shell | Shell boots, all screens reachable; screenshots review scheduled before Phase 5 |
 | **3 — Discovery & detail** *(done — 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
-| **4 — Library & account** *(in progress)* | Library sub-tabs (albums/artists), cookie login, account, liked-song sync | Desktop has Favourites/Downloads/History/playlists; Android `LibrarySongsScreen` ≈ Favourites; cookie login + account + sub-tabs TODO |
+| **4 — Library & account** *(partially done — f412462-era)* | Library (Favourites/Downloads/History/playlists) exists; Android parity: Library songs/albums/artists/podcasts lists, cookie login, account, liked sync | Desktop: library + resume-on-launch shipped; cookie login + account + library sub-tabs deferred (see "Deferred" below) |
 | **5 — Lyrics suite** | 7 providers + registry ordering, word-by-word, translations | Provider fallback tested; translation cached |
 | **6 — Social & cloud** | Listen Together, Discord RPC, LastFM/ListenBrainz, Jellyfin/Navidrome, Wrapped/stats | Two desktop clients sync a queue |
 | **7 — Podcasts** | Podcast home, episode progress, video podcast | Podcast episode resumes across sessions |
@@ -337,8 +337,15 @@ is listed in the risks below as a documented exclusion, not an accident.
 - Tests: `test/sleep_timer_test.dart` (7 cases) — replaces the stale
   counter boilerplate test, which could never have passed.
 
-Next: queue persistence + playback error surfacing (Phase 1 remainder).
-Phase 3 (discovery & detail) follows — see the entry below.
+### Phase 1 — partly done (f412462) — playback errors + track resume
+
+- `MediaPlayer.playbackError` (ValueNotifier<String?>) now surfaces player
+  errors instead of failing silently into "paused".
+- `MediaPlayer.saveState` / `restoreLastPlayed`: `MediaPlayer.stop()` persists
+  the current track (`videoId`) to the new Hive box `QUEUE` (key `STATE`);
+  `main()` opens the box and resumes the track on launch.
+- Tests: 18/18 passing (`test/playable_test.dart` = 5 new cases; suite total
+  now 18). Full-queue persistence remains TODO.
 
 ### Phase 2 — done (shell & design system)
 
@@ -362,7 +369,7 @@ Phase 3 (discovery & detail) follows — see the entry below.
 - Verification: `flutter analyze` 0 errors; `flutter test` 18/18; `flutter build
   windows --debug` → `echo.exe`; 15 s smoke run clean.
 
-### Phase 3 — started (discovery & detail) — done in 380b84e
+### Phase 3 — done (discovery & detail) — 380b84e
 
 - New routes `/album`, `/artist`, `/playlist`:
   - `lib/screens/detail/album_page.dart` — header (art, title, artists,
@@ -381,6 +388,19 @@ Phase 3 (discovery & detail) follows — see the entry below.
 **Explore (MusicFlow) is still TODO** — Android's Resso-style vertical swipe
 feed from `ui/screens/musicflow/*` (see plan notes above).
 
-Next: run the debug build, then Phase 3 (Explore / new releases / album /
-artist / online playlist / search suggestions).
+### Phase 4 — started (library & account) — f412462
+
+- Desktop Library exists (Favourites / Downloads / History / local playlists);
+  Android parity: `LibrarySongsScreen` ≈ Favourites (done), plus todo —
+  Library albums/artists lists (`LibraryAlbumsScreen`, `LibraryArtistsScreen`),
+  and the account layer: cookie login + account settings
+  (`LoginScreen`, `AccountScreen`, `AccountViewModel`).
+- Cookie login deferred: Android extracts browser cookies into YTMusic via
+  `WebView`; the desktop has no CDP/browser-automation infra yet (Chrome is
+  installed and could be used, but it needs a new service + UI). See plan
+  "Deferred" section.
+- Playback resume on launch done (see Phase 1 remainder).
+
+Next: decide whether to pursue Phase 4 remainder (library albums/artists,
+cookie login) or move to Phase 5 (lyrics providers).
 
