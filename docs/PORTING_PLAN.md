@@ -1,4 +1,4 @@
-# Echo Music — Desktop Port Plan
+﻿# Echo Music — Desktop Port Plan
 
 Porting **`EchoMusicApp/Echo-Music`** (Android, Kotlin + Jetpack Compose) onto
 **`Zoel1975/Echo-Music-Desktop`** (Flutter), keeping Dart/Flutter as the target stack.
@@ -251,7 +251,7 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **1 — Playback core** *(partially done — 380b84e-era + 14a2b3f)* | Queue model, sleep timer, resume state, playback errors, mini-player parity | Sleep timer done; queue persistence (track resume) + playback error surfacing done — `MediaPlayer.playbackError` notifier, `saveState`/`restoreLastPlayed` on launch; queue sheet still read-only-ish; full queue persistence TODO |
 | **2 — Shell & design system** *(done — 12f43cf)* | Echo tokens, glass surface, floating tab bar, theme seed, bootable shell | Shell boots, all screens reachable; screenshots review scheduled before Phase 5 |
 | **3 — Discovery & detail** *(done — 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
-| **4 — Library & account** *(partially done — f412462-era)* | Library (Favourites/Downloads/History/playlists) exists; Android parity: Library songs/albums/artists/podcasts lists, cookie login, account, liked sync | Desktop: library + resume-on-launch shipped; cookie login + account + library sub-tabs deferred (see "Deferred" below) |
+| **4 — Library & account** *(done — 8109e93)* | Cookie login via WebView2 (`lib/screens/login/login_page.dart` + `lib/services/cookie_store.dart` + `YTMusic.getAccountInfo()` port of `account/account_menu`); Account screen (`lib/screens/account/account_page.dart`); `YTClient` now merges the Cookie header into every request | WebView2 login flow validated via build + smoke run (actual Google login needs credentials + Edge + WebView2; not exercised) |
 | **5 — Lyrics suite** | 7 providers + registry ordering, word-by-word, translations | Provider fallback tested; translation cached |
 | **6 — Social & cloud** | Listen Together, Discord RPC, LastFM/ListenBrainz, Jellyfin/Navidrome, Wrapped/stats | Two desktop clients sync a queue |
 | **7 — Podcasts** | Podcast home, episode progress, video podcast | Podcast episode resumes across sessions |
@@ -272,7 +272,7 @@ Notes for later phases:
 
 (On **downloads**: see "Downloads: out of scope for now" below — this plan
 list treats local/download features as non-goals until re-opened.
-Phase 4's "cookie login" is documented as *explored*, not implemented — see
+Phase 4's "cookie login" is done (WebView2 cookie login + account screen, 8109e93) — see
 "Phase 4 — Library & account" below.)
 | **9 — Mobile-only leftovers** | Extensions (320 kbps/lossless), Echo Find, Echo Brain, updater parity | Documented: feature / dropped / replaced |
 
@@ -337,7 +337,7 @@ is listed in the risks below as a documented exclusion, not an accident.
 - Tests: `test/sleep_timer_test.dart` (7 cases) — replaces the stale
   counter boilerplate test, which could never have passed.
 
-### Phase 1 — partly done (f412462) — playback errors + track resume
+### Phase 1 — partly done (8109e93) — playback errors + track resume
 
 - `MediaPlayer.playbackError` (ValueNotifier<String?>) now surfaces player
   errors instead of failing silently into "paused".
@@ -388,7 +388,7 @@ is listed in the risks below as a documented exclusion, not an accident.
 **Explore (MusicFlow) is still TODO** — Android's Resso-style vertical swipe
 feed from `ui/screens/musicflow/*` (see plan notes above).
 
-### Phase 4 — started (library & account) — f412462
+### Phase 4 — done (cookie login + account) — 8109e93
 
 - Desktop Library exists (Favourites / Downloads / History / local playlists);
   Android parity: `LibrarySongsScreen` ≈ Favourites (done), plus todo —
