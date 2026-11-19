@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:Echo/services/cookie_store.dart';
 import 'package:Echo/ytmusic/helpers.dart';
 import 'package:Echo/ytmusic/modals/yt_config.dart';
 import 'package:http/http.dart';
@@ -86,8 +87,13 @@ class YTClient {
     Map<String, String>? headers,
   ) async {
     try {
+      final effectiveHeaders = {...?headers};
+      final cookieHeader = CookieStore.instance.cookieHeader;
+      if (cookieHeader != null) {
+        effectiveHeaders['Cookie'] = cookieHeader;
+      }
       final Uri uri = Uri.parse(url);
-      final Response response = await get(uri, headers: headers);
+      final Response response = await get(uri, headers: effectiveHeaders);
       return response;
     } catch (e) {
       debugPrint("Exception in YTClient::sendGetReques: $e");
@@ -132,6 +138,11 @@ class YTClient {
 
       this.headers.addAll(headers ?? {});
 
+      final cookieHeader = CookieStore.instance.cookieHeader;
+      if (cookieHeader != null) {
+        this.headers['Cookie'] = cookieHeader;
+      }
+
       if (config?.visitorData == null || config!.visitorData.isEmpty) {
         await resetVisitorId();
       }
@@ -157,5 +168,32 @@ class YTClient {
       lastConnectionErrorTime.value = DateTime.now().millisecondsSinceEpoch;
       return {};
     }
+  }
+
+  /// Desktop port of `YouTube.accountInfo` (`innertube/YouTube.kt`):
+  /// reads the active account from `account/account_menu`.
+  Future<Map<String, dynamic>?> getAccountInfo() async {
+    final response = await sendRequest('account/account_menu', {});
+    final actions = response['actions'] as List?;
+    if (actions == null || actions.isEmpty) return null;
+    final header = nav(
+      actions[0],
+      [
+        'openPopupAction',
+        'popup',
+        'multiPageMenuRenderer',
+        'header',
+        'activeAccountHeaderRenderer',
+      ],
+    );
+    if (header == null) return null;
+    final info = <String, dynamic>{
+      'name': nav(header, ['name', 'runs', 0, 'text']),
+      'email': nav(header, ['email', 'runs', 0, 'text']),
+      'channelHandle': nav(header, ['channelHandle', 'runs', 0, 'text']),
+      'avatarUrl': nav(header, ['accountPhoto', 'thumbnails', 0, 'url']),
+    };
+    info.removeWhere((k, v) => v == null || (v is List && v.isEmpty));
+    return info;
   }
 }

@@ -141,4 +141,6 @@ Future<void> initialiseHive() async {
   await Hive.openBox('FAVOURITES');
   await Hive.openBox('DOWNLOADS');
   await Hive.openBox('QUEUE');
+  await Hive.openBox('COOKIES');
+  await Hive.openBox('ACCOUNT');
 }

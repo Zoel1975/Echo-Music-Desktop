@@ -27,6 +27,8 @@ import 'package:Echo/screens/settings/settings_page.dart';
 import 'package:Echo/screens/detail/album_page.dart';
 import 'package:Echo/screens/detail/artist_page.dart';
 import 'package:Echo/screens/detail/playlist_page.dart';
+import 'package:Echo/screens/account/account_page.dart';
+import 'package:Echo/screens/login/login_page.dart';
 import 'package:Echo/screens/shell/app_shell.dart';
 
 GoRouter router = GoRouter(
@@ -238,7 +240,24 @@ List<StatefulShellBranch> branches = [
       ),
     ],
   ),
-];
+    // --- Phase 4 — account pages ---
+    StatefulShellBranch(
+      routes: [
+        GoRoute(
+          path: '/login',
+          builder: (context, state) => const LoginPage(),
+        ),
+      ],
+    ),
+    StatefulShellBranch(
+      routes: [
+        GoRoute(
+          path: '/account',
+          builder: (context, state) => const AccountPage(),
+        ),
+      ],
+    ),
+  ];
 
 class MyPageView extends StatefulWidget {
   final int currentIndex;
