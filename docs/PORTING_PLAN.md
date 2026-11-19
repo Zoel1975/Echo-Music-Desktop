@@ -66,7 +66,7 @@ Already implemented and worth keeping:
 |---|---|---|---|
 | B1 | `youtube_explode_dart` points at `github.com/iad1tya/youtube_explode_dart`, which **no longer exists (404)** | `flutter pub get` cannot resolve; app cannot build at all | Replace with a supported resolution path (see §5) |
 | B2 | `just_audio_background` is Android/iOS-only | Dead weight on desktop, init call is a no-op that can throw | Gate behind `Platform.isAndroid/isIOS` |
-| B3 | Package name is `Echo` (uppercase) | Dart lints, poor convention | Rename to `echo_music` during Phase 0 (mechanical, scripted) |
+| B3 | Package name is `Echo` (uppercase) | Dart lints, poor convention | Deferred: a global rename churns every import and makes upstream merges harder. Do it once, in Phase 2, together with the `lib/` restructure. |
 | B4 | Single flat `lib/screens|services` tree | Doesn't scale to ~150 screens | Feature-first layout (§4) |
 | B5 | No tests beyond a widget smoke test | Regressions invisible while porting | Golden/widget tests per ported screen |
 

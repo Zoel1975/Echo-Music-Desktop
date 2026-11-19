@@ -2091,15 +2091,14 @@ class _TimerWindowContentState extends State<_TimerWindowContent> {
   @override
   Widget build(BuildContext context) {
     final mediaPlayer = context.watch<MediaPlayer>();
-    final currentTimer = mediaPlayer.timerDuration.value;
-    final endOfTrack = mediaPlayer.sleepTimer.pauseWhenSongEnd;
+    final sleepTimer = mediaPlayer.sleepTimer;
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (currentTimer != null || endOfTrack) ...[
+          if (sleepTimer.isActive) ...[
             const Text(
               "Timer Active",
               style: TextStyle(
@@ -2110,13 +2109,18 @@ class _TimerWindowContentState extends State<_TimerWindowContent> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              endOfTrack ? "End of track" : formatDuration(currentTimer!),
-              style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                decoration: TextDecoration.none,
+            ValueListenableBuilder<Duration?>(
+              valueListenable: mediaPlayer.timerDuration,
+              builder: (context, remaining, _) => Text(
+                sleepTimer.pauseWhenSongEnd
+                    ? "End of track"
+                    : (remaining == null ? "--:--" : formatDuration(remaining)),
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  decoration: TextDecoration.none,
+                ),
               ),
             ),
             const SizedBox(height: 24),

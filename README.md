@@ -10,6 +10,13 @@
 
 ---
 
+> **Port status (work in progress).** This repository is being brought up to
+> feature parity with the Android app
+> [`EchoMusicApp/Echo-Music`](https://github.com/EchoMusicApp/Echo-Music)
+> (Kotlin + Compose). See [`docs/PORTING_PLAN.md`](docs/PORTING_PLAN.md) for the
+> parity matrix, architecture and phase plan, and run `tool/verify.ps1` to check
+> the build. Both projects are GPL-3.0.
+
 ## Overview
 
 Echo Music Desktop brings the premium music listening experience to your computer. Built with Flutter, it offers a seamless interface to stream music from YouTube Music without advertisements, along with powerful desktop-centric features.

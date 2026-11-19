@@ -48,6 +48,7 @@ class MediaPlayer extends ChangeNotifier {
     );
     _player = AudioPlayer(audioPipeline: pipeline);
     sleepTimer = SleepTimer(_JustAudioSleepTarget(_player));
+    sleepTimer.addListener(notifyListeners);
 
     GetIt.I.registerSingleton<AndroidLoudnessEnhancer>(_loudnessEnhancer);
     if (Platform.isAndroid && _equalizer != null) {
