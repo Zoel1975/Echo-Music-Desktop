@@ -41,8 +41,9 @@ class DesktopMusicFlowPlayer {
 
   String? currentMediaId() => _player.currentSongNotifier.value?.id;
 
-  List<String> queueMediaIds() =>
-      _player.songList.map((s) => s.tag?.id ?? '').toList();
+  List<String> queueMediaIds() => List<String>.of(
+        _player.songList.map((s) => s.tag?.id ?? ''),
+      );
 
   bool ownsPlayback() => _flowActive;
   bool isAnyFlowQueueActive() => _flowActive;
@@ -51,11 +52,10 @@ class DesktopMusicFlowPlayer {
   int indexOf(String songId) =>
       _player.songList.indexWhere((s) => s.tag?.id == songId);
 
-  List<Map<String, dynamic>> get items =>
-      _player.songList
-          .map((s) => Map<String, dynamic>.from(s.tag?.extras ?? const {})
-            ..putIfAbsent('videoId', () => s.tag?.id ?? ''))
-          .toList();
+  List<Map<String, dynamic>> get items => _player.songList
+      .map((s) => Map<String, dynamic>.from(s.tag?.extras ?? const {})
+        ..putIfAbsent('videoId', () => s.tag?.id ?? ''))
+      .toList();
 
   Future<void> seekTo(int queueIndex, bool playWhenReady) async {
     final item = items[queueIndex];
@@ -100,8 +100,12 @@ class MusicFlowCoordinator {
     required bool playWhenReady,
     required bool autoNext,
   }) async {
-    if (requestId < _latestRequestId) return MusicFlowPlaybackStatus.switching;
-    if (player.currentMediaId() == songId) return MusicFlowPlaybackStatus.synced;
+    if (requestId < _latestRequestId) {
+      return MusicFlowPlaybackStatus.switching;
+    }
+    if (player.currentMediaId() == songId) {
+      return MusicFlowPlaybackStatus.synced;
+    }
     if (player.isAnyFlowQueueActive()) {
       final queueIndex = player.queueMediaIds().indexOf(songId);
       if (queueIndex >= 0) {
@@ -110,7 +114,9 @@ class MusicFlowCoordinator {
       }
     }
     final takeover = player.takeoverBlock();
-    if (takeover != null) return MusicFlowPlaybackStatus.blocked(takeover);
+    if (takeover != null) {
+      return MusicFlowPlaybackStatus.blocked(takeover);
+    }
     final index = player.indexOf(songId);
     if (index < 0) return MusicFlowPlaybackStatus.idle;
     final items = player.items;

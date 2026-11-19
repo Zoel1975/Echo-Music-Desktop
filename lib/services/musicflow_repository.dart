@@ -19,10 +19,10 @@ class MusicFlowSignals {
 }
 
 class MusicFlowCursor {
-  const MusicFlowCursor({required this.hasMore, required this.next});
+  const MusicFlowCursor({required this.next});
 
-  final bool hasMore;
   final Future<List<MusicFlowItem>> Function() next;
+  final bool hasMore = true;
 }
 
 class MusicFlowRepository {
@@ -32,21 +32,18 @@ class MusicFlowRepository {
 
   MusicFlowSignals signals() => const MusicFlowSignals();
 
-  MusicFlowCursor open(String? nowPlayingId) =>
-      _RadioCursor(nowPlayingId, _client);
+  MusicFlowCursor open(String? nowPlayingId) => MusicFlowCursor(
+        next: () => _RadioCursor(nowPlayingId, _client).next(),
+      );
 }
 
-class _RadioCursor implements MusicFlowCursor {
+class _RadioCursor {
   _RadioCursor(this._nowPlayingId, this._client);
 
   final String? _nowPlayingId;
   final YTMusic _client;
   bool _started = false;
 
-  @override
-  final bool hasMore = true;
-
-  @override
   Future<List<MusicFlowItem>> next() async {
     if (!_started) {
       _started = true;
@@ -68,7 +65,9 @@ class _RadioCursor implements MusicFlowCursor {
       return MusicFlowItem(
         MusicFlowSource.catalog,
         s['videoId'] as String? ?? '',
-        primaryArtistKey: (artists is List && artists.isNotEmpty) ? (artists.first['name'] as String?) : null,
+        primaryArtistKey: (artists is List && artists.isNotEmpty)
+            ? (artists.first['name'] as String?)
+            : null,
       );
     }).where((i) => i.songId.isNotEmpty).toList();
   }
