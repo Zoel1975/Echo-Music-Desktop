@@ -5,6 +5,8 @@ import 'package:get_it/get_it.dart';
 import 'package:Echo/models/lyrics_model.dart'; // Import the new model
 import 'package:Echo/services/lyrics.dart'; // Import the new service
 import 'package:Echo/services/media_player.dart';
+import 'package:Echo/services/settings_manager.dart';
+import 'translation_dialog.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -28,6 +30,8 @@ class LyricsBox extends StatefulWidget {
 class _LyricsBoxState extends State<LyricsBox> {
   Future<Lyrics>? _fetchLyricsFuture;
   bool _lyricsLoaded = false;
+  List<String>? _translatedLines;
+  Lyrics? _lyrics;
 
   @override
   void initState() {
@@ -66,6 +70,7 @@ class _LyricsBoxState extends State<LyricsBox> {
   void _fetchLyrics() {
     if (context.mounted) {
       setState(() {
+        _translatedLines = null;
         _fetchLyricsFuture = GetIt.I<LyricsService>().getLyrics(
           title: widget.currentSong.title,
           artist: widget.currentSong.artist,
@@ -74,6 +79,7 @@ class _LyricsBoxState extends State<LyricsBox> {
         );
         _lyricsLoaded = false;
         _fetchLyricsFuture!.then((lyrics) {
+          _lyrics = lyrics;
           _lyricsLoaded =
               (lyrics.parsedLyrics?.lyrics.isNotEmpty ?? false) ||
                   lyrics.lyricsPlain.isNotEmpty;
@@ -95,29 +101,73 @@ class _LyricsBoxState extends State<LyricsBox> {
     super.dispose();
   }
 
+  void _showTranslationDialog(Lyrics lyrics) {
+    final lines = <String>[
+      if (lyrics.lyricsPlain.isNotEmpty) ...lyrics.lyricsPlain.split('\n'),
+      ...?lyrics.parsedLyrics?.lyrics.map((l) => l.text),
+    ].where((l) => l.trim().isNotEmpty).toList();
+    if (lines.isEmpty) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => TranslationDialog(
+        lines: lines,
+        service: GetIt.I<LyricsService>(),
+        settings: GetIt.I<SettingsManager>(),
+        onResult: (translated) {
+          if (!mounted) return;
+          setState(() => _translatedLines = translated);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Center(
-        child: _fetchLyricsFuture != null
-            ? FutureBuilder<Lyrics>(
-                future: _fetchLyricsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    if (snapshot.data == null) {
-                      return const Text('No Lyrics Found (Null)');
-                    }
-                    return LoadedLyricsWidget(lyrics: snapshot.data!);
-                  }
-                  if (snapshot.hasError) {
-                    // return Text('Error: ${snapshot.error}');
-                    return const Text('No Lyrics Found');
-                  }
-                  return const ExpressiveLoadingIndicator();
+      child: Stack(
+        children: [
+          Center(
+            child: _fetchLyricsFuture != null
+                ? FutureBuilder<Lyrics>(
+                    future: _fetchLyricsFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        if (snapshot.data == null) {
+                          return const Text('No Lyrics Found (Null)');
+                        }
+                        return LoadedLyricsWidget(
+                          lyrics: snapshot.data!,
+                          translatedLines: _translatedLines,
+                        );
+                      }
+                      if (snapshot.hasError) {
+                        return const Text('No Lyrics Found');
+                      }
+                      return const ExpressiveLoadingIndicator();
+                    },
+                  )
+                : const ExpressiveLoadingIndicator(),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: IconButton(
+                tooltip: 'Translate lyrics',
+                onPressed: () {
+                  final lyrics = _lyrics;
+                  if (lyrics != null) _showTranslationDialog(lyrics);
                 },
-              )
-            : const ExpressiveLoadingIndicator(),
+                icon: const Icon(Icons.translate, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -125,19 +175,23 @@ class _LyricsBoxState extends State<LyricsBox> {
 
 class LoadedLyricsWidget extends StatelessWidget {
   final Lyrics lyrics;
+  final List<String>? translatedLines;
   const LoadedLyricsWidget({
     super.key,
     required this.lyrics,
+    this.translatedLines,
   });
 
   @override
   Widget build(BuildContext context) {
     if ((lyrics.parsedLyrics?.lyrics.isEmpty ?? true) &&
         lyrics.lyricsPlain.isNotEmpty) {
-      return PlainLyricsWidget(lyrics: lyrics);
+      return PlainLyricsWidget(
+          lyrics: lyrics, translatedLines: translatedLines);
     } else if (lyrics.parsedLyrics?.lyrics.isNotEmpty ?? false) {
       return SyncedLyricsWidget(
         lyrics: lyrics,
+        translatedLines: translatedLines,
       );
     }
     return const Center(
@@ -148,9 +202,11 @@ class LoadedLyricsWidget extends StatelessWidget {
 
 class PlainLyricsWidget extends StatelessWidget {
   final Lyrics lyrics;
+  final List<String>? translatedLines;
   const PlainLyricsWidget({
     super.key,
     required this.lyrics,
+    this.translatedLines,
   });
 
   @override
@@ -173,7 +229,7 @@ class PlainLyricsWidget extends StatelessWidget {
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
         child: SelectableText(
-          "\n${lyrics.lyricsPlain}\n",
+          "\n${lyrics.lyricsPlain}\n${translatedLines == null || translatedLines!.isEmpty ? '' : '\n${translatedLines!.join('\n')}'}",
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 34,
@@ -190,8 +246,10 @@ class PlainLyricsWidget extends StatelessWidget {
 
 class SyncedLyricsWidget extends StatefulWidget {
   final Lyrics lyrics;
+  final List<String>? translatedLines;
   const SyncedLyricsWidget({
     required this.lyrics,
+    this.translatedLines,
     super.key,
   });
 
@@ -396,9 +454,29 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
                                 ]
                               : [],
                         ),
-                        child: Text(
-                          lyricText,
-                          textAlign: TextAlign.center,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              lyricText,
+                              textAlign: TextAlign.center,
+                            ),
+                            if (widget.translatedLines != null &&
+                                index < widget.translatedLines!.length)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  widget.translatedLines![index],
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: isCurrent ? 18 : 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white
+                                        .withValues(alpha: isCurrent ? 0.85 : 0.4),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       );
                     },

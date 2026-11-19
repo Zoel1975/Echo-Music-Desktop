@@ -3,10 +3,11 @@ import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../ytmusic/ytmusic.dart';
+import 'translation_settings.dart';
 
 Box _box = Hive.box('SETTINGS');
 
-class SettingsManager extends ChangeNotifier {
+class SettingsManager extends ChangeNotifier implements TranslationSettings {
   ThemeMode _themeMode = ThemeMode.system;
   final List<ThemeMode> _themeModes = [
     ThemeMode.system,
@@ -80,6 +81,56 @@ class SettingsManager extends ChangeNotifier {
     _loudnessTargetGain = _box.get('LOUDNESS_TARGET_GAIN', defaultValue: 0.0);
     _equalizerBandsGain =
         _box.get('EQUALIZER_BANDS_GAIN', defaultValue: []).cast<double>();
+  }
+
+  // -------------------------------------------------- lyrics translation --
+  String get translationProvider =>
+      _box.get('TRANSLATION_PROVIDER', defaultValue: 'OpenRouter');
+  set translationProvider(String value) {
+    _box.put('TRANSLATION_PROVIDER', value);
+    notifyListeners();
+  }
+
+  String get translationApiKey =>
+      _box.get('TRANSLATION_API_KEY', defaultValue: '');
+  set translationApiKey(String value) {
+    _box.put('TRANSLATION_API_KEY', value);
+    notifyListeners();
+  }
+
+  String get translationBaseUrl =>
+      _box.get('TRANSLATION_BASE_URL', defaultValue: '');
+  set translationBaseUrl(String value) {
+    _box.put('TRANSLATION_BASE_URL', value);
+    notifyListeners();
+  }
+
+  String get translationModel =>
+      _box.get('TRANSLATION_MODEL', defaultValue: '');
+  set translationModel(String value) {
+    _box.put('TRANSLATION_MODEL', value);
+    notifyListeners();
+  }
+
+  String get translationLanguage =>
+      _box.get('TRANSLATION_LANGUAGE', defaultValue: 'en');
+  set translationLanguage(String value) {
+    _box.put('TRANSLATION_LANGUAGE', value);
+    notifyListeners();
+  }
+
+  String get translationMode =>
+      _box.get('TRANSLATION_MODE', defaultValue: 'Translate');
+  set translationMode(String value) {
+    _box.put('TRANSLATION_MODE', value);
+    notifyListeners();
+  }
+
+  bool get translationStreaming =>
+      _box.get('TRANSLATION_STREAMING', defaultValue: true);
+  set translationStreaming(bool value) {
+    _box.put('TRANSLATION_STREAMING', value);
+    notifyListeners();
   }
 
   setThemeMode(ThemeMode mode) async {
