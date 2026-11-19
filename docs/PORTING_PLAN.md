@@ -274,7 +274,7 @@ Notes for later phases:
 list treats local/download features as non-goals until re-opened.
 Phase 4's "cookie login" is done (WebView2 cookie login + account screen, 8109e93) — see
 "Phase 4 — Library & account" below.)
-| **9 — Mobile-only leftovers** | Extensions (320 kbps/lossless), Echo Find, Echo Brain, updater parity | Documented: feature / dropped / replaced |
+| **9 — Explore (MusicFlow)** *(partial — 7a4f0de)* | `/explore` page (`lib/screens/explore/explore_page.dart`): Home feed, sections via `SectionItem` | Android `MusicFlowScreen` (601 lines): vertical swipe discovery, AI mix queues, lyrics, download, takeover block, preferences — not ported |
 
 ---
 

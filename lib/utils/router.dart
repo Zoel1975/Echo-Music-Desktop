@@ -28,6 +28,7 @@ import 'package:Echo/screens/detail/album_page.dart';
 import 'package:Echo/screens/detail/artist_page.dart';
 import 'package:Echo/screens/detail/playlist_page.dart';
 import 'package:Echo/screens/account/account_page.dart';
+import 'package:Echo/screens/explore/explore_page.dart';
 import 'package:Echo/screens/login/login_page.dart';
 import 'package:Echo/screens/shell/app_shell.dart';
 
@@ -240,6 +241,14 @@ List<StatefulShellBranch> branches = [
       ),
     ],
   ),
+    StatefulShellBranch(
+      routes: [
+        GoRoute(
+          path: '/explore',
+          builder: (context, state) => const ExplorePage(),
+        ),
+      ],
+    ),
     // --- Phase 4 — account pages ---
     StatefulShellBranch(
       routes: [
