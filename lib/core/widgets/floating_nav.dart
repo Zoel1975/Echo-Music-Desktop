@@ -44,7 +44,7 @@ class EchoFloatingNavBar extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(EchoTokens.floatingBarRadius),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           padding:
               const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
@@ -65,10 +65,25 @@ class EchoFloatingNavBar extends StatelessWidget {
               final d = destinations[i];
               final isSelected = i == selected;
               final color = isSelected ? scheme.primary : scheme.onSurface;
-              return IconButton(
-                tooltip: d.label,
-                icon: Icon(d.icon, size: 20, color: color),
-                onPressed: d.onTap,
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? scheme.primary.withValues(alpha: 0.16)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: IconButton(
+                  tooltip: d.label,
+                  icon: AnimatedScale(
+                    scale: isSelected ? 1.12 : 1.0,
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutBack,
+                    child: Icon(d.icon, size: 20, color: color),
+                  ),
+                  onPressed: d.onTap,
+                ),
               );
             }),
           ),

@@ -29,12 +29,15 @@ class SectionItem extends StatefulWidget {
 
 class _SectionItemState extends State<SectionItem> {
   final ScrollController horizontalScrollController = ScrollController();
-  PageController horizontalPageController = PageController();
+  // Created once: rebuilding a PageController on every build leaked old
+  // controllers and reset the pager position while scrolling.
+  late final PageController horizontalPageController;
   bool loadingMore = false;
 
   @override
   void initState() {
     super.initState();
+    horizontalPageController = PageController();
   }
 
   @override
@@ -63,11 +66,10 @@ class _SectionItemState extends State<SectionItem> {
 
   @override
   Widget build(BuildContext context) {
-    horizontalPageController = PageController(
-        viewportFraction: 350 / MediaQuery.of(context).size.width);
-    return widget.section['contents'].isEmpty
-        ? const SizedBox()
-        : Column(
+    return RepaintBoundary(
+      child: widget.section['contents'].isEmpty
+          ? const SizedBox()
+          : Column(
             children: [
               if (widget.section['title'] != null)
                 AdaptiveListTile(
@@ -191,7 +193,8 @@ class _SectionItemState extends State<SectionItem> {
                 AdaptiveButton(
                     onPressed: loadMoreItems, child: const Text("Load More"))
             ],
-          );
+          ),
+    );
   }
 }
 
@@ -409,6 +412,7 @@ class _ItemListState extends State<ItemList> {
         height: height + (Platform.isWindows ? 102 : 78),
         child: ListView.separated(
           controller: widget.controller,
+          cacheExtent: 600,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           scrollDirection: Axis.horizontal,
           itemBuilder: (context, index) {

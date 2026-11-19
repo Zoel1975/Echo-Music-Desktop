@@ -291,21 +291,24 @@ class MyPageViewState extends State<MyPageView> {
   void didUpdateWidget(covariant MyPageView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex) {
-      controller.animateToPage(widget.currentIndex,
-          duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      controller.animateToPage(
+        widget.currentIndex,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return PageView(
-      scrollDirection:
-          (Platform.isWindows || MediaQuery.of(context).size.width >= 450)
-              ? Axis.vertical
-              : Axis.horizontal,
+      scrollDirection: Axis.horizontal,
       physics: const NeverScrollableScrollPhysics(),
       controller: controller,
-      children: widget.children,
+      children: [
+        for (var i = 0; i < widget.children.length; i++)
+          RepaintBoundary(key: ValueKey('page-$i'), child: widget.children[i]),
+      ],
     );
   }
 }

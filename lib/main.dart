@@ -17,6 +17,8 @@ import 'services/download_manager.dart';
 import 'services/file_storage.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
+import 'services/cookie_store.dart';
+import 'services/stream_resolver.dart';
 import 'services/media_player.dart';
 import 'services/settings_manager.dart';
 import 'utils/router.dart';
@@ -48,6 +50,10 @@ void main() async {
     JustAudioMediaKit.prefetchPlaylist = true;
     JustAudioMediaKit.pitch = true;
   }
+
+  // InnerTube stream resolution must use the Google login cookies (bot check)
+  // when the user is signed in.
+  StreamResolver.instance.cookieHeaderProvider = () => CookieStore.instance.cookieHeader;
 
   String? visitorId = await Hive.box('SETTINGS').get('VISITOR_ID');
 
