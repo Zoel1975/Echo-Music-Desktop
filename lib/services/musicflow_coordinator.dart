@@ -6,7 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:Echo/services/media_player.dart';
 
 sealed class MusicFlowPlaybackStatus {
-  const MusicFlowPlaybackStatus._();
+  const MusicFlowPlaybackStatus();
 
   static const idle = _Idle();
   static const switching = _Switching();
@@ -17,15 +17,15 @@ sealed class MusicFlowPlaybackStatus {
 }
 
 class _Idle extends MusicFlowPlaybackStatus {
-  const _Idle() : super._();
+  const _Idle() : super();
 }
 
 class _Switching extends MusicFlowPlaybackStatus {
-  const _Switching() : super._();
+  const _Switching() : super();
 }
 
 class _Synced extends MusicFlowPlaybackStatus {
-  const _Synced() : super._();
+  const _Synced() : super();
 }
 
 class _Blocked extends MusicFlowPlaybackStatus {
