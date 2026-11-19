@@ -248,7 +248,7 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | Phase | Scope | Exit criteria |
 |---|---|---|
 | **0 — Foundations** | Toolchain, `pub get`, dead-dep fix, feature-first skeleton, `docs/PORTING_PLAN.md`, CI script | `flutter analyze` clean, `flutter build windows` ok, app boots with home + player |
-| **1 — Playback core** *(partially done — 380b84e-era + 14a2b3f)* | Queue model, sleep timer, resume state, playback errors, mini-player parity | Sleep timer done; queue persistence (track resume) + playback error surfacing done — `MediaPlayer.playbackError` notifier, `saveState`/`restoreLastPlayed` on launch; queue sheet still read-only-ish; full queue persistence TODO |
+| **1 — Playback core** *(done — full queue persistence)* | Queue model, sleep timer, resume state, playback errors, mini-player parity | Sleep timer done; queue persistence (track resume) + playback error surfacing done — `MediaPlayer.playbackError` notifier, `saveState`/`restoreLastPlayed` on launch; queue sheet still read-only-ish; full queue persistence done |
 | **2 — Shell & design system** *(done — 12f43cf)* | Echo tokens, glass surface, floating tab bar, theme seed, bootable shell | Shell boots, all screens reachable; screenshots review scheduled before Phase 5 |
 | **3 — Discovery & detail** *(done — 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
 | **4 — Library & account** *(done — 8109e93)* | Cookie login via WebView2 (`lib/screens/login/login_page.dart` + `lib/services/cookie_store.dart` + `YTMusic.getAccountInfo()` port of `account/account_menu`); Account screen (`lib/screens/account/account_page.dart`); `YTClient` now merges the Cookie header into every request | WebView2 login flow validated via build + smoke run (actual Google login needs credentials + Edge + WebView2; not exercised) |
@@ -256,7 +256,6 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **6 — Social & cloud** | Parked — out of scope (user request) |
 | **7 — Podcasts** | Parked — out of scope (user request) |
 | **8 — Mobile-only leftovers** | Parked — out of scope (user request) |
-| **9 — Explore (MusicFlow)** | Resso-style vertical swipe discovery | Vertical feed with ranked songs |
 
 Notes for later phases:
 - **Explore / MusicFlow** (Android `ui/screens/musicflow/*`, 9 files): Resso-style
@@ -345,7 +344,7 @@ is listed in the risks below as a documented exclusion, not an accident.
   the current track (`videoId`) to the new Hive box `QUEUE` (key `STATE`);
   `main()` opens the box and resumes the track on launch.
 - Tests: 18/18 passing (`test/playable_test.dart` = 5 new cases; suite total
-  now 18). Full-queue persistence remains TODO.
+  now 18). Full-queue persistence done (QueueSnapshot + full queue restore on launch).
 
 ### Phase 2 — done (shell & design system)
 
@@ -385,7 +384,7 @@ is listed in the risks below as a documented exclusion, not an accident.
 - Verified: `flutter analyze` 0 errors, `flutter test` 18/18,
   `flutter build windows --debug` → `echo.exe`, 15 s smoke run clean.
 
-**Explore (MusicFlow) is still TODO** — Android's Resso-style vertical swipe
+**MusicFlowScreen (the 601-line Android screen) is still TODO** — Android's Resso-style vertical swipe
 feed from `ui/screens/musicflow/*` (see plan notes above).
 
 ### Phase 4 — done (cookie login + account) — 8109e93

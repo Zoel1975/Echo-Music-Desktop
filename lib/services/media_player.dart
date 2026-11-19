@@ -12,6 +12,7 @@ import 'package:rxdart/rxdart.dart';
 import '../utils/add_history.dart';
 import '../ytmusic/ytmusic.dart';
 import 'settings_manager.dart';
+import 'queue_snapshot.dart';
 import 'sleep_timer.dart';
 
 /// Hive box used by `MediaPlayer` for `STATE` — see `saveState`/`restoreLastPlayed`.
@@ -201,6 +202,7 @@ class MediaPlayer extends ChangeNotifier {
       }
 
       notifyListeners();
+      unawaited(saveState());
     });
   }
 
@@ -223,6 +225,10 @@ class MediaPlayer extends ChangeNotifier {
         // idle state
         _buttonState.value = ButtonState.paused;
       }
+      if (processingState != ProcessingState.loading &&
+          processingState != ProcessingState.buffering) {
+        unawaited(saveState());
+      }
     });
   }
 
@@ -239,28 +245,58 @@ class MediaPlayer extends ChangeNotifier {
     );
   }
 
-  /// Phase 1 remainder: persists the currently playing track so the app can
-  /// resume it on the next launch (`restoreLastPlayed`). Full-queue
-  /// persistence is TODO.
+  /// Persists the full queue (all songs, current index, position, playing
+  /// state) so a restart restores exactly what was playing — Android's
+  /// `MusicService` queue persistence.
   Future<void> saveState() async {
-    final song = _currentSongNotifier.value;
-    if (song == null) return;
-    await _queueBox.put('STATE', {
-      'videoId': song.id,
-      'position': _player.position,
-    });
+    final sequence = _player.sequence;
+    if (sequence.isEmpty) return;
+    final songs = <Map<String, dynamic>>[];
+    for (final source in sequence) {
+      final tag = source.tag;
+      if (tag is MediaItem) {
+        songs.add(Map<String, dynamic>.from(tag.extras ?? {'videoId': tag.id}));
+      }
+    }
+    if (songs.isEmpty) return;
+    final snapshot = QueueSnapshot(
+      songs: songs,
+      index: _player.currentIndex ?? 0,
+      positionMs: _player.position.inMilliseconds,
+      wasPlaying: _player.playing,
+    );
+    await _queueBox.put('STATE', snapshot.toMap());
   }
 
-  /// Resumes the track that was playing when the app last stopped, so the
-  /// user lands back where they were instead of on a blank player.
+  /// Rebuilds the queue from the last saved snapshot and resumes the same
+  /// track/position (and playback state) on launch.
   Future<void> restoreLastPlayed() async {
-    final state = _queueBox.get('STATE');
-    if (state == null) return;
-    final videoId = state['videoId'] as String?;
-    if (videoId == null) return;
-    final details = await GetIt.I<YTMusic>().getSongDetails(videoId);
-    if (details == null) return;
-    await playSong(details);
+    final raw = _queueBox.get('STATE');
+    if (raw == null) return;
+    final snapshot = QueueSnapshot.fromMap(raw);
+    if (!snapshot.isValid) return;
+    try {
+      final sources = <AudioSource>[];
+      for (final song in snapshot.songs) {
+        sources.add(await _getAudioSource(song));
+      }
+      if (sources.isEmpty) return;
+      await _player.setAudioSources(
+        sources,
+        initialIndex: snapshot.index,
+        initialPosition: Duration.zero,
+      );
+      if (snapshot.positionMs > 0) {
+        await _player.seek(
+          Duration(milliseconds: snapshot.positionMs),
+          index: snapshot.index,
+        );
+      }
+      if (snapshot.wasPlaying) await _player.play();
+    } catch (e) {
+      debugPrint('Could not restore the playback queue: $e');
+      await _queueBox.delete('STATE');
+    }
   }
 
   void _listenToCurrentPosition() {
@@ -323,6 +359,7 @@ class MediaPlayer extends ChangeNotifier {
           addHistory(item.extras!);
         }
         notifyListeners();
+        unawaited(saveState());
       }
     });
   }
