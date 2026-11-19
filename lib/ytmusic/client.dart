@@ -196,4 +196,50 @@ class YTClient {
     info.removeWhere((k, v) => v == null || (v is List && v.isEmpty));
     return info;
   }
+
+  /// Port of `YouTube.lyrics()` / `YouTube.transcript()`: find the endpoint in
+  /// the `next` response and query `get_lyrics` / `get_transcript`.
+  Future<String?> getLyricsForVideo(String videoId, {bool transcript = false}) async {
+    final next = await sendRequest('next', {'videoId': videoId});
+
+    Object? findEndpoint(dynamic node) {
+      if (node is! Map) return null;
+      for (final entry in node.entries) {
+        final key = '${entry.key}';
+        if ((transcript && key.toLowerCase().contains('transcript')) ||
+            (!transcript && key.contains('lyricsEndpoint'))) {
+          return entry.value;
+        }
+        final found = findEndpoint(entry.value);
+        if (found != null) return found;
+      }
+      return null;
+    }
+
+    String? collectText(dynamic node) {
+      if (node is String) return node.trim().isEmpty ? null : node;
+      if (node is Map) {
+        for (final v in node.values) {
+          final t = collectText(v);
+          if (t != null) return t;
+        }
+      } else if (node is List) {
+        for (final v in node) {
+          final t = collectText(v);
+          if (t != null) return t;
+        }
+      }
+      return null;
+    }
+
+    final endpoint = findEndpoint(next);
+    if (endpoint == null) return null;
+    final params = endpoint is Map ? endpoint['params'] : null;
+    if (params == null) return null;
+    final response = await sendRequest(
+      transcript ? 'get_transcript' : 'get_lyrics',
+      {'params': params},
+    );
+    return collectText(response['contents'] ?? response);
+  }
 }
