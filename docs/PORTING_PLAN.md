@@ -252,7 +252,7 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **2 — Shell & design system** *(done — 12f43cf)* | Echo tokens, glass surface, floating tab bar, theme seed, bootable shell | Shell boots, all screens reachable; screenshots review scheduled before Phase 5 |
 | **3 — Discovery & detail** *(done — 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
 | **4 — Library & account** *(done — 8109e93)* | Cookie login via WebView2 (`lib/screens/login/login_page.dart` + `lib/services/cookie_store.dart` + `YTMusic.getAccountInfo()` port of `account/account_menu`); Account screen (`lib/screens/account/account_page.dart`); `YTClient` now merges the Cookie header into every request | WebView2 login flow validated via build + smoke run (actual Google login needs credentials + Edge + WebView2; not exercised) |
-| **5 — Lyrics suite** *(partial — 5b9e0be)* | LRCLIB (`lrcnet_api.dart`), Android registry ported to `lib/services/lyrics_registry.dart` + `LrcLibProvider`; tests | BetterLyrics, SimpMusic, YouLyPlus, KuGou, Paxsenix, Unison, YouTubeSubtitle, YouTube Music — deep-parity port TODO (budget-bound) |
+| **5 — Lyrics suite** *(done — lyrics providers batch)* | LRCLIB (`lrcnet_api.dart`), Android registry ported to `lib/services/lyrics_registry.dart` + `LrcLibProvider`; tests | All 8 providers ported (lyrics_providers.dart + lyrics_providers_youtube.dart); TTML/word-timing; LyricsService fallback chain; 37/37 tests |
 | **6 — Social & cloud** | Parked — out of scope (user request) |
 | **7 — Podcasts** | Parked — out of scope (user request) |
 | **8 — Mobile-only leftovers** | Parked — out of scope (user request) |
