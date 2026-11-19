@@ -280,13 +280,17 @@ Each phase ends with a runnable Windows build and documented parity gain.
 - Toolchain: Flutter 3.50.0 / Dart 3.14.0 (SDK installed at `C:\Users\zampe\flutter`).
   Windows builds additionally need the VS 2022 **Desktop development with C++**
   workload (`Microsoft.VisualStudio.Workload.NativeDesktop`), CMake and a Windows 10/11 SDK.
+  Verified: `flutter build windows --debug` → `build\windows\x64\runner\Debug\echo.exe`,
+  and a 15 s startup smoke test with no exceptions (media_kit registered, local
+  audio relay on `127.0.0.1:<port>/audio`, Hive boxes opened).
 - **B1 fixed**: `youtube_explode_dart` now resolves from pub.dev `^3.1.0` instead of
   the deleted `iad1tya` fork. `YoutubeApiClient.androidVr` exists there, so the
   call sites are unchanged.
 - **B2 fixed**: `JustAudioBackground.init` runs only on Android/iOS (`lib/main.dart`).
 - Removed the non-existent `assets/images/` asset entry.
 - `.gitignore` added; `tool/verify.ps1` runs pub get → analyze → test (→ build).
-- Analyzer: **0 errors**, 47 warnings (pre-existing unused imports/deprecations).
+- Analyzer: **0 errors**, 15 warnings left (dead modal helpers, the unused
+  Spotify `_scopes` field, experimental `just_audio` streaming API).
 
 ### Phase 1 — started (playback core)
 
