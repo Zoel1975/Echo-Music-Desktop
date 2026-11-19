@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:Echo/generated/l10n.dart';
@@ -8,6 +8,17 @@ import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+/// Desktop port of the queue sheet (`ui/player/Queue.kt`).
+///
+/// Differences from the previous implementation:
+///  * shuffling is available on every platform (it was gated to Android even
+///    though `just_audio` implements shuffle in Dart);
+///  * every key is scoped by index, so a queue that contains the same song
+///    twice no longer produces duplicate `Dismissible` keys;
+///  * reordering uses an explicit drag handle so it does not fight the
+///    swipe-to-remove gesture (especially with a mouse);
+///  * removal no longer also dismisses the widget, which used to leave stale
+///    `Dismissible` widgets in the tree.
 class QueueList extends StatelessWidget {
   const QueueList({super.key});
 
@@ -16,83 +27,95 @@ class QueueList extends StatelessWidget {
     final mediaPlayer = GetIt.I<MediaPlayer>();
     final player = mediaPlayer.player;
 
-    return StreamBuilder(
-      stream: mediaPlayer.currentTrackStream,
-      builder: (context, snapshot) {
-        final sequence = snapshot.data?.sequence ?? [];
-        final currentIndex = snapshot.data?.currentIndex ?? 0;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.6),
+      ),
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: SafeArea(
+            top: false,
+            child: StreamBuilder(
+              stream: mediaPlayer.currentTrackStream,
+              builder: (context, snapshot) {
+                final sequence = snapshot.data?.sequence ?? [];
+                final currentIndex = snapshot.data?.currentIndex ?? 0;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor.withAlpha(70),
-          ),
-          child: ClipRRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-              child: SafeArea(
-                top: false,
-                child: Column(
+                return Column(
                   children: [
-                    Expanded(
-                      child: ReorderableListView(
-                        onReorder: (oldIndex, newIndex) async {
-                          if (newIndex > oldIndex) newIndex -= 1;
-                          await player.moveAudioSource(oldIndex, newIndex);
-                        },
-                        children: [
-                          for (int i = 0; i < sequence.length; i++)
-                            QueueTile(
-                              key: Key(sequence[i].tag?.id ?? '$i'),
-                              index: i,
-                              isCurrent: i == currentIndex,
-                              source: sequence[i],
-                            ),
-                        ],
-                      ),
+                    _QueueHeader(
+                      count: sequence.length,
+                      player: player,
                     ),
-                    if (Platform.isAndroid)
-                      StreamBuilder<bool>(
-                        stream: player.shuffleModeEnabledStream,
-                        builder: (context, snapshot) {
-                          final shuffle = snapshot.data ?? false;
-                          return Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton.icon(
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStatePropertyAll(
-                                      shuffle
-                                          ? Colors.white
-                                          : Colors.white.withAlpha(50),
-                                    ),
-                                    foregroundColor: WidgetStatePropertyAll(
-                                      shuffle
-                                          ? Theme.of(context)
-                                              .scaffoldBackgroundColor
-                                          : Colors.white,
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    player.setShuffleModeEnabled(!shuffle);
-                                  },
-                                  icon: const Icon(Icons.shuffle_outlined),
-                                  label: Text(S.of(context).Shuffle),
-                                ),
-                              ],
+                    const Divider(height: 1),
+                    Expanded(
+                      child: sequence.isEmpty
+                          ? const Center(child: Text('Queue is empty'))
+                          : ReorderableListView.builder(
+                              buildDefaultDragHandles: false,
+                              itemCount: sequence.length,
+                              onReorder: (oldIndex, newIndex) async {
+                                if (newIndex > oldIndex) newIndex -= 1;
+                                await player.moveAudioSource(oldIndex, newIndex);
+                              },
+                              itemBuilder: (context, i) {
+                                return QueueTile(
+                                  key: ValueKey('queue-$i-${sequence[i].tag?.id}'),
+                                  index: i,
+                                  isCurrent: i == currentIndex,
+                                  source: sequence[i],
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
+                    ),
                   ],
-                ),
-              ),
+                );
+              },
             ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+class _QueueHeader extends StatelessWidget {
+  const _QueueHeader({required this.count, required this.player});
+
+  final int count;
+  final AudioPlayer player;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      child: Row(
+        children: [
+          Text(
+            'Queue • $count',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const Spacer(),
+          StreamBuilder<bool>(
+            stream: player.shuffleModeEnabledStream,
+            builder: (context, snapshot) {
+              final shuffle = snapshot.data ?? false;
+              return IconButton(
+                tooltip: S.of(context).Shuffle,
+                isSelected: shuffle,
+                onPressed: () => player.setShuffleModeEnabled(!shuffle),
+                icon: const Icon(Icons.shuffle),
+                color: shuffle ? colorScheme.primary : null,
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -114,27 +137,50 @@ class QueueTile extends StatelessWidget {
     final player = GetIt.I<MediaPlayer>().player;
     final MediaItem? song = source.tag as MediaItem?;
 
-    if (song == null) return const SizedBox();
+    if (song == null) return const SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Dismissible(
-      key: Key(song.id),
+      key: ValueKey('dismiss-$index-${song.id}'),
       direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        color: colorScheme.error,
+        child: Icon(Icons.delete_outline, color: colorScheme.onError),
+      ),
+      // The queue is owned by the player, not by this list: remove the source
+      // and let the stream rebuild. Returning false keeps the Dismissible from
+      // being disposed twice ("dismissed widget still in the tree").
       confirmDismiss: (_) async {
         await player.removeAudioSourceAt(index);
-        return true;
+        return false;
       },
       child: ListTile(
-        key: Key(index.toString()),
-        title: Text(song.title, maxLines: 1),
+        selected: isCurrent,
+        onTap: () => player.seek(Duration.zero, index: index),
         leading: ArtworkWidget(song: song, isCurrent: isCurrent),
+        title: Text(
+          song.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
         subtitle: Text(
           song.artist ?? song.album ?? song.extras?['subtitle'] ?? '',
           maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        // trailing: const Icon(Icons.drag_handle),
-        onTap: () {
-          player.seek(Duration.zero, index: index);
-        },
+        trailing: ReorderableDragStartListener(
+          index: index,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Icon(Icons.drag_handle),
+          ),
+        ),
       ),
     );
   }
@@ -170,7 +216,7 @@ class ArtworkWidget extends StatelessWidget {
             Container(
               height: 50,
               width: 50,
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
             ),
           if (isCurrent)
             const Positioned(

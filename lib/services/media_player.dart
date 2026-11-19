@@ -11,6 +11,7 @@ import 'package:rxdart/rxdart.dart';
 import '../utils/add_history.dart';
 import '../ytmusic/ytmusic.dart';
 import 'settings_manager.dart';
+import 'sleep_timer.dart';
 
 class MediaPlayer extends ChangeNotifier {
   late final AudioPlayer _player;
@@ -24,8 +25,7 @@ class MediaPlayer extends ChangeNotifier {
   final ValueNotifier<int?> _currentIndex = ValueNotifier(null);
   final ValueNotifier<ButtonState> _buttonState =
       ValueNotifier(ButtonState.loading);
-  Timer? _timer;
-  final ValueNotifier<Duration?> _timerDuration = ValueNotifier(null);
+  late final SleepTimer sleepTimer;
 
   final ValueNotifier<LoopMode> _loopMode = ValueNotifier(LoopMode.off);
 
@@ -47,6 +47,7 @@ class MediaPlayer extends ChangeNotifier {
       ],
     );
     _player = AudioPlayer(audioPipeline: pipeline);
+    sleepTimer = SleepTimer(_JustAudioSleepTarget(_player));
 
     GetIt.I.registerSingleton<AndroidLoudnessEnhancer>(_loudnessEnhancer);
     if (Platform.isAndroid && _equalizer != null) {
@@ -65,7 +66,7 @@ class MediaPlayer extends ChangeNotifier {
   ValueNotifier<ProgressBarState> get progressBarState => _progressBarState;
   bool get shuffleModeEnabled => _shuffleModeEnabled;
   ValueNotifier<LoopMode> get loopMode => _loopMode;
-  ValueNotifier<Duration?> get timerDuration => _timerDuration;
+  ValueNotifier<Duration?> get timerDuration => sleepTimer.remaining;
 
   Stream<
       ({
@@ -207,6 +208,7 @@ class MediaPlayer extends ChangeNotifier {
         _buttonState.value =
             isPlaying ? ButtonState.playing : ButtonState.paused;
       } else if (processingState == ProcessingState.completed) {
+        sleepTimer.onPlaybackCompleted();
         _player.seek(Duration.zero);
         _player.pause();
         _buttonState.value = ButtonState.paused;
@@ -275,6 +277,7 @@ class MediaPlayer extends ChangeNotifier {
 
   void _listenToChangesInSong() {
     _player.currentIndexStream.listen((index) {
+      sleepTimer.onMediaItemTransition();
       if (_songList.isNotEmpty && _currentIndex.value != index) {
         _currentIndex.value = index;
         _currentSongNotifier.value =
@@ -581,24 +584,37 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   void setTimer(Duration duration) {
-    int seconds = duration.inSeconds;
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      seconds--;
-      _timerDuration.value = Duration(seconds: seconds);
-      if (seconds == 0) {
-        cancelTimer();
-        _player.pause();
-      }
-      notifyListeners();
-    });
+    sleepTimer.start(duration);
+    notifyListeners();
+  }
+
+  /// Ports the Android "pause when the current song ends" option.
+  void setEndOfTrackTimer() {
+    sleepTimer.startEndOfTrack();
+    notifyListeners();
   }
 
   void cancelTimer() {
-    _timerDuration.value = null;
-    _timer?.cancel();
+    sleepTimer.clear();
     notifyListeners();
   }
+}
+
+class _JustAudioSleepTarget implements SleepTimerTarget {
+  _JustAudioSleepTarget(this._player);
+
+  final AudioPlayer _player;
+
+  @override
+  double get volume => _player.volume;
+
+  @override
+  set volume(double value) {
+    unawaited(_player.setVolume(value));
+  }
+
+  @override
+  Future<void> pause() => _player.pause();
 }
 
 enum ButtonState { loading, paused, playing }

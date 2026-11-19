@@ -18,9 +18,12 @@ dependencies:
   http: ^1.5.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  youtube_explode_dart:
-    git:
-      url: https://github.com/iad1tya/youtube_explode_dart
+  # NOTE: upstream pinned a git fork (`iad1tya/youtube_explode_dart`) that no
+  # longer exists (404) and made `pub get` impossible. Pub.dev 3.1.0 ships the
+  # same `YoutubeApiClient.androidVr` constant the fork was used for.
+  # See docs/PORTING_PLAN.md §5 for the planned replacement by a native
+  # InnerTube resolver.
+  youtube_explode_dart: ^3.1.0
   expandable_page_view: ^1.0.17
   get_it: ^8.0.3
   cached_network_image: ^3.3.1
@@ -91,7 +94,6 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
-    - assets/images/
     - icons/
 flutter_intl:
   enabled: true

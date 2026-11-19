@@ -28,13 +28,17 @@ void main() async {
 
   await initialiseHive();
 
-  // Initialize JustAudioBackground for notifications and background playback
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.echo.music.audio',
-    androidNotificationChannelName: 'Echo Music',
-    androidNotificationOngoing: true,
-    androidShowNotificationBadge: true,
-  );
+  // Initialize JustAudioBackground for notifications and background playback.
+  // It only ships Android/iOS implementations: on desktop the platform channel
+  // is missing and desktop playback is handled by media_kit below.
+  if (Platform.isAndroid || Platform.isIOS) {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.echo.music.audio',
+      androidNotificationChannelName: 'Echo Music',
+      androidNotificationOngoing: true,
+      androidShowNotificationBadge: true,
+    );
+  }
 
   // Initialize JustAudioMediaKit for Windows, Linux, and macOS
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {

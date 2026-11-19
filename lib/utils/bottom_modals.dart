@@ -2092,13 +2092,14 @@ class _TimerWindowContentState extends State<_TimerWindowContent> {
   Widget build(BuildContext context) {
     final mediaPlayer = context.watch<MediaPlayer>();
     final currentTimer = mediaPlayer.timerDuration.value;
+    final endOfTrack = mediaPlayer.sleepTimer.pauseWhenSongEnd;
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (currentTimer != null) ...[
+          if (currentTimer != null || endOfTrack) ...[
             const Text(
               "Timer Active",
               style: TextStyle(
@@ -2110,7 +2111,7 @@ class _TimerWindowContentState extends State<_TimerWindowContent> {
             ),
             const SizedBox(height: 8),
             Text(
-              formatDuration(currentTimer),
+              endOfTrack ? "End of track" : formatDuration(currentTimer!),
               style: const TextStyle(
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
@@ -2144,11 +2145,38 @@ class _TimerWindowContentState extends State<_TimerWindowContent> {
                 _buildPreset(const Duration(hours: 1), "1 hr"),
                 _buildPreset(const Duration(hours: 2), "2 hrs"),
                 _buildPreset(
-                    null, "Custom"), // Custom or End of Song placeholder
+                    null, "Custom"), // Custom duration picker
+                _buildEndOfTrack(),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEndOfTrack() {
+    return Material(
+      color: Colors.white.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        hoverColor: Colors.white.withOpacity(0.2),
+        onTap: () {
+          context.read<MediaPlayer>().setEndOfTrackTimer();
+          Navigator.pop(context);
+        },
+        child: const Center(
+          child: Text(
+            "End of song",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }
