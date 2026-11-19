@@ -1,0 +1,20 @@
+port: lyrics provider registry + LRC provider adapter (Phase 5 — partial)
+
+Android `lyrics/LyricsProviderRegistry.kt` + `lyrics/LyricsProvider.kt` ported to
+`lib/services/lyrics_registry.dart`:
+
+- `LyricsProvider` interface (name, `getLyrics`).
+- `LyricsProviderRegistry`: `providerNames`, `providerDisplayNames`,
+  `defaultOrder` (Android order, LrcLib first — desktop has only LRC so far),
+  `chooseProvider(order, outcomes) → ProviderSelection(name?, pending, none)`.
+- `lib/services/lyrics_provider_lrc.dart` — desktop adapter of Android's
+  `LrcLibLyricsProvider` over the existing `getLRCNetAPILyrics` (`lrcnet_api.dart`).
+- `LyricsService.getLyrics` delegates to `getLRCNetAPILyrics`; added
+  `LyricsService.getProviderNames()` (registry).
+- Tests: `test/lyrics_registry_test.dart` (5 cases).
+
+Not ported yet (deep-parity, budget-bound): BetterLyrics, SimpMusic, YouLyPlus,
+Kugou, Paxsenix, Unison, YouTubeSubtitle, YouTube Music.
+
+Verified: `flutter analyze` 0 errors, `flutter test` 25/25, `flutter build
+windows --debug` → echo.exe.

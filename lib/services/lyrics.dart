@@ -1,5 +1,6 @@
 import '../models/lyrics_model.dart';
 import 'lrcnet_api.dart';
+import 'lyrics_registry.dart';
 
 class LyricsService {
   Future<Lyrics> getLyrics({
@@ -8,8 +9,10 @@ class LyricsService {
     String? album,
     String? duration,
   }) async {
-    // Basic caching could be added here if needed, but for now delegating to API
-    // which has some internal logic or just fetches.
+    // The LRCLIB provider (Android's `LrcLibLyricsProvider` port) is backed by
+    // `getLRCNetAPILyrics`. Other Android providers (Kugou, BetterLyrics,
+    // SimpMusic, YouLyPlus, Paxsenix, Unison, YouTube) are not yet ported —
+    // see docs/PORTING_PLAN.md §9.
     return await getLRCNetAPILyrics(
       title,
       artist: artist,
@@ -17,4 +20,7 @@ class LyricsService {
       duration: duration,
     );
   }
+
+  /// Desktop port of Android's `LyricsProviderRegistry` name/display table.
+  static List<String> getProviderNames() => LyricsProviderRegistry.providerNames;
 }
