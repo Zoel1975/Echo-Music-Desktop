@@ -4,6 +4,7 @@ import 'lyrics_provider_lrc.dart';
 import 'lyrics_providers.dart';
 import 'lyrics_providers_youtube.dart';
 import 'lyrics_registry.dart';
+import 'lyrics_translation.dart' as translation;
 
 class LyricsService {
   /// Android default provider order (`LyricsProviderRegistry`), with the
@@ -61,6 +62,42 @@ class LyricsService {
       artist: artist,
       album: album,
       duration: duration,
+    );
+  }
+
+  /// Translation helper (cache + status), port of Android
+  /// `LyricsTranslationHelper`.
+  final translation.LyricsTranslationHelper translationHelper =
+      translation.LyricsTranslationHelper();
+
+  /// Translates lyric lines with any provider (DeepL, Mistral, OpenRouter /
+  /// ApiRoute) using the Android orchestration + cache.
+  Future<List<String>> translateLyrics({
+    required List<String> lines,
+    required String targetLanguage,
+    required String mode,
+    required String provider,
+    required String apiKey,
+    String baseUrl = '',
+    String model = '',
+    String deeplApiKey = '',
+    String deeplFormality = 'default',
+    bool useStreaming = true,
+    void Function(List<String>)? onPartial,
+  }) {
+    return translation.translateLyrics(
+      lines: lines,
+      targetLanguage: targetLanguage,
+      mode: mode,
+      provider: provider,
+      apiKey: apiKey,
+      baseUrl: baseUrl,
+      model: model,
+      deeplApiKey: deeplApiKey,
+      deeplFormality: deeplFormality,
+      useStreaming: useStreaming,
+      helper: translationHelper,
+      onPartial: onPartial,
     );
   }
 
