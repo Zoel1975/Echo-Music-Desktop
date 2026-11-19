@@ -1,11 +1,11 @@
-/// Port of Android `musicflow/MusicFlowRepository.kt` — seeds + radio cursor.
+﻿/// Port of Android `musicflow/MusicFlowRepository.kt` — seeds + radio cursor.
 /// Desktop equivalents: NOW_PLAYING ← `MediaPlayer` current song; CATALOG ←
 /// `YTMusic.getNextSongList` (radio); LIKED/HISTORY/QUICKPICKS TODO (returned
 /// by `signals()` as empty).
 import 'package:get_it/get_it.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/services/musicflow_ranking.dart';
-import 'package:Echo/services/playable.dart';
+import 'package:Echo/utils/playable.dart';
 import 'package:Echo/ytmusic/ytmusic.dart';
 
 class MusicFlowSignals {

@@ -1,4 +1,4 @@
-/// Port of Android `musicflow/MusicFlowCoordinator.kt` over `MediaPlayer`
+﻿/// Port of Android `musicflow/MusicFlowCoordinator.kt` over `MediaPlayer`
 /// (Android: `PlayerConnectionMusicFlowPlayer`). Desktop has no
 /// casting/Listen Together takeover signals yet, so `takeoverBlock()`
 /// always returns null.
@@ -100,22 +100,22 @@ class MusicFlowCoordinator {
     required bool playWhenReady,
     required bool autoNext,
   }) async {
-    if (requestId < _latestRequestId) return const MusicFlowPlaybackStatus.switching();
-    if (player.currentMediaId() == songId) return const MusicFlowPlaybackStatus.synced();
+    if (requestId < _latestRequestId) return MusicFlowPlaybackStatus.switching;
+    if (player.currentMediaId() == songId) return MusicFlowPlaybackStatus.synced;
     if (player.isAnyFlowQueueActive()) {
       final queueIndex = player.queueMediaIds().indexOf(songId);
       if (queueIndex >= 0) {
         await player.seekTo(queueIndex, playWhenReady);
-        return const MusicFlowPlaybackStatus.switching();
+        return MusicFlowPlaybackStatus.switching;
       }
     }
     final takeover = player.takeoverBlock();
     if (takeover != null) return MusicFlowPlaybackStatus.blocked(takeover);
     final index = player.indexOf(songId);
-    if (index < 0) return const MusicFlowPlaybackStatus.idle();
+    if (index < 0) return MusicFlowPlaybackStatus.idle;
     final items = player.items;
     await player.startQueue(items, index, playWhenReady, autoNext);
-    return const MusicFlowPlaybackStatus.switching();
+    return MusicFlowPlaybackStatus.switching;
   }
 
   void applyAutoNext(bool autoNext) => player.setPauseAtEnd(!autoNext);
