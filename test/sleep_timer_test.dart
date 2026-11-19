@@ -4,10 +4,8 @@ import 'package:Echo/services/sleep_timer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeTarget implements SleepTimerTarget {
-  _FakeTarget({this.volume = 1.0});
-
   @override
-  double volume;
+  double volume = 1.0;
 
   bool paused = false;
   final List<double> volumeTrace = [];

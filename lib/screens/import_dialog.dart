@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:Echo/services/import_service.dart';
-import 'package:Echo/themes/colors.dart';
 
 class ImportDialog extends StatefulWidget {
   final Stream<ImportState> stream;

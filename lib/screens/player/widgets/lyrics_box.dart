@@ -7,7 +7,6 @@ import 'package:Echo/services/lyrics.dart'; // Import the new service
 import 'package:Echo/services/media_player.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
-import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 

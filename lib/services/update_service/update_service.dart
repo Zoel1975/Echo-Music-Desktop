@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:Echo/services/update_service/models/update_info.dart';
 import 'package:Echo/services/update_service/widgets/update_checking.dart';

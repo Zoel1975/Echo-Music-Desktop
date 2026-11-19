@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:Echo/services/chart_model.dart';
 import 'package:Echo/services/charts_service.dart';
 import 'package:Echo/core/widgets/section_item.dart';
-import 'package:Echo/ytmusic/ytmusic.dart';
-import 'package:Echo/services/media_player.dart';
-import '../../services/bottom_message.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
 
 class ChartDetailsPage extends StatefulWidget {

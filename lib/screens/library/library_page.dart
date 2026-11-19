@@ -6,13 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/core/utils/service_locator.dart';
-import 'package:Echo/utils/extensions.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:Echo/utils/playlist_thumbnail.dart';
 
 import '../../../../generated/l10n.dart';
 import '../../../../services/library.dart';
-import '../../../../themes/colors.dart';
 import '../../../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../../../utils/bottom_modals.dart';
 import '../../../../themes/text_styles.dart';

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
@@ -6,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:Echo/screens/player/widgets/play_pause_buton.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -18,12 +16,8 @@ import 'package:palette_generator/palette_generator.dart';
 
 import 'widgets/animated_gradient_bg.dart';
 
-import '../../generated/l10n.dart';
-import '../../services/download_manager.dart';
 import '../../services/media_player.dart';
-import '../../themes/colors.dart';
 import '../../themes/dark.dart';
-import '../../themes/text_styles.dart';
 import '../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../utils/bottom_modals.dart';
 import '../../ytmusic/ytmusic.dart';

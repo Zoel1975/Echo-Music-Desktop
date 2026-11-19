@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:expressive_refresh/expressive_refresh.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +11,6 @@ import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../generated/l10n.dart';
 import '../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../themes/text_styles.dart';
 

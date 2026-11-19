@@ -5,12 +5,9 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/utils/adaptive_widgets/buttons.dart';
-import 'package:Echo/utils/adaptive_widgets/listtile.dart';
 import 'package:Echo/utils/adaptive_widgets/progress_ring.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui' as ui;
-import 'package:Echo/utils/bottom_modals.dart';
 
 class BottomPlayer extends StatefulWidget {
   const BottomPlayer({super.key});
