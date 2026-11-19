@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/services/update_service/update_service.dart';
+import 'package:Echo/services/cookie_store.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../generated/l10n.dart';
@@ -45,6 +46,22 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     if (Platform.isAndroid && batteryDisabled != true)
                       _BatteryWarningTile(),
+                    GroupTitle(title: "Account"),
+                    SettingTile(
+                      title: 'Google account',
+                      subtitle: () {
+                        final account = CookieStore.instance.account;
+                        final name = account['name']?.toString();
+                        final signedIn = name != null &&
+                            name.isNotEmpty &&
+                            CookieStore.instance.cookieHeader != null;
+                        return signedIn ? name : 'Not signed in — tap to sign in';
+                      }(),
+                      leading: const Icon(Icons.account_circle_outlined),
+                      isFirst: true,
+                      isLast: true,
+                      onTap: () => context.go('/account'),
+                    ),
                     GroupTitle(title: "General"),
 
                     SettingTile(
