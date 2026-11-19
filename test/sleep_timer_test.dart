@@ -102,13 +102,13 @@ void main() {
         fadeSteps: 2,
       );
 
-      timer.start(const Duration(milliseconds: 20));
-      timer.start(const Duration(milliseconds: 80));
+      timer.start(const Duration(milliseconds: 50));
+      timer.start(const Duration(milliseconds: 200));
 
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(target.paused, isFalse, reason: 'first timer must be cancelled');
 
-      await Future<void>.delayed(const Duration(milliseconds: 120));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
       expect(target.paused, isTrue);
     });
 

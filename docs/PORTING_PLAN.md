@@ -247,20 +247,34 @@ Each phase ends with a runnable Windows build and documented parity gain.
 
 | Phase | Scope | Exit criteria |
 |---|---|---|
-| **0 — Foundations** | Toolchain, `pub get`, dead-dep fix, package rename, feature-first skeleton, `docs/PORTING_PLAN.md`, CI script | `flutter analyze` clean, `flutter build windows` ok, app boots with home + player |
+| **0 — Foundations** | Toolchain, `pub get`, dead-dep fix, feature-first skeleton, `docs/PORTING_PLAN.md`, CI script | `flutter analyze` clean, `flutter build windows` ok, app boots with home + player |
 | **1 — Playback core** | Queue model (shuffle/repeat/reorder/skip-to), sleep timer, resume state, playback errors, mini-player parity | Queue ops covered by tests; app survives 30 min playback + restarts |
-| **2 — Shell & design system** | Echo tokens, glass chrome, floating tab bar, responsive rail, full player layouts, adaptive widgets | Side-by-side screenshots match Android within tolerance |
+| **2 — Shell & design system** *(starting)* | Echo tokens (radii/alpha/spacing from `DESIGN.md`), glass surface, floating tab bar, responsive rail, player layouts, adaptive widgets | Side-by-side screenshots match Android within tolerance |
 | **3 — Discovery & detail** | Explore, new releases, album, artist, online playlist, search suggestions | Every Android home/browse tile leads to a real screen |
-| **4 — Library & account** | Library sub-tabs, cookie login, account, playlist CRUD, sync of liked songs | Login persists; liked songs round-trip to YouTube Music |
+| **4 — Library & account** | Library sub-tabs, cookie login, account, playlist CRUD, liked-song sync | Login persists; liked songs round-trip |
 | **5 — Lyrics suite** | 7 providers + registry ordering, word-by-word, translations (DeepL/Mistral/OpenRouter/ApiRoute) | Provider fallback tested; translation cached |
-| **6 — Local & smart playback** | Local file scanning, local playlists, crossfade, SponsorBlock, Equalizer AXION + AutoEq | Local album plays; skip segments honoured |
+| **6 — Social & cloud** | Listen Together, Discord RPC, LastFM/ListenBrainz, Jellyfin/Navidrome, Wrapped/stats | Two desktop clients sync a queue |
 | **7 — Podcasts** | Podcast home, episode progress, video podcast | Podcast episode resumes across sessions |
-| **8 — Social & cloud** | Listen Together, Discord RPC, LastFM/ListenBrainz, Jellyfin/Navidrome, Wrapped/stats | Two desktop clients sync a queue |
+| **8 — Mobile-only leftovers** | Extensions (320 kbps/lossless), Echo Find, Echo Brain, updater parity | Documented: feature / dropped / replaced |
+
+(On **downloads**: see "Downloads: out of scope for now" below — this plan
+list treats local/download features as non-goals until re-opened.)
 | **9 — Mobile-only leftovers** | Extensions (320 kbps/lossless), Echo Find, Echo Brain, updater parity | Documented: feature / dropped / replaced |
 
 ---
 
-## 7. Risks
+### Downloads: out of scope for now
+
+You said "I don't care about music download", so the download engine
+(`playback/DownloadUtil.kt`, `ExoDownloadService`, `MediaDownloadManager`,
+`DownloadManager.kt`) is **deliberately dropped**. Local/audio-file playback
+(the desktop already has `AudioSource.file` support and the local HTTP relay)
+is reused, but nothing new is added in phases 6/9 for offline listening. This
+is listed in the risks below as a documented exclusion, not an accident.
+
+---
+
+## 9. Risks
 
 | Risk | Mitigation |
 |---|---|
@@ -309,5 +323,28 @@ Each phase ends with a runnable Windows build and documented parity gain.
   counter boilerplate test, which could never have passed.
 
 Next: queue persistence across restarts, richer playback error surfacing, then
-Phase 2 (design tokens + glass shell) with screenshot parity.
+Phase 3 (design tokens + glass shell — already started, see below) and beyond.
+
+### Phase 2 — started (shell & design system)
+
+- **Theme**: `ColorScheme.fromSeed(EchoTokens.seedColor)` — Android's `0xFFED5564`
+  seed replaces the old `Colors.black`/`Colors.red` defaults in `AppTheme`.
+- **`lib/core/theme/tokens.dart`**: Echo tokens from `DESIGN.md`/`GlassEffect.kt`
+  — radii (16/20/24/28/circle), `surfaceVariant @ 30%` translucent surfaces,
+  Apple glass values (0.4 opacity, 0.6 tint, 1.5 vibrancy), 48dp touch targets,
+  4dp spacing scale.
+- **`lib/core/widgets/echo_surface.dart`**: `EchoSurface` (glass surface: real
+  `BackdropFilter` + translucent tint; no `RenderEffect` equivalent on desktop)
+  and `EchoButton`.
+- **`lib/core/widgets/floating_nav.dart`**: `EchoFloatingNavBar` — the desktop
+  counterpart of Android's `FloatingTabBar` (glass capsule, 20dp radius,
+  centered, floating above the mini player, explicit `Positioned`).
+- **Shell** (`app_shell.dart`): wide layout now uses the floating glass tab bar
+  (Home / Search / Library / Settings); narrow layout keeps `NavigationBar`.
+- Tests: `test/tokens_test.dart` (7 invariants); suite total 13 passing.
+- Limitations: Apple's refraction/lens edge effects stay platform-gated; the
+  tint/vibrancy is approximated by the translucent surface on desktop.
+
+Next: run the debug build, then Phase 3 (Explore / new releases / album /
+artist / online playlist / search suggestions).
 

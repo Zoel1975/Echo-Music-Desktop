@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/theme/tokens.dart';
 import 'typography.dart';
 
 class AppTheme {
   static ThemeData light({Color? primary}) {
-    final colorScheme = ColorScheme.fromSeed(
-            seedColor: primary??Colors.red,
-            brightness: Brightness.light,
-          );
+    final colorScheme =
+        ColorScheme.fromSeed(seedColor: primary ?? EchoTokens.seedColor,
+            brightness: Brightness.light);
 
     return ThemeData.light(useMaterial3: true).copyWith(
       scaffoldBackgroundColor: Colors.transparent,
@@ -43,15 +43,9 @@ class AppTheme {
   }
 
   static ThemeData dark({Color? primary}) {
-    final colorScheme = ColorScheme.dark(
-      primary: Colors.white,
-      onPrimary: Colors.black,
-      secondary: Colors.white,
-      onSecondary: Colors.black,
-      surface: Colors.black,
-      onSurface: Colors.white,
-      error: Colors.red,
-      onError: Colors.white,
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: primary ?? EchoTokens.seedColor,
+      brightness: Brightness.dark,
     );
     return ThemeData.dark(useMaterial3: true).copyWith(
       scaffoldBackgroundColor: Colors.transparent,

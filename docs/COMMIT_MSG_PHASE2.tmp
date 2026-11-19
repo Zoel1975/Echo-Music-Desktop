@@ -1,0 +1,19 @@
+port: Echo design tokens, glass surface, floating tab bar (Phase 2)
+
+Shell & design foundation from Android DESIGN.md + GlassEffect.kt:
+
+- lib/core/theme/tokens.dart — radii (16/20/24/28/circle), surfaceVariant @
+  30% translucent surfaces, Apple glass values (0.4 opacity, 1.5 vibrancy),
+  48dp touch targets, 4dp spacing scale.
+- lib/core/widgets/echo_surface.dart — EchoSurface (real BackdropFilter +
+  translucent tint; no RenderEffect equivalent on desktop yet).
+- lib/core/widgets/floating_nav.dart — EchoFloatingNavBar, the desktop
+  counterpart of Android's FloatingTabBar (glass capsule, 20dp radius).
+- Theme: ColorScheme.fromSeed(EchoTokens.seedColor) — the Android 0xFFED5564
+  seed instead of the previous black/red defaults.
+- Shell (app_shell.dart): wide layout uses the floating glass tab bar
+  (Home/Search/Library/Settings) above the mini player; narrow keeps the
+  NavigationBar.
+- Tests: test/tokens_test.dart (7 invariants); suite total 13 passing.
+- Verified: flutter analyze 0 errors, flutter test 13 passed,
+  flutter build windows --debug → echo.exe, 15 s smoke run without exceptions.

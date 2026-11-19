@@ -117,12 +117,8 @@ class Echo extends StatelessWidget {
         supportedLocales: S.delegate.supportedLocales,
         debugShowCheckedModeBanner: false,
         themeMode: context.watch<SettingsManager>().themeMode,
-        theme: AppTheme.light(
-          primary: Colors.black,
-        ),
-        darkTheme: AppTheme.dark(
-          primary: Colors.white,
-        ),
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
       ),
     );
   }
