@@ -27,6 +27,15 @@ void main() {
     }
   });
 
+  test('YTM library is the DEFAULT route of the Saved tab; local is secondary', () {
+    final router = File('lib/utils/router.dart').readAsStringSync();
+    final savedBlock = router.substring(router.indexOf("path: '/saved'"));
+    final segment = savedBlock.substring(0, savedBlock.indexOf('routes: ['));
+    expect(segment, contains('const YtmLibraryPage()'),
+        reason: 'Saved tab should open the signed-in YT library by default');
+    expect(savedBlock, contains("path: 'local'"));
+  });
+
   test('Library page exposes the YTM library entry point', () {
     final lib = File('lib/screens/library/library_page.dart').readAsStringSync();
     expect(lib, contains("context.push('/ytm_library')"));

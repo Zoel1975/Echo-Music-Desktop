@@ -25,7 +25,7 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
-      ]);
+      ]) ?? {};
       outerContents = nav(contents, ['musicShelfRenderer']) ??
           nav(contents, ['itemSectionRenderer']);
     }
@@ -35,7 +35,7 @@ mixin LibraryMixin on YTClient {
     if (continuation != null) {
       continuation = getContinuationString(continuation);
     }
-    List contents = nav(outerContents, ['contents']);
+    List contents = nav(outerContents, ['contents']) ?? const [];
 
     return {
       'contents': handleContents(contents),
@@ -61,7 +61,7 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
-      ]);
+      ]) ?? {};
       outerContents = nav(contents, [
             'gridRenderer',
           ]) ??
@@ -75,7 +75,7 @@ mixin LibraryMixin on YTClient {
       continuation = getContinuationString(continuation);
     }
     List contents =
-        nav(outerContents, ['items']) ?? nav(outerContents, ['contents']);
+        nav(outerContents, ['items']) ?? nav(outerContents, ['contents']) ?? const [];
 
     return {
       'contents': handleContents(contents),
@@ -105,7 +105,7 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
-      ]);
+      ]) ?? {};
       outerContents = nav(contents, [
             'musicShelfRenderer',
           ]) ??
@@ -118,7 +118,7 @@ mixin LibraryMixin on YTClient {
     if (continuation != null) {
       continuation = getContinuationString(continuation);
     }
-    List contents = nav(outerContents, ['contents']);
+    List contents = nav(outerContents, ['contents']) ?? const [];
     return {
       'contents': handleContents(contents),
       'continuation': continuation,
@@ -145,7 +145,7 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
-      ]);
+      ]) ?? {};
       outerContents = nav(contents, ['gridRenderer']) ??
           nav(contents, [
             'itemSectionRenderer',
@@ -156,7 +156,7 @@ mixin LibraryMixin on YTClient {
     if (continuation != null) {
       continuation = getContinuationString(continuation);
     }
-    List contents = nav(outerContents, ['items']);
+    List contents = nav(outerContents, ['items']) ?? const [];
     if (continuationParams == null) {
       contents = contents.sublist(1);
     }
@@ -186,7 +186,7 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
-      ]);
+      ]) ?? {};
       outerContents = nav(contents, [
             'musicShelfRenderer',
           ]) ??
@@ -199,7 +199,7 @@ mixin LibraryMixin on YTClient {
     if (continuation != null) {
       continuation = getContinuationString(continuation);
     }
-    List contents = nav(outerContents, ['contents']);
+    List contents = nav(outerContents, ['contents']) ?? const [];
 
     return {
       'contents': handleContents(contents),
@@ -242,11 +242,11 @@ mixin LibraryMixin on YTClient {
       'content',
       'sectionListRenderer',
       'contents',
-    ]);
+    ]) ?? const [];
     List result = [];
     for (var content in allContents) {
-      List contents = nav(content, ['musicShelfRenderer', 'contents']);
-      Map header = nav(content, ['musicShelfRenderer']);
+      List contents = nav(content, ['musicShelfRenderer', 'contents']) ?? const [];
+      Map header = nav(content, ['musicShelfRenderer']) ?? {};
       Map section = {
         'title': nav(header, ['title', 'runs', 0, 'text']),
         'contents': handleContents(contents),

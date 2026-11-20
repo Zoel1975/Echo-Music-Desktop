@@ -210,8 +210,12 @@ List<StatefulShellBranch> branches = [
   StatefulShellBranch(routes: [
     GoRoute(
       path: '/saved',
-      builder: (context, state) => const LibraryPage(),
+      builder: (context, state) => const YtmLibraryPage(),
       routes: [
+        GoRoute(
+          path: 'local',
+          builder: (context, state) => const LibraryPage(),
+        ),
         GoRoute(
           path: 'favourites_page',
           builder: (context, state) => const FavouritesPage(),

@@ -107,6 +107,13 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('La tua libreria YouTube Music'),
+        actions: [
+          IconButton(
+            tooltip: 'Libreria locale (file sul dispositivo)',
+            icon: const Icon(Icons.folder_special_outlined),
+            onPressed: () => context.push('/saved/local'),
+          ),
+        ],
         bottom: TabBar(controller: _tabs, tabs: _labels.map((l) => Tab(text: l)).toList()),
       ),
       body: !signedIn
