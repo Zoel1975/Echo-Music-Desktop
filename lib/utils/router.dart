@@ -14,6 +14,8 @@ import 'package:Echo/screens/library/favourites/favourites_page.dart';
 import 'package:Echo/screens/library/history/history_page.dart';
 import 'package:Echo/screens/library/library_page.dart';
 import 'package:Echo/screens/library/playlist/playlist_details_page.dart';
+import 'package:Echo/screens/library/collections/library_collections_page.dart';
+import 'package:Echo/screens/library/collections/library_song_list_page.dart';
 import 'package:Echo/screens/player/player_page.dart';
 import 'package:Echo/screens/search/search_page.dart';
 import 'package:Echo/screens/settings/about/about_page.dart';
@@ -172,6 +174,21 @@ List<StatefulShellBranch> branches = [
         GoRoute(
           path: 'history_page',
           builder: (context, state) => const HistoryPage(),
+        ),
+        GoRoute(
+          path: 'library_songs',
+          builder: (context, state) =>
+              LibraryCollectionsPage(initialTab: (state.extra as int?) ?? 0),
+        ),
+        GoRoute(
+          path: 'library_song_list',
+          builder: (context, state) {
+            final args = state.extra as Map<String, dynamic>? ?? {};
+            return LibrarySongListPage(
+              songs: (args['songs'] as List?) ?? const [],
+              title: args['title'] as String?,
+            );
+          },
         ),
         GoRoute(
           path: 'playlist_details',

@@ -253,9 +253,15 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **3 — Discovery & detail** *(done — 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
 | **4 — Library & account** *(done — 8109e93)* | Cookie login via WebView2 (`lib/screens/login/login_page.dart` + `lib/services/cookie_store.dart` + `YTMusic.getAccountInfo()` port of `account/account_menu`); Account screen (`lib/screens/account/account_page.dart`); `YTClient` now merges the Cookie header into every request | WebView2 login flow validated via build + smoke run (actual Google login needs credentials + Edge + WebView2; not exercised) |
 | **5 — Lyrics suite** *(done — lyrics providers batch)* | LRCLIB (`lrcnet_api.dart`), Android registry ported to `lib/services/lyrics_registry.dart` + `LrcLibProvider`; tests | All 8 providers ported (lyrics_providers.dart + lyrics_providers_youtube.dart); TTML/word-timing; LyricsService fallback chain; translations (DeepL/Mistral/OpenRouter+ApiRoute + SSE streaming + caching) in lyrics_translation.dart; 50/50 tests; translation UI wired (lyrics_box.dart translate button + TranslationDialog + per-line translated display) |
-| **6 — Social & cloud** | PART — menu entries present; Discord/Last.fm/ListenBrainz/Jellyfin/Navidrome/Listen Together show a "Coming in a future update" placeholder (`ComingSoonPage`); no desktop protocol implementation |
+| **6 — Social & cloud** | PART — menu entries present; Discord/Last.fm/ListenBrainz/Jellyfin/Navidrome/Listen Together/Extensions/EchoBrain show a "Coming in a future update" placeholder (`ComingSoonPage`); no desktop protocol implementation |
 | **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
-| **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, app icon) show "Coming in a future update" placeholders; feasible items ported |
+| **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
+
+**Library collections (this session):** Android `LibrarySongsScreen`/`LibraryAlbumsScreen`/
+`LibraryArtistsScreen` → real `LibraryCollectionsPage` (Songs/Albums/Artists tabs over
+FAVOURITES + SONG_HISTORY) + `LibrarySongListPage` detail + pure
+`LibraryAggregation` helpers (unit-tested). Reachable from the Library page tiles
+`/saved/library_songs` with tab index 0/1/2.
 
 ### Settings parity (features ported as REAL, not placeholders)
 Mirrors Android `SettingsScreen.kt` 15 top-level entries:

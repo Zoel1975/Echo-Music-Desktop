@@ -176,6 +176,50 @@ class SettingsPage extends StatelessWidget {
                       isLast: true,
                     ),
 
+                    GroupTitle(title: "More from mobile"),
+                    _comingSoonTile(
+                      context,
+                      title: 'Podcasts',
+                      icon: Icons.podcasts,
+                      feature: 'Podcast home, episodes and subscriptions from '
+                          'the mobile app.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Music Flow (full)',
+                      icon: Icons.swipe,
+                      feature: 'Resso-style vertical swipe discovery feed with '
+                          'AI mixes.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Canvas & Ambient mode',
+                      icon: Icons.animation,
+                      feature: 'Animated album canvas and immersive ambient '
+                          'player mode.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Extensions & high-quality servers',
+                      icon: Icons.extension,
+                      feature: 'Third-party 320 kbps / lossless audio sources.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Song recognition & EchoBrain',
+                      icon: Icons.graphic_eq,
+                      feature: 'On-device song recognition (Echo Find) and AI '
+                          'playlists / recommendations.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'AXION / AutoEq equalizer',
+                      icon: Icons.equalizer,
+                      feature: 'Pro-grade acoustic tuning with AutoEq headphone '
+                          'profiles.',
+                      isLast: true,
+                    ),
+
                     GroupTitle(title: "Updates & About"),
                     SettingTile(
                       title: S.of(context).About,

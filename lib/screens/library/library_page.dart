@@ -115,6 +115,26 @@ class _LibraryBody extends StatelessWidget {
       'onTap': () => context.push('/saved/history_page'),
     });
 
+    // Android LibrarySongs/Albums/Artists screens — aggregate local songs.
+    gridItems.add({
+      'title': 'Songs',
+      'subtitle': 'All songs in your library',
+      'icon': Icons.music_note,
+      'onTap': () => context.push('/saved/library_songs', extra: 0),
+    });
+    gridItems.add({
+      'title': 'Albums',
+      'subtitle': 'Browse by album',
+      'icon': Icons.album,
+      'onTap': () => context.push('/saved/library_songs', extra: 1),
+    });
+    gridItems.add({
+      'title': 'Artists',
+      'subtitle': 'Browse by artist',
+      'icon': Icons.person,
+      'onTap': () => context.push('/saved/library_songs', extra: 2),
+    });
+
     // Playlists
     final sortedPlaylists = SplayTreeMap.from(playlists);
     for (var entry in sortedPlaylists.entries) {

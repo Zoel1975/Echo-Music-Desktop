@@ -70,6 +70,12 @@ void main() {
       'Last.fm / ListenBrainz',
       'Jellyfin / Navidrome',
       'Supported Links',
+      'Podcasts',
+      'Music Flow (full)',
+      'Canvas & Ambient mode',
+      'Extensions & high-quality servers',
+      'Song recognition & EchoBrain',
+      'AXION / AutoEq equalizer',
     ]) {
       expect(find.text(label), findsWidgets, reason: 'missing: $label');
     }
