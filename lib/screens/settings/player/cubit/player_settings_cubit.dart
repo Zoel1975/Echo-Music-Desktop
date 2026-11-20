@@ -33,6 +33,20 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
                 GetIt.I<SettingsManager>().remoteControlEnabled,
             audioDeviceId: GetIt.I<SettingsManager>().audioDeviceId,
             remoteControlUrl: GetIt.I<RemoteControlService>().url,
+            persistentQueue: GetIt.I<SettingsManager>().persistentQueue,
+            autoLoadMore: GetIt.I<SettingsManager>().autoLoadMore,
+            similarContent: GetIt.I<SettingsManager>().similarContent,
+            autoSkipOnError: GetIt.I<SettingsManager>().autoSkipOnError,
+            rememberShuffleRepeat:
+                GetIt.I<SettingsManager>().rememberShuffleRepeat,
+            preventDuplicates: GetIt.I<SettingsManager>().preventDuplicates,
+            autoDownloadOnLike: GetIt.I<SettingsManager>().autoDownloadOnLike,
+            progressiveSeek: GetIt.I<SettingsManager>().progressiveSeek,
+            crossfadeGapless: GetIt.I<SettingsManager>().crossfadeGapless,
+            historyDuration: GetIt.I<SettingsManager>().historyDuration,
+            loudnessPreset: GetIt.I<SettingsManager>().loudnessPreset,
+            preloadNext: GetIt.I<SettingsManager>().preloadNext,
+            preloadLimit: GetIt.I<SettingsManager>().preloadLimit,
           ),
         ) {
     _listener = () {
@@ -68,6 +82,19 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
         remoteControlEnabled: _settings.remoteControlEnabled,
         audioDeviceId: _settings.audioDeviceId,
         remoteControlUrl: _remote.url,
+        persistentQueue: _settings.persistentQueue,
+        autoLoadMore: _settings.autoLoadMore,
+        similarContent: _settings.similarContent,
+        autoSkipOnError: _settings.autoSkipOnError,
+        rememberShuffleRepeat: _settings.rememberShuffleRepeat,
+        preventDuplicates: _settings.preventDuplicates,
+        autoDownloadOnLike: _settings.autoDownloadOnLike,
+        progressiveSeek: _settings.progressiveSeek,
+        crossfadeGapless: _settings.crossfadeGapless,
+        historyDuration: _settings.historyDuration,
+        loudnessPreset: _settings.loudnessPreset,
+        preloadNext: _settings.preloadNext,
+        preloadLimit: _settings.preloadLimit,
       ),
     );
   }
@@ -123,6 +150,20 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
     _settings.audioDeviceId = id;
     _emitState();
   }
+
+  void setPersistentQueue(bool v) => _settings.persistentQueue = v;
+  void setAutoLoadMore(bool v) => _settings.autoLoadMore = v;
+  void setSimilarContent(bool v) => _settings.similarContent = v;
+  void setAutoSkipOnError(bool v) => _settings.autoSkipOnError = v;
+  void setRememberShuffleRepeat(bool v) => _settings.rememberShuffleRepeat = v;
+  void setPreventDuplicates(bool v) => _settings.preventDuplicates = v;
+  void setAutoDownloadOnLike(bool v) => _settings.autoDownloadOnLike = v;
+  void setProgressiveSeek(bool v) => _settings.progressiveSeek = v;
+  void setCrossfadeGapless(bool v) => _settings.crossfadeGapless = v;
+  void setHistoryDuration(double v) => _settings.historyDuration = v;
+  void setLoudnessPreset(String v) => _settings.loudnessPreset = v;
+  void setPreloadNext(bool v) => _settings.preloadNext = v;
+  void setPreloadLimit(double v) => _settings.preloadLimit = v;
 
   @override
   Future<void> close() {

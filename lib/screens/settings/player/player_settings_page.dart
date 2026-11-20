@@ -152,6 +152,112 @@ class PlayerSettingsPage extends StatelessWidget {
                       onTap: () => _showDevicePicker(context, s, cubit),
                     ),
 
+                    // -------------------------------------------------- Queue
+                    const GroupTitle(title: 'Queue'),
+                    SettingSwitchTile(
+                      title: 'Persistent queue',
+                      subtitle: 'Restore the last queue on app start',
+                      leading: const Icon(Icons.restore),
+                      isFirst: true,
+                      value: s.persistentQueue,
+                      onChanged: cubit.setPersistentQueue,
+                    ),
+                    SettingSwitchTile(
+                      title: 'Auto load more songs',
+                      subtitle: 'Add songs when the queue runs low',
+                      leading: const Icon(Icons.auto_awesome_motion),
+                      value: s.autoLoadMore,
+                      onChanged: cubit.setAutoLoadMore,
+                    ),
+                    SettingSwitchTile(
+                      title: 'Enable similar content',
+                      subtitle: 'Add similar songs at the end of the queue',
+                      leading: const Icon(Icons.recommend),
+                      value: s.similarContent,
+                      onChanged: cubit.setSimilarContent,
+                    ),
+                    SettingSwitchTile(
+                      title: 'Remember shuffle and repeat',
+                      leading: const Icon(Icons.repeat),
+                      value: s.rememberShuffleRepeat,
+                      onChanged: cubit.setRememberShuffleRepeat,
+                    ),
+                    SettingSwitchTile(
+                      title: 'Prevent duplicate tracks in queue',
+                      leading: const Icon(Icons.filter_alt_off),
+                      value: s.preventDuplicates,
+                      onChanged: cubit.setPreventDuplicates,
+                    ),
+                    SettingSwitchTile(
+                      title: 'Auto skip to next song on error',
+                      leading: const Icon(Icons.skip_next),
+                      isLast: true,
+                      value: s.autoSkipOnError,
+                      onChanged: cubit.setAutoSkipOnError,
+                    ),
+
+                    // -------------------------------------------------- Misc
+                    const GroupTitle(title: 'Misc'),
+                    SettingSwitchTile(
+                      title: 'Progressive seek',
+                      subtitle: 'Add 5 extra seconds on each seek',
+                      leading: const Icon(Icons.forward_5),
+                      isFirst: true,
+                      value: s.progressiveSeek,
+                      onChanged: cubit.setProgressiveSeek,
+                    ),
+                    SettingEmptyTile(
+                      leading: const Icon(Icons.history),
+                      child: ListTile(
+                        title: const Text('History duration (months)',
+                            style: TextStyle(fontSize: 16)),
+                        subtitle: Slider(
+                          value: s.historyDuration,
+                          min: 1,
+                          max: 100,
+                          divisions: 99,
+                          label: '${s.historyDuration.round()}',
+                          onChanged: cubit.setHistoryDuration,
+                        ),
+                      ),
+                    ),
+                    SettingTile(
+                      title: 'Loudness preset',
+                      subtitle: s.loudnessPreset,
+                      leading: const Icon(Icons.graphic_eq),
+                      trailing: DropdownButton<String>(
+                        value: s.loudnessPreset,
+                        underline: const SizedBox(),
+                        items: const ['Quiet', 'Normal', 'Loud', 'Aggressive']
+                            .map((p) =>
+                                DropdownMenuItem(value: p, child: Text(p)))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) cubit.setLoudnessPreset(v);
+                        },
+                      ),
+                    ),
+                    SettingSwitchTile(
+                      title: 'Preload next song',
+                      subtitle: 'Cache the next song for gapless playback',
+                      leading: const Icon(Icons.downloading),
+                      value: s.preloadNext,
+                      onChanged: cubit.setPreloadNext,
+                    ),
+                    SettingSwitchTile(
+                      title: "Disable crossfade for gapless albums",
+                      leading: const Icon(Icons.album),
+                      value: s.crossfadeGapless,
+                      onChanged: cubit.setCrossfadeGapless,
+                    ),
+                    SettingSwitchTile(
+                      title: 'Auto download on like',
+                      leading: const Icon(Icons.download_for_offline),
+                      isLast: true,
+                      value: s.autoDownloadOnLike,
+                      onChanged: cubit.setAutoDownloadOnLike,
+                    ),
+
                     // --------------------------------------------- Cast / LAN
                     const GroupTitle(title: 'Cast & remote control'),
                     SettingSwitchTile(

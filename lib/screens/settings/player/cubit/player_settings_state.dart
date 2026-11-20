@@ -20,6 +20,21 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
   final List<AudioDeviceEntry> audioDevices;
   final String? remoteControlUrl;
 
+  // Android PlayerSettings.kt — Queue / Misc settings.
+  final bool persistentQueue;
+  final bool autoLoadMore;
+  final bool similarContent;
+  final bool autoSkipOnError;
+  final bool rememberShuffleRepeat;
+  final bool preventDuplicates;
+  final bool autoDownloadOnLike;
+  final bool progressiveSeek;
+  final bool crossfadeGapless;
+  final double historyDuration;
+  final String loudnessPreset;
+  final bool preloadNext;
+  final double preloadLimit;
+
   const PlayerSettingsLoaded({
     required this.skipSilence,
     required this.showSeekButtons,
@@ -34,6 +49,19 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
     required this.audioDeviceId,
     this.audioDevices = const [],
     this.remoteControlUrl,
+    this.persistentQueue = true,
+    this.autoLoadMore = true,
+    this.similarContent = true,
+    this.autoSkipOnError = false,
+    this.rememberShuffleRepeat = true,
+    this.preventDuplicates = false,
+    this.autoDownloadOnLike = false,
+    this.progressiveSeek = false,
+    this.crossfadeGapless = true,
+    this.historyDuration = 1.0,
+    this.loudnessPreset = 'Normal',
+    this.preloadNext = true,
+    this.preloadLimit = 10.0,
   });
 
   PlayerSettingsLoaded copyWith({
@@ -50,6 +78,19 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
     String? audioDeviceId,
     List<AudioDeviceEntry>? audioDevices,
     String? remoteControlUrl,
+    bool? persistentQueue,
+    bool? autoLoadMore,
+    bool? similarContent,
+    bool? autoSkipOnError,
+    bool? rememberShuffleRepeat,
+    bool? preventDuplicates,
+    bool? autoDownloadOnLike,
+    bool? progressiveSeek,
+    bool? crossfadeGapless,
+    double? historyDuration,
+    String? loudnessPreset,
+    bool? preloadNext,
+    double? preloadLimit,
   }) {
     return PlayerSettingsLoaded(
       skipSilence: skipSilence ?? this.skipSilence,
@@ -65,6 +106,19 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
       audioDeviceId: audioDeviceId ?? this.audioDeviceId,
       audioDevices: audioDevices ?? this.audioDevices,
       remoteControlUrl: remoteControlUrl ?? this.remoteControlUrl,
+      persistentQueue: persistentQueue ?? this.persistentQueue,
+      autoLoadMore: autoLoadMore ?? this.autoLoadMore,
+      similarContent: similarContent ?? this.similarContent,
+      autoSkipOnError: autoSkipOnError ?? this.autoSkipOnError,
+      rememberShuffleRepeat: rememberShuffleRepeat ?? this.rememberShuffleRepeat,
+      preventDuplicates: preventDuplicates ?? this.preventDuplicates,
+      autoDownloadOnLike: autoDownloadOnLike ?? this.autoDownloadOnLike,
+      progressiveSeek: progressiveSeek ?? this.progressiveSeek,
+      crossfadeGapless: crossfadeGapless ?? this.crossfadeGapless,
+      historyDuration: historyDuration ?? this.historyDuration,
+      loudnessPreset: loudnessPreset ?? this.loudnessPreset,
+      preloadNext: preloadNext ?? this.preloadNext,
+      preloadLimit: preloadLimit ?? this.preloadLimit,
     );
   }
 }

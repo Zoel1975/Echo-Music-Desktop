@@ -33,6 +33,20 @@ void main() {
       expect(s.audioDevices.length, 2);
     });
 
+    test('Android Queue/Misc settings are carried with correct defaults', () {
+      final s = build();
+      expect(s.persistentQueue, isTrue);
+      expect(s.autoLoadMore, isTrue);
+      expect(s.similarContent, isTrue);
+      expect(s.rememberShuffleRepeat, isTrue);
+      expect(s.crossfadeGapless, isTrue);
+      expect(s.preloadNext, isTrue);
+      expect(s.autoSkipOnError, isFalse);
+      expect(s.preventDuplicates, isFalse);
+      expect(s.loudnessPreset, 'Normal');
+      expect(s.historyDuration, 1.0);
+    });
+
     test('copyWith updates each field independently', () {
       final s = build();
       expect(s.copyWith(dataSaver: true).dataSaver, isTrue);

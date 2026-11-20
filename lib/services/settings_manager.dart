@@ -42,6 +42,22 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool _castEnabled = true;
   bool _remoteControlEnabled = false;
 
+  // Android PlayerSettings.kt — Queue group (port of PreferenceKeys).
+  bool _persistentQueue = true;
+  bool _autoLoadMore = true;
+  bool _similarContent = true;
+  bool _autoSkipOnError = false;
+  bool _rememberShuffleRepeat = true;
+  bool _preventDuplicates = false;
+  bool _autoDownloadOnLike = false;
+  // Android PlayerSettings.kt — Player/Misc DSP settings.
+  bool _progressiveSeek = false;
+  bool _crossfadeGapless = true;
+  double _historyDuration = 1.0;
+  String _loudnessPreset = 'Normal';
+  bool _preloadNext = true;
+  double _preloadLimit = 10.0;
+
   ThemeMode get themeMode => _themeMode;
   List<ThemeMode> get themeModes => _themeModes;
   Map<String, String> get location => _location;
@@ -69,6 +85,20 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   String get audioDeviceId => _audioDeviceId;
   bool get castEnabled => _castEnabled;
   bool get remoteControlEnabled => _remoteControlEnabled;
+
+  bool get persistentQueue => _persistentQueue;
+  bool get autoLoadMore => _autoLoadMore;
+  bool get similarContent => _similarContent;
+  bool get autoSkipOnError => _autoSkipOnError;
+  bool get rememberShuffleRepeat => _rememberShuffleRepeat;
+  bool get preventDuplicates => _preventDuplicates;
+  bool get autoDownloadOnLike => _autoDownloadOnLike;
+  bool get progressiveSeek => _progressiveSeek;
+  bool get crossfadeGapless => _crossfadeGapless;
+  double get historyDuration => _historyDuration;
+  String get loudnessPreset => _loudnessPreset;
+  bool get preloadNext => _preloadNext;
+  double get preloadLimit => _preloadLimit;
 
   Map get settings => _box.toMap();
   SettingsManager() {
@@ -108,6 +138,24 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _castEnabled = _box.get('CAST_ENABLED', defaultValue: true);
     _remoteControlEnabled =
         _box.get('REMOTE_CONTROL_ENABLED', defaultValue: false);
+
+    _persistentQueue = _box.get('PERSISTENT_QUEUE', defaultValue: true);
+    _autoLoadMore = _box.get('AUTO_LOAD_MORE', defaultValue: true);
+    _similarContent = _box.get('SIMILAR_CONTENT', defaultValue: true);
+    _autoSkipOnError = _box.get('AUTO_SKIP_ON_ERROR', defaultValue: false);
+    _rememberShuffleRepeat =
+        _box.get('REMEMBER_SHUFFLE_REPEAT', defaultValue: true);
+    _preventDuplicates = _box.get('PREVENT_DUPLICATES', defaultValue: false);
+    _autoDownloadOnLike =
+        _box.get('AUTO_DOWNLOAD_ON_LIKE', defaultValue: false);
+    _progressiveSeek = _box.get('PROGRESSIVE_SEEK', defaultValue: false);
+    _crossfadeGapless = _box.get('CROSSFADE_GAPLESS', defaultValue: true);
+    _historyDuration =
+        (_box.get('HISTORY_DURATION', defaultValue: 1.0) as num).toDouble();
+    _loudnessPreset = _box.get('LOUDNESS_PRESET', defaultValue: 'Normal');
+    _preloadNext = _box.get('PRELOAD_NEXT', defaultValue: true);
+    _preloadLimit =
+        (_box.get('PRELOAD_LIMIT', defaultValue: 10.0) as num).toDouble();
   }
 
   // -------------------------------------------------- lyrics translation --
@@ -295,6 +343,84 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   set remoteControlEnabled(bool value) {
     _box.put('REMOTE_CONTROL_ENABLED', value);
     _remoteControlEnabled = value;
+    notifyListeners();
+  }
+
+  set persistentQueue(bool v) {
+    _box.put('PERSISTENT_QUEUE', v);
+    _persistentQueue = v;
+    notifyListeners();
+  }
+
+  set autoLoadMore(bool v) {
+    _box.put('AUTO_LOAD_MORE', v);
+    _autoLoadMore = v;
+    notifyListeners();
+  }
+
+  set similarContent(bool v) {
+    _box.put('SIMILAR_CONTENT', v);
+    _similarContent = v;
+    notifyListeners();
+  }
+
+  set autoSkipOnError(bool v) {
+    _box.put('AUTO_SKIP_ON_ERROR', v);
+    _autoSkipOnError = v;
+    notifyListeners();
+  }
+
+  set rememberShuffleRepeat(bool v) {
+    _box.put('REMEMBER_SHUFFLE_REPEAT', v);
+    _rememberShuffleRepeat = v;
+    notifyListeners();
+  }
+
+  set preventDuplicates(bool v) {
+    _box.put('PREVENT_DUPLICATES', v);
+    _preventDuplicates = v;
+    notifyListeners();
+  }
+
+  set autoDownloadOnLike(bool v) {
+    _box.put('AUTO_DOWNLOAD_ON_LIKE', v);
+    _autoDownloadOnLike = v;
+    notifyListeners();
+  }
+
+  set progressiveSeek(bool v) {
+    _box.put('PROGRESSIVE_SEEK', v);
+    _progressiveSeek = v;
+    notifyListeners();
+  }
+
+  set crossfadeGapless(bool v) {
+    _box.put('CROSSFADE_GAPLESS', v);
+    _crossfadeGapless = v;
+    notifyListeners();
+  }
+
+  set historyDuration(double v) {
+    _box.put('HISTORY_DURATION', v);
+    _historyDuration = v;
+    notifyListeners();
+  }
+
+  set loudnessPreset(String v) {
+    _box.put('LOUDNESS_PRESET', v);
+    _loudnessPreset = v;
+    notifyListeners();
+  }
+
+  set preloadNext(bool v) {
+    _box.put('PRELOAD_NEXT', v);
+    _preloadNext = v;
+    notifyListeners();
+  }
+
+  set preloadLimit(double v) {
+    _box.put('PRELOAD_LIMIT', v);
+    _preloadLimit = v;
     notifyListeners();
   }
 
