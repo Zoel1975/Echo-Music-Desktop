@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Echo/services/queue_filter.dart';
 import 'package:Echo/services/player_layout.dart';
+import 'package:Echo/services/extension_quality.dart';
 import 'package:Echo/screens/settings/services/spotify/spotify_import_page.dart';
 
 void main() {
@@ -62,6 +63,39 @@ void main() {
       expect(PlayerLayoutResolver.resolve(400), PlayerLayout.compact);
       expect(PlayerLayoutResolver.resolve(600), PlayerLayout.narrow);
       expect(PlayerLayoutResolver.resolve(1200), PlayerLayout.wide);
+    });
+  });
+
+  group('ExtensionQuality (ExtensionManager 320 kbps toggle)', () {
+    test('high quality toggle forces high bitrate', () {
+      expect(
+        ExtensionQuality.resolve(
+          dataSaver: false,
+          highQuality: true,
+          configured: 'low',
+        ),
+        'high',
+      );
+    });
+    test('data saver still wins over high quality', () {
+      expect(
+        ExtensionQuality.resolve(
+          dataSaver: true,
+          highQuality: true,
+          configured: 'high',
+        ),
+        'low',
+      );
+    });
+    test('configured quality used when toggle off', () {
+      expect(
+        ExtensionQuality.resolve(
+          dataSaver: false,
+          highQuality: false,
+          configured: 'low',
+        ),
+        'low',
+      );
     });
   });
 

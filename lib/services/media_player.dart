@@ -13,6 +13,7 @@ import 'package:Echo/services/listen_together_service.dart';
 import 'package:Echo/services/queue_crossfade.dart';
 import 'package:Echo/services/sponsor_block_service.dart';
 import 'package:Echo/services/stream_resolver.dart';
+import 'package:Echo/services/extension_quality.dart';
 import 'package:Echo/services/yt_audio_stream.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -528,9 +529,12 @@ class MediaPlayer extends ChangeNotifier {
       // Data Saver forces the low-bitrate stream (Android's Wi-Fi/Cellular
       // quality ceiling, adapted for desktop).
       final settings = GetIt.I<SettingsManager>();
-      final quality = settings.dataSaver
-          ? 'low'
-          : settings.streamingQuality.name.toLowerCase();
+      final quality = ExtensionQuality.resolve(
+        dataSaver: settings.dataSaver,
+        // Android ExtensionManager "high quality (320 kbps)" toggle.
+        highQuality: settings.extra<bool>('highQuality', false),
+        configured: settings.streamingQuality.name.toLowerCase(),
+      );
       // Use direct URL approach for macOS for better compatibility with AVFoundation
       if (Platform.isMacOS) {
         return await getDirectUrlAudioSource(song['videoId'], quality, tag);
