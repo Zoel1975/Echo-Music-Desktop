@@ -257,6 +257,15 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
 | **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
 
+**Appearance parity (this session):** Android `AppearanceSettings.kt` groups
+ported to real persisted toggles/dropdowns in `AppearancePage`: Theme (mode,
+accent, AMOLED, dynamic), Mini-player (background style), Player (background
+style, hide thumbnail), Lyrics (text position/size, auto-scroll), Misc (default
+open tab), Auto playlists (Liked/Downloaded/Top/Bottom/Cached visibility).
+Android-only screens (App Icon, Font, Liquid Glass, Haptics, high refresh rate)
+show explicit "Coming in a future update" placeholders. Regression guard:
+`test/appearance_parity_test.dart`.
+
 **Library collections (this session):** Android `LibrarySongsScreen`/`LibraryAlbumsScreen`/
 `LibraryArtistsScreen` → real `LibraryCollectionsPage` (Songs/Albums/Artists tabs over
 FAVOURITES + SONG_HISTORY) + `LibrarySongListPage` detail + pure

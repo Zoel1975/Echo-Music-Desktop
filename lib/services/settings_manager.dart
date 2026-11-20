@@ -68,6 +68,20 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   String _contentLanguage = 'en';
   String _contentCountry = 'US';
 
+  // Android AppearanceSettings.kt — feasible desktop equivalents.
+  String _miniPlayerStyle = 'Glass';
+  String _playerBackgroundStyle = 'Gradient';
+  String _lyricsTextPosition = 'Center';
+  double _lyricsTextSize = 18.0;
+  bool _lyricsAutoScroll = true;
+  bool _hidePlayerThumbnail = false;
+  int _defaultTab = 0;
+  bool _showLikedPlaylist = true;
+  bool _showDownloadedPlaylist = true;
+  bool _showTopPlaylist = true;
+  bool _showBottomPlaylist = false;
+  bool _showCachedPlaylist = false;
+
   ThemeMode get themeMode => _themeMode;
   List<ThemeMode> get themeModes => _themeModes;
   Map<String, String> get location => _location;
@@ -118,6 +132,19 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool get romanizeAsMain => _romanizeAsMain;
   String get contentLanguage => _contentLanguage;
   String get contentCountry => _contentCountry;
+
+  String get miniPlayerStyle => _miniPlayerStyle;
+  String get playerBackgroundStyle => _playerBackgroundStyle;
+  String get lyricsTextPosition => _lyricsTextPosition;
+  double get lyricsTextSize => _lyricsTextSize;
+  bool get lyricsAutoScroll => _lyricsAutoScroll;
+  bool get hidePlayerThumbnail => _hidePlayerThumbnail;
+  int get defaultTab => _defaultTab;
+  bool get showLikedPlaylist => _showLikedPlaylist;
+  bool get showDownloadedPlaylist => _showDownloadedPlaylist;
+  bool get showTopPlaylist => _showTopPlaylist;
+  bool get showBottomPlaylist => _showBottomPlaylist;
+  bool get showCachedPlaylist => _showCachedPlaylist;
 
   Map get settings => _box.toMap();
   SettingsManager() {
@@ -184,6 +211,24 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _romanizeAsMain = _box.get('ROMANIZE_AS_MAIN', defaultValue: false);
     _contentLanguage = _box.get('CONTENT_LANGUAGE', defaultValue: 'en');
     _contentCountry = _box.get('CONTENT_COUNTRY', defaultValue: 'US');
+
+    _miniPlayerStyle = _box.get('MINI_PLAYER_STYLE', defaultValue: 'Glass');
+    _playerBackgroundStyle =
+        _box.get('PLAYER_BG_STYLE', defaultValue: 'Gradient');
+    _lyricsTextPosition =
+        _box.get('LYRICS_TEXT_POSITION', defaultValue: 'Center');
+    _lyricsTextSize =
+        (_box.get('LYRICS_TEXT_SIZE', defaultValue: 18.0) as num).toDouble();
+    _lyricsAutoScroll = _box.get('LYRICS_AUTO_SCROLL', defaultValue: true);
+    _hidePlayerThumbnail =
+        _box.get('HIDE_PLAYER_THUMBNAIL', defaultValue: false);
+    _defaultTab = _box.get('DEFAULT_TAB', defaultValue: 0);
+    _showLikedPlaylist = _box.get('SHOW_LIKED_PLAYLIST', defaultValue: true);
+    _showDownloadedPlaylist =
+        _box.get('SHOW_DOWNLOADED_PLAYLIST', defaultValue: true);
+    _showTopPlaylist = _box.get('SHOW_TOP_PLAYLIST', defaultValue: true);
+    _showBottomPlaylist = _box.get('SHOW_BOTTOM_PLAYLIST', defaultValue: false);
+    _showCachedPlaylist = _box.get('SHOW_CACHED_PLAYLIST', defaultValue: false);
   }
 
   // -------------------------------------------------- lyrics translation --
@@ -497,6 +542,78 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   set contentCountry(String v) {
     _box.put('CONTENT_COUNTRY', v);
     _contentCountry = v;
+    notifyListeners();
+  }
+
+  set miniPlayerStyle(String v) {
+    _box.put('MINI_PLAYER_STYLE', v);
+    _miniPlayerStyle = v;
+    notifyListeners();
+  }
+
+  set playerBackgroundStyle(String v) {
+    _box.put('PLAYER_BG_STYLE', v);
+    _playerBackgroundStyle = v;
+    notifyListeners();
+  }
+
+  set lyricsTextPosition(String v) {
+    _box.put('LYRICS_TEXT_POSITION', v);
+    _lyricsTextPosition = v;
+    notifyListeners();
+  }
+
+  set lyricsTextSize(double v) {
+    _box.put('LYRICS_TEXT_SIZE', v);
+    _lyricsTextSize = v;
+    notifyListeners();
+  }
+
+  set lyricsAutoScroll(bool v) {
+    _box.put('LYRICS_AUTO_SCROLL', v);
+    _lyricsAutoScroll = v;
+    notifyListeners();
+  }
+
+  set hidePlayerThumbnail(bool v) {
+    _box.put('HIDE_PLAYER_THUMBNAIL', v);
+    _hidePlayerThumbnail = v;
+    notifyListeners();
+  }
+
+  set defaultTab(int v) {
+    _box.put('DEFAULT_TAB', v);
+    _defaultTab = v;
+    notifyListeners();
+  }
+
+  set showLikedPlaylist(bool v) {
+    _box.put('SHOW_LIKED_PLAYLIST', v);
+    _showLikedPlaylist = v;
+    notifyListeners();
+  }
+
+  set showDownloadedPlaylist(bool v) {
+    _box.put('SHOW_DOWNLOADED_PLAYLIST', v);
+    _showDownloadedPlaylist = v;
+    notifyListeners();
+  }
+
+  set showTopPlaylist(bool v) {
+    _box.put('SHOW_TOP_PLAYLIST', v);
+    _showTopPlaylist = v;
+    notifyListeners();
+  }
+
+  set showBottomPlaylist(bool v) {
+    _box.put('SHOW_BOTTOM_PLAYLIST', v);
+    _showBottomPlaylist = v;
+    notifyListeners();
+  }
+
+  set showCachedPlaylist(bool v) {
+    _box.put('SHOW_CACHED_PLAYLIST', v);
+    _showCachedPlaylist = v;
     notifyListeners();
   }
 
