@@ -89,7 +89,11 @@ void main() async {
   GetIt.I.registerSingleton<AudioDeviceService>(AudioDeviceService());
   final remoteControl = RemoteControlService();
   GetIt.I.registerSingleton<RemoteControlService>(remoteControl);
-  if (settingsManager.remoteControlEnabled) unawaited(remoteControl.start());
+  // Cast and LAN-remote both expose the real playback endpoint; restore either
+  // persisted toggle at startup so the feature survives a restart.
+  if (settingsManager.castEnabled || settingsManager.remoteControlEnabled) {
+    unawaited(remoteControl.start());
+  }
 
   // Start Local Audio Server
   final String audioStreamUrl = await createAudioStreamServer();

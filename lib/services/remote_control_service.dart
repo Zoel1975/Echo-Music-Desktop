@@ -12,12 +12,17 @@ import 'settings_manager.dart';
 /// open the URL in a browser to see the current track and control playback.
 class RemoteControlService {
   HttpServer? _server;
+  RawDatagramSocket? _discovery;
   String? _url;
 
   String? get url => _url;
   bool get isRunning => _server != null;
 
   static const int port = 8899;
+  static const int discoveryPort = 8898;
+  /// Probe string a controller broadcasts to find Echo on the LAN.
+  static const String discoveryProbe = 'ECHO_MUSIC_DISCOVER';
+  static const String deviceName = 'Echo Music (Desktop)';
 
   Future<void> start() async {
     if (_server != null) return;
@@ -30,8 +35,39 @@ class RemoteControlService {
           : server.address.address;
       _url = 'http://$host:$port';
       debugPrint('[remote] control server at $_url');
+      await _startDiscovery(host);
     } catch (e) {
       debugPrint('[remote] failed to start: $e');
+    }
+  }
+
+  /// UDP discovery responder: any controller sending [discoveryProbe] to the
+  /// discovery port receives back the device name and its control URL, so it
+  /// can be found on the LAN without manual entry (Cast-style discovery).
+  Future<void> _startDiscovery(String host) async {
+    try {
+      final socket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        discoveryPort,
+        reuseAddress: true,
+      );
+      _discovery = socket;
+      socket.listen((event) {
+        if (event != RawSocketEvent.read) return;
+        final datagram = socket.receive();
+        if (datagram == null) return;
+        final probe = utf8.decode(datagram.data, allowMalformed: true);
+        if (!probe.contains(discoveryProbe)) return;
+        final reply = utf8.encode(jsonEncode({
+          'device': deviceName,
+          'url': _url,
+          'port': port,
+        }));
+        socket.send(reply, datagram.address, datagram.port);
+      });
+      debugPrint('[remote] discovery listening on :$discoveryPort');
+    } catch (e) {
+      debugPrint('[remote] discovery failed: $e');
     }
   }
 
@@ -51,6 +87,8 @@ class RemoteControlService {
   }
 
   Future<void> stop() async {
+    _discovery?.close();
+    _discovery = null;
     await _server?.close(force: true);
     _server = null;
     _url = null;
@@ -59,6 +97,7 @@ class RemoteControlService {
   void _handle(HttpRequest request) {
     final path = request.uri.path;
     final player = GetIt.I<MediaPlayer>();
+    final q = request.uri.queryParameters;
     switch (path) {
       case '/play':
         player.player.play();
@@ -68,24 +107,43 @@ class RemoteControlService {
         player.player.seekToNext();
       case '/previous':
         player.player.seekToPrevious();
+      case '/volume':
+        final v = double.tryParse(q['value'] ?? '');
+        if (v != null) player.player.setVolume(v.clamp(0.0, 1.0));
+      case '/seek':
+        final s = int.tryParse(q['to'] ?? '');
+        if (s != null) player.player.seek(Duration(milliseconds: s));
       case '/status':
+      case '/device':
+      case '/':
         break;
       default:
         break;
     }
     final track = player.currentSongNotifier.value;
     final playing = player.buttonState.value.name;
-    final body = path == '/status'
-        ? jsonEncode({
-            'title': track?.title ?? '',
-            'artist': track?.artist ?? '',
-            'playing': playing,
-            'url': GetIt.I<SettingsManager>().remoteControlEnabled ? _url : null,
-          })
+    final isJson = path == '/status' || path == '/device';
+    final body = isJson
+        ? jsonEncode(path == '/device'
+            ? {
+                'device': deviceName,
+                'url': _url,
+                'port': port,
+                'discoveryPort': discoveryPort,
+                'discoveryProbe': discoveryProbe,
+              }
+            : {
+                'title': track?.title ?? '',
+                'artist': track?.artist ?? '',
+                'playing': playing,
+                'positionMs': player.player.position.inMilliseconds,
+                'volume': player.player.volume,
+                'url': _url,
+              })
         : _page(track?.title ?? 'Nothing playing', track?.artist ?? '', playing);
     request.response
       ..statusCode = HttpStatus.ok
-      ..headers.contentType = path == '/status'
+      ..headers.contentType = isJson
           ? ContentType('application', 'json')
           : ContentType('text', 'html', charset: 'utf-8')
       ..write(body);

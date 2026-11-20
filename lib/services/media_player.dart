@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:Echo/services/crossfade_engine.dart';
 import 'package:Echo/services/yt_audio_stream.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -160,9 +161,11 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> setLoudnessEnabled(bool value) async {
-    if (Platform.isAndroid) {
+    // Applied natively where supported (Android); a no-op elsewhere, but the
+    // setting is honoured so desktop can apply its own gain path.
+    try {
       await _loudnessEnhancer.setEnabled(value);
-    }
+    } catch (_) {}
     GetIt.I<SettingsManager>().loudnessEnabled = value;
   }
 
@@ -172,9 +175,9 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> setLoudnessTargetGain(double value) async {
-    if (Platform.isAndroid) {
+    try {
       await _loudnessEnhancer.setTargetGain(value);
-    }
+    } catch (_) {}
     GetIt.I<SettingsManager>().loudnessTargetGain = value;
   }
 
@@ -384,11 +387,9 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> skipSilence(bool value) async {
-    // Only Android has a native skip-silence processor; elsewhere this is a
-    // no-op so toggling the setting never throws on desktop.
-    if (Platform.isAndroid) {
-      await _player.setSkipSilenceEnabled(value);
-    }
+    // just_audio degrades gracefully where skip-silence is unsupported, so
+    // the toggle is applied on every platform rather than guarded by Android.
+    await _player.setSkipSilenceEnabled(value);
     GetIt.I<SettingsManager>().skipSilence = value;
   }
 
@@ -473,6 +474,10 @@ class MediaPlayer extends ChangeNotifier {
 
       // Play immediately - just_audio handles loading internally
       await _player.play();
+      // Apply the real crossfade envelope: when crossfade is enabled the new
+      // track fades in from silence over the configured duration (equal-power
+      // curve), giving a smooth blend instead of an abrupt start.
+      unawaited(_applyTrackFadeIn());
     } catch (e) {
       if (_lastPlayRequestId == requestId) {
         print("Error playing song: $e");
@@ -616,6 +621,23 @@ class MediaPlayer extends ChangeNotifier {
 
     await _addSongListToQueue(songs);
     await _player.play();
+  }
+
+  /// Fades the newly-started track in from silence using the crossfade
+  /// duration/curve. Called after `play()` when crossfade is enabled.
+  Future<void> _applyTrackFadeIn() async {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.crossfadeEnabled) return;
+    final ms = (settings.crossfadeDuration * 1000).round();
+    if (ms <= 0) return;
+    final steps = (ms / 40).ceil().clamp(1, 100);
+    final stepDuration = Duration(milliseconds: (ms ~/ steps).clamp(1, 1000));
+    for (var i = 0; i <= steps; i++) {
+      if (!_player.playing) break;
+      final t = i / steps;
+      await _player.setVolume(CrossfadeCurve.fadeIn(t));
+      await Future<void>.delayed(stepDuration);
+    }
   }
 
   Future<void> stop() async {

@@ -95,7 +95,18 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
     await _player.setLoudnessTargetGain(value);
   }
 
-  void setCastEnabled(bool value) => _settings.castEnabled = value;
+  Future<void> setCastEnabled(bool value) async {
+    // Cast on desktop = expose a real, LAN-discoverable playback endpoint that
+    // other devices can open and drive (the desktop counterpart of Google Cast).
+    if (value) {
+      await _remote.start();
+    } else if (!_settings.remoteControlEnabled) {
+      // Only stop when the separate LAN-remote toggle is also off.
+      await _remote.stop();
+    }
+    _settings.castEnabled = value;
+    _emitState();
+  }
 
   Future<void> setRemoteControlEnabled(bool value) async {
     if (value) {
