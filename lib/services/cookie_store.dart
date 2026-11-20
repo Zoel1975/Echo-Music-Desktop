@@ -73,8 +73,15 @@ class CookieStore {
   }
 
   /// Account info saved by the login flow.
-  Map<String, dynamic> get account =>
-      Map<String, dynamic>.from(_accountBox.toMap());
+  ///
+  /// [saveAccount] persists the map under the `info` key, so unwrap it here:
+  /// callers use `account['name']`, `account['email']`, etc. directly. Falls
+  /// back to the raw box for older installs that stored fields flat.
+  Map<String, dynamic> get account {
+    final saved = _accountBox.get('info');
+    if (saved is Map) return Map<String, dynamic>.from(saved);
+    return Map<String, dynamic>.from(_accountBox.toMap());
+  }
 
   /// Persists the account info (name, email, channel handle, avatar).
   Future<void> saveAccount(Map<String, dynamic> account) {
