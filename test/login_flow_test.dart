@@ -1,9 +1,6 @@
-import 'dart:math';
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Echo/services/google_login_service.dart';
-import 'package:Echo/services/device_link_service.dart';
 
 void main() {
   group('Google login cookie filtering', () {
@@ -64,37 +61,6 @@ void main() {
     });
   });
 
-  group('DeviceLinkService (mobile <-> desktop pairing)', () {
-    test('generates a 6-digit code', () {
-      final code = DeviceLinkService.generateCode(Random(1));
-      expect(code.length, 6);
-      expect(code, matches(RegExp(r'^\d{6}$')));
-    });
-
-    test('pair request validates the code and required fields', () {
-      final ok = DeviceLinkService.parsePairRequest(
-        {
-          'code': '123456',
-          'deviceName': 'Pixel',
-          'cookieHeader': 'SAPISID=abc;',
-        },
-        '123456',
-      );
-      expect(ok.ok, isTrue);
-      expect(ok.deviceName, 'Pixel');
-      expect(ok.cookieHeader, 'SAPISID=abc;');
-
-      final wrong = DeviceLinkService.parsePairRequest(
-        {'code': '000000', 'deviceName': 'Pixel', 'cookieHeader': 'x=y'},
-        '123456',
-      );
-      expect(wrong.ok, isFalse);
-
-      final missing = DeviceLinkService.parsePairRequest(
-        {'code': '123456', 'deviceName': 'Pixel'},
-        '123456',
-      );
-      expect(missing.ok, isFalse);
-    });
-  });
+  // Linking moved to the YouTube-Music playback-state mechanism (see
+  // device_link_announcement_test.dart); the old 6-digit code flow is gone.
 }

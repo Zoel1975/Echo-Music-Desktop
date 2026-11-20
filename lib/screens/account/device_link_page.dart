@@ -1,14 +1,15 @@
-import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../services/device_link_service.dart';
+import '../../services/device_link_announcement.dart';
+import '../../services/remote_control_service.dart';
 
-/// Desktop counterpart of YouTube Music's "link a device" flow. Shows a short
-/// pairing code and the LAN address the mobile app connects to. When the mobile
-/// app posts the code together with its cookies, the session is shared.
+/// Device-link page ("tramite YouTube Music nello stato di riproduzione"):
+/// lists the devices linked to this desktop — peers that broadcast an
+/// announce with the same YouTube/Google account fingerprint. Live, so
+/// phones/other desktop instances appear as they connect.
 class DeviceLinkPage extends StatefulWidget {
   const DeviceLinkPage({super.key});
 
@@ -17,145 +18,60 @@ class DeviceLinkPage extends StatefulWidget {
 }
 
 class _DeviceLinkPageState extends State<DeviceLinkPage> {
-  final _service = GetIt.I<DeviceLinkService>();
-  String _code = '';
-  String _address = '...';
-  bool _started = false;
+  final _rc = GetIt.I<RemoteControlService>();
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _start();
-  }
-
-  Future<void> _start() async {
-    final code = await _service.start();
-    if (!mounted) return;
-    // Show the pairing code immediately; the LAN address loads separately.
-    setState(() {
-      _code = code;
-      _started = _service.isListening;
-    });
-    final ip = await _localIp();
-    if (mounted) {
-      setState(() => _address = 'http://$ip:${DeviceLinkService.port}');
-    }
-  }
-
-  Future<String> _localIp() async {
-    try {
-      final interfaces = await NetworkInterface.list(
-        includeLoopback: false,
-        type: InternetAddressType.IPv4,
-      );
-      for (final i in interfaces) {
-        for (final a in i.addresses) {
-          if (!a.isLoopback) return a.address;
-        }
-      }
-    } catch (_) {}
-    return '127.0.0.1';
-  }
-
-  void _copy(String value) {
-    Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copiato negli appunti')),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Collega dispositivo mobile')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              const Text(
-                'Collega il telefono a Echo Desktop',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'In Echo mobile apri Impostazioni → Account → Collega dispositivo, '
-                'scegli la rete locale e inserisci il codice qui sotto. Le credenziali '
-                'verranno condivise in Automatico, come YouTube Music.',
-              ),
-              const SizedBox(height: 32),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      const Text('Codice di accoppiamento',
-                          style: TextStyle(fontSize: 14)),
-                      const SizedBox(height: 8),
-                      Text(
-                        _started ? _code : '...',
-                        style: const TextStyle(
-                          fontSize: 44,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 8,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: _started ? () => _copy(_code) : null,
-                        icon: const Icon(Icons.copy),
-                        label: const Text('Copia codice'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.wifi),
-                title: const Text('Indirizzo di rete locale'),
-                subtitle: Text(_address),
-                trailing: IconButton(
-                  icon: const Icon(Icons.copy),
-                  onPressed: () => _copy(_address),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(
-                    _started ? Icons.check_circle : Icons.error,
-                    color: _started ? Colors.green : Colors.red,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(_started
-                      ? 'In ascolto di connessioni sulla rete locale'
-                      : 'Server non avviato (porta occupata?)'),
-                ],
-              ),
-              const SizedBox(height: 32),
-              if (_service.devices.isNotEmpty) ...[
-                const Text('Dispositivi collegati',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                ..._service.devices.map(
-                  (d) => ListTile(
-                    leading: const Icon(Icons.smartphone),
-                    title: Text(d.name),
-                    subtitle: Text('ID: ${d.id}'),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
   }
 
   @override
   void dispose() {
-    // Keep the server alive for the session so pairing can happen later.
+    _timer?.cancel();
     super.dispose();
   }
+
+  /// Announce per account (newest/most-recent wins → live playing state).
+  Map<String, DeviceLinkAnnounce> get linked => _rc.linkedByAccount;
+
+  bool isMyAccount(String account) => account == _rc.accountFp;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = linked.values.toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Dispositivi collegati')),
+      body: entries.isEmpty
+          ? const Center(
+              child: Text('Nessun dispositivo collegato.\nIl telefono appare '
+                  'se accede con lo stesso account YouTube.', textAlign: TextAlign.center))
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: entries.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final a = entries[i];
+                final mine = isMyAccount(a.account);
+                return ListTile(
+                  leading: Icon(Icons.link, color: mine ? colorScheme.primary : null),
+                  title: Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    '${_fp(a.account)} · '
+                    '${a.playing ? 'Riproduzione: ${a.title.isEmpty ? 'Track' : a.title}' : 'Inattivo'}'
+                    '${mine ? ' — questo desktop' : ''}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  static String _fp(String account) =>
+      account.length <= 8 ? account : account.substring(0, 8);
 }

@@ -1,38 +1,53 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:hive/hive.dart';
 
 import 'package:Echo/screens/account/device_link_page.dart';
-import 'package:Echo/services/device_link_service.dart';
-
-class _FakeDeviceLink extends DeviceLinkService {
-  @override
-  Future<String> start() async => '123456';
-
-  @override
-  bool get isListening => true;
-}
+import 'package:Echo/services/device_link_announcement.dart';
+import 'package:Echo/services/remote_control_service.dart';
 
 void main() {
-  setUp(() {
-    final gi = GetIt.I;
-    if (!gi.isRegistered<DeviceLinkService>()) {
-      gi.registerSingleton<DeviceLinkService>(_FakeDeviceLink());
-    }
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    Hive.init(Directory.systemTemp.path + '\\echo_hive_device_link_test');
+    await Hive.openBox('COOKIES');
   });
 
-  testWidgets('device link page shows pairing code and network address',
+  void _replaceRCS() {
+    if (GetIt.I.isRegistered<RemoteControlService>()) {
+      GetIt.I.unregister<RemoteControlService>();
+    }
+    final rcs = GetIt.I.registerSingleton<RemoteControlService>(RemoteControlService());
+    rcs.addLinkedAnnounce(DeviceLinkAnnounce(
+      id: 'a1', name: 'Pixel 8', account: 'deadbeef', playing: true,
+      songId: 's1', title: 'A Song', updatedAt: 2,
+    ));
+    rcs.addLinkedAnnounce(DeviceLinkAnnounce(
+      id: 'a2', name: 'Echo Laptop', account: 'cafebabe', playing: false, updatedAt: 1,
+    ));
+  }
+
+  setUp(() => _replaceRCS());
+
+  testWidgets('lists linked peers with name, account, playing state',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: DeviceLinkPage()));
-    // _start() awaits NetworkInterface.list for the LAN address.
-    for (var i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 200));
-    }
+    expect(find.text('Pixel 8'), findsOneWidget);
+    expect(find.text('Echo Laptop'), findsOneWidget);
+    expect(find.textContaining('deadbeef'), findsAny);
+    expect(find.textContaining('cafebabe'), findsAny);
+    expect(find.textContaining('Riproduzione'), findsAny);
+  });
 
-    expect(find.text('Collega dispositivo mobile'), findsOneWidget);
-    expect(find.text('123456'), findsOneWidget);
-    expect(find.text('Copia codice'), findsOneWidget);
-    expect(find.text('Indirizzo di rete locale'), findsOneWidget);
-    expect(GetIt.I<DeviceLinkService>().isListening, isTrue);
+  testWidgets('empty state when no announces yet', (tester) async {
+    if (GetIt.I.isRegistered<RemoteControlService>()) {
+      GetIt.I.unregister<RemoteControlService>();
+    }
+    GetIt.I.registerSingleton<RemoteControlService>(RemoteControlService());
+    await tester.pumpWidget(const MaterialApp(home: DeviceLinkPage()));
+    expect(find.textContaining('Nessun dispositivo'), findsOneWidget);
   });
 }

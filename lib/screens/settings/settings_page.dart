@@ -66,8 +66,8 @@ class SettingsPage extends StatelessWidget {
                       onTap: () => context.go('/account'),
                     ),
                     SettingTile(
-                      title: 'Link mobile device',
-                      subtitle: 'Pair phone with Echo Desktop (LAN code)',
+                      title: 'Linked devices',
+                      subtitle: 'YouTube Music playback-state link (see docs/DEVICE_LINK_PROTOCOL.md)',
                       leading: const Icon(Icons.link),
                       isLast: true,
                       onTap: () => context.go('/device_link'),

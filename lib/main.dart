@@ -25,9 +25,8 @@ import 'services/song_dna_service.dart';
 import 'services/cloud_service.dart';
 import 'services/discord_rpc_service.dart';
 import 'services/listen_together_service.dart';
-import 'services/device_link_service.dart';
-import 'services/audio_device_service.dart';
 import 'services/remote_control_service.dart';
+import 'services/audio_device_service.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
 import 'services/cookie_store.dart';
@@ -108,7 +107,6 @@ void main() async {
   GetIt.I.registerSingleton<CloudService>(CloudService());
   GetIt.I.registerSingleton<DiscordRpcService>(DiscordRpcService());
   GetIt.I.registerSingleton<ListenTogetherService>(ListenTogetherService());
-  GetIt.I.registerSingleton<DeviceLinkService>(DeviceLinkService());
   final remoteControl = RemoteControlService();
   GetIt.I.registerSingleton<RemoteControlService>(remoteControl);
   // Cast and LAN-remote both expose the real playback endpoint; restore either

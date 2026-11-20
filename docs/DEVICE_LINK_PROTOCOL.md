@@ -1,45 +1,44 @@
 # Mobile ↔ Desktop linking protocol
 
-The desktop port implements YouTube-Music-style device linking so the Android
-app and the desktop app can share one signed-in session over the LAN.
+Link is done "tramite YouTube Music nello stato di riproduzione": the desktop
+announces its signed-in account (YT Music) + current playback state on the LAN
+UDP discovery channel, and any peer on the same Wi-Fi with the same account
+fingerprint is linked automatically.
 
 ## Desktop side (implemented)
 
-- `lib/services/device_link_service.dart` hosts an HTTP server on **port 8901**.
-- `lib/screens/account/device_link_page.dart` shows a fresh 6-digit pairing code
-  and the LAN address (`http://<local-ip>:8901`), reachable from
-  **Settings → Link mobile device** and **Account → Link mobile device**.
+- `lib/services/remote_control_service.dart` (port 8899 HTTP + port 8898 UDP):
+  - Every ~2s it broadcasts a `DeviceLinkAnnounce` datagram:
+    `{proto: "echo-desktop-link", id, name, account, playing, songId, title, updatedAt}`
+    to `255.255.255.255:8898` and the LAN host — the announce *is* the YT Music
+    playback state of the desktop.
+  - `probePlaying` ("ECHO_MUSIC_PLAYING") replies with the live playback state.
+  - The existing `discoveryProbe` ("ECHO_MUSIC_DISCOVER") reply now also carries
+    `account` (fingerprint), `deviceId`, `announceProto`.
+  - `deviceLinkAnnounces` / `linkedByAccount` expose received announces
+    (`RemoteControlService.deviceLinkId` = stable per-install desktop id).
+  - Desktop page `/device_link` lists linked devices (name, account fp, playing state).
+- `lib/services/device_link_announcement.dart`: `accountFingerprint()` (SHA-256 of
+  the signed-in cookies — stable per account), `DeviceLinkAnnounce` (JSON over UDP),
+  `playingStateJson()`.
+- Legacy 6-digit-code pairing (`DeviceLinkService`, port 8901) was removed: linking
+  is now entirely via the YT Music playback-state announces above.
 
-## Mobile side (client steps)
+## Linking rule (matches YouTube Music UX)
 
-1. On the phone, open **Settings → Account → Link a device** (same menu entry
-   as YouTube Music) and choose the LAN / nearby-device option.
-2. Discover the desktop on the same Wi-Fi. Either:
-   - scan/enter the LAN address shown on desktop, or
-   - use UDP broadcast discovery on port **8900** (the existing
-     `RemoteControlService` discovery channel).
-3. POST a JSON body to `http://<desktop-ip>:8901/`:
+1. Both devices are signed in as the **same Google/YouTube account**
+   (cookies shared; desktop injects them — see GoogleLoginService).
+2. The desktop announces its `account` fingerprint + name + playing state.
+3. A peer sees an announce with the **same account fingerprint** → **linked**.
+4. To see the other device's playback, the peer either reads its own
+   `deviceLinkAnnounces`, or sends a `ECHO_MUSIC_PLAYING` probe to the desktop's
+   discovery port and reads the JSON response (`playing`, `songId`, `title`).
 
-   ```json
-   {
-     "code": "123456",
-     "deviceName": "Pixel 8",
-     "cookieHeader": "SAPISID=abc; SID=xyz; HSID=..."
-   }
-   ```
+## Mobile client (implement with the same rules)
 
-   - `code` must equal the 6-digit code displayed on desktop.
-   - `deviceName` is a human label for the linked device.
-   - `cookieHeader` is the current signed-in `Cookie:` header from the app's
-     `InnerTube` / WebView session (the same value merged into requests).
-4. A `200` JSON response `{ "ok": true, "device": "Pixel 8" }` confirms the
-   link. The desktop imports the cookies, so both devices now share the same
-   Google/YouTube Music account. A wrong code or missing fields returns `400`.
-
-## Result
-
-- The desktop shows the linked device and imports the session immediately
-  (`CookieStore.importCookieHeader` + `StreamResolver.clearCache`).
-- Playback control continues to work through the existing
-  `RemoteControlService` (LAN HTTP + UDP discovery) and the Listen Together
-  room (`ListenTogetherService`, port 8900).
+- On device: if any announce on `255.255.255.255:8898` has `account == yours`
+  (compute the fingerprint the same way: SHA-256 of sorted `k=v` cookie pairs of
+  the `InnerTubeCookie`), the devices are linked — show/pair it with the desktop
+  by `id`/`name`.
+- While linked, poll the desktop on port 8899 (`/status` or `ECHO_MUSIC_PLAYING`)
+  to show the real playback state (the YouTube Music state-of-playback).
