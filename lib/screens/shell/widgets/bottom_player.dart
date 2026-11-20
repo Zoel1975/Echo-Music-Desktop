@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:palette_generator/palette_generator.dart';
 
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/services/media_player.dart';
+import 'package:Echo/core/theme/tokens.dart';
 import 'package:Echo/utils/adaptive_widgets/buttons.dart';
 import 'package:Echo/utils/adaptive_widgets/progress_ring.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
@@ -17,25 +17,6 @@ class BottomPlayer extends StatefulWidget {
 }
 
 class _BottomPlayerState extends State<BottomPlayer> {
-  Color? backgroundColor;
-
-
-
-  void updateBackgroundColor(ImageProvider image) async {
-    final palette = await PaletteGenerator.fromImageProvider(
-      image,
-      maximumColorCount: 20,
-    );
-    if (mounted) {
-      if (palette.dominantColor != null &&
-          backgroundColor != palette.dominantColor!.color) {
-        setState(() {
-          backgroundColor = palette.dominantColor!.color;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final mediaPlayer = GetIt.I<MediaPlayer>();
@@ -57,21 +38,11 @@ class _BottomPlayerState extends State<BottomPlayer> {
                 context.push('/player');
               },
               child: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: (backgroundColor ?? const Color(0xFF202020)).withAlpha(255),
-                  borderRadius: BorderRadius.circular(50),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                decoration: const BoxDecoration(
+                  color: EchoTokens.paper2,
+                  border: Border(top: BorderSide(color: EchoTokens.rule, width: 1)),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(50),
                   child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4), // Reduced padding
@@ -91,7 +62,6 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     height: 40,
                                     width: 40,
                                     fit: BoxFit.fill,
-                                    onImageReady: updateBackgroundColor,
                                   ),
                                 ),
                                 const SizedBox(width: 12),

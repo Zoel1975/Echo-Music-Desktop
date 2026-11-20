@@ -1,3 +1,4 @@
+﻿/* Hallmark · macrostructure: Workbench · tone: austere · anchor hue: warm red */
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,32 +7,31 @@ import 'typography.dart';
 
 class AppTheme {
   static ThemeData light({Color? primary}) {
-    final colorScheme =
-        ColorScheme.fromSeed(seedColor: primary ?? EchoTokens.seedColor,
-            brightness: Brightness.light);
-
+    final seed = primary ?? EchoTokens.seedColor;
+    final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light).copyWith(
+      surface: EchoTokens.paperLight,
+      onSurface: EchoTokens.inkLight,
+      outline: EchoTokens.ruleLight,
+      primary: EchoTokens.accent,
+    );
     return ThemeData.light(useMaterial3: true).copyWith(
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor: EchoTokens.paperLight,
+      cardColor: EchoTokens.paper2Light,
+      dividerColor: EchoTokens.ruleLight,
       textTheme: appTextTheme(ThemeData.light().textTheme),
-      colorScheme: colorScheme,
+      colorScheme: scheme,
       visualDensity: VisualDensity.adaptivePlatformDensity,
+      splashFactory: InkSparkle.splashFactory,
       appBarTheme: AppBarTheme(
+        backgroundColor: EchoTokens.paperLight,
+        surfaceTintColor: EchoTokens.paperLight,
+        foregroundColor: EchoTokens.inkLight,
         systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarBrightness: Brightness.light,
-          statusBarColor: Colors.transparent,
+          statusBarColor: EchoTokens.paperLight,
           statusBarIconBrightness: Brightness.dark,
-          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarColor: EchoTokens.paperLight,
         ),
-      ),
-      navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: Colors.transparent,
-        unselectedIconTheme: const IconThemeData(color: Colors.black),
-        selectedIconTheme: const IconThemeData(color: Colors.white),
-        indicatorColor: Colors.black,
-        labelType: NavigationRailLabelType.all,
-        selectedLabelTextStyle: const TextStyle(color: Colors.black, fontSize: 11),
-        unselectedLabelTextStyle:
-            TextStyle(color: Colors.black.withValues(alpha: 0.6), fontSize: 11),
       ),
       pageTransitionsTheme: PageTransitionsTheme(
         builders: Map<TargetPlatform, PageTransitionsBuilder>.fromIterable(
@@ -43,37 +43,31 @@ class AppTheme {
   }
 
   static ThemeData dark({Color? primary}) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: primary ?? EchoTokens.seedColor,
-      brightness: Brightness.dark,
+    final seed = primary ?? EchoTokens.seedColor;
+    final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark).copyWith(
+      surface: EchoTokens.paper,
+      onSurface: EchoTokens.ink,
+      outline: EchoTokens.rule,
+      primary: EchoTokens.accent,
     );
     return ThemeData.dark(useMaterial3: true).copyWith(
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor: EchoTokens.paper,
+      cardColor: EchoTokens.paper2,
+      dividerColor: EchoTokens.rule,
       textTheme: appTextTheme(ThemeData.dark().textTheme),
-      colorScheme: colorScheme,
+      colorScheme: scheme,
       visualDensity: VisualDensity.adaptivePlatformDensity,
+      splashFactory: InkSparkle.splashFactory,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: EchoTokens.paper,
+        surfaceTintColor: EchoTokens.paper,
+        foregroundColor: EchoTokens.ink,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarBrightness: Brightness.dark,
-          statusBarColor: Colors.transparent,
+          statusBarColor: EchoTokens.paper,
           statusBarIconBrightness: Brightness.light,
-          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarColor: EchoTokens.paper,
         ),
-      ),
-      navigationBarTheme: const NavigationBarThemeData(
-        backgroundColor: Colors.transparent,
-      ),
-      navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: Colors.transparent,
-        unselectedIconTheme: const IconThemeData(color: Colors.white),
-        selectedIconTheme: const IconThemeData(color: Colors.black),
-        indicatorColor: Colors.white,
-        labelType: NavigationRailLabelType.all,
-        selectedLabelTextStyle: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
-        unselectedLabelTextStyle:
-            TextStyle(color: Colors.black.withValues(alpha: 0.6), fontSize: 11),
       ),
       pageTransitionsTheme: PageTransitionsTheme(
         builders: Map<TargetPlatform, PageTransitionsBuilder>.fromIterable(
