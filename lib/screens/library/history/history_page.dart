@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_swipe_action_cell/core/cell.dart';
 
 import '../../../../generated/l10n.dart';
@@ -19,6 +20,13 @@ class HistoryPage extends StatelessWidget {
         appBar: AppBar(
           title: Text(S.of(context).History),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.analytics_outlined),
+              tooltip: 'Listening history details',
+              onPressed: () => context.push('/saved/history_detail'),
+            ),
+          ],
         ),
         body: BlocBuilder<HistoryCubit, HistoryState>(
           builder: (context, state) {

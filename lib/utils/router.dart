@@ -12,6 +12,7 @@ import 'package:Echo/screens/library/downloads/downloads_page.dart';
 import 'package:Echo/screens/library/downloads/playlist/download_playlist_page.dart';
 import 'package:Echo/screens/library/favourites/favourites_page.dart';
 import 'package:Echo/screens/library/history/history_page.dart';
+import 'package:Echo/screens/library/history/history_detail_page.dart';
 import 'package:Echo/screens/library/library_page.dart';
 import 'package:Echo/screens/library/playlist/playlist_details_page.dart';
 import 'package:Echo/screens/library/collections/library_collections_page.dart';
@@ -181,6 +182,10 @@ List<StatefulShellBranch> branches = [
         GoRoute(
           path: 'history_page',
           builder: (context, state) => const HistoryPage(),
+        ),
+        GoRoute(
+          path: 'history_detail',
+          builder: (context, state) => const HistoryDetailPage(),
         ),
         GoRoute(
           path: 'library_songs',

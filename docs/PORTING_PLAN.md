@@ -257,6 +257,12 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
 | **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
 
+**Detailed listening history (this session):** Android
+`DetailedListeningHistoryScreen.kt` → `HistoryDetailPage` (history grouped by
+day with total replay counts) + pure `HistoryDetail` helper (unit-tested),
+reachable from the History page. Search suggestions already ported
+(`ytmusic/mixins/search.dart`: `getSearchSuggestions` + Hive search history).
+
 **Appearance parity (this session):** Android `AppearanceSettings.kt` groups
 ported to real persisted toggles/dropdowns in `AppearancePage`: Theme (mode,
 accent, AMOLED, dynamic), Mini-player (background style), Player (background
