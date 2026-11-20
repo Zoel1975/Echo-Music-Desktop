@@ -76,6 +76,8 @@ void main() {
       'Extensions & high-quality servers',
       'Song recognition & EchoBrain',
       'AXION / AutoEq equalizer',
+      'Song DNA',
+      'Export as MP3',
     ]) {
       expect(find.text(label), findsWidgets, reason: 'missing: $label');
     }

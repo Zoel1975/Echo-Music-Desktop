@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/crossfade_engine.dart';
+import 'package:Echo/services/queue_crossfade.dart';
 import 'package:Echo/services/sponsor_block_service.dart';
 import 'package:Echo/services/yt_audio_stream.dart';
 import 'package:just_audio/just_audio.dart';
@@ -309,6 +310,11 @@ class MediaPlayer extends ChangeNotifier {
 
   final SponsorBlockService _sponsorBlock = SponsorBlockService();
 
+  // Two-player crossfade: a dedicated outgoing player overlaps the previous
+  // track with the new one on user-initiated track switches.
+  AudioPlayer? _xfadeOutPlayer;
+  QueueCrossfadeController? _xfade;
+
   void _listenToCurrentPosition() {
     _player.positionStream.listen((position) {
       final oldState = _progressBarState.value;
@@ -472,6 +478,20 @@ class MediaPlayer extends ChangeNotifier {
     final int requestId = DateTime.now().millisecondsSinceEpoch;
     _lastPlayRequestId = requestId;
 
+    // Capture what is currently playing for a possible crossfade handoff.
+    final wasPlaying = _player.playing;
+    final previousSong = _currentSongNotifier.value?.extras;
+    final previousPosition = _player.position;
+    final settings = GetIt.I<SettingsManager>();
+    final decision = CrossfadeDecision.evaluate(
+      crossfadeEnabled: settings.crossfadeEnabled,
+      wasPlaying: wasPlaying,
+      userVolume: _player.volume,
+      targetGain: settings.loudnessEnabled
+          ? (settings.loudnessTargetGain / 20).clamp(0.3, 1.0)
+          : 1.0,
+    );
+
     // OPTIMISTIC UPDATE: Show miniplayer immediately with loading state
     MediaItem tempTag = MediaItem(
       id: song['videoId'],
@@ -487,27 +507,34 @@ class MediaPlayer extends ChangeNotifier {
     _buttonState.value = ButtonState.loading;
     notifyListeners();
 
-    // stop and set the tapped song as the single source so it plays immediately
-    try {
-      await _player.pause();
-      await _player.stop();
-      if (_lastPlayRequestId != requestId) return; // Stale request
-      await _player.clearAudioSources();
-      if (_lastPlayRequestId != requestId) return; // Stale request
-    } catch (e) {
-      // Ignore stop errors
-    }
-
     try {
       final source = await _getAudioSource(song);
       if (_lastPlayRequestId != requestId)
         return; // Stale request, user clicked something else
 
-      // Set audio source and play immediately (no need for separate load())
+      if (decision.enabled && previousSong != null) {
+        // Real two-player crossfade: keep the outgoing track audible on a
+        // dedicated player while the new track fades in on the main player.
+        await _crossfadeTo(
+          requestId: requestId,
+          source: source,
+          previousSong: Map<String, dynamic>.from(previousSong as Map),
+          previousPosition: previousPosition,
+          peakVolume: decision.peakVolume,
+          duration: Duration(
+              milliseconds: (settings.crossfadeDuration * 1000).round()),
+        );
+        return;
+      }
+
+      // stop and set the tapped song as the single source so it plays immediately
+      await _player.pause();
+      await _player.stop();
+      if (_lastPlayRequestId != requestId) return; // Stale request
+      await _player.clearAudioSources();
+      if (_lastPlayRequestId != requestId) return; // Stale request
       await _player.setAudioSource(source);
       if (_lastPlayRequestId != requestId) return;
-
-      // Play immediately - just_audio handles loading internally
       await _player.play();
       // Apply the real crossfade envelope: when crossfade is enabled the new
       // track fades in from silence over the configured duration (equal-power
@@ -520,6 +547,52 @@ class MediaPlayer extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  /// Performs a real equal-power crossfade between the outgoing track (on a
+  /// dedicated player) and [source] (on the main player).
+  Future<void> _crossfadeTo({
+    required int requestId,
+    required AudioSource source,
+    required Map<String, dynamic> previousSong,
+    required Duration previousPosition,
+    required double peakVolume,
+    required Duration duration,
+  }) async {
+    _xfade?.dispose();
+    final outPlayer = _xfadeOutPlayer ??= AudioPlayer();
+    _xfade = QueueCrossfadeController(
+      makePlayer: () => AudioPlayerAdapter(outPlayer),
+    );
+
+    await _player.pause();
+    await _player.stop();
+    await _player.clearAudioSources();
+    if (_lastPlayRequestId != requestId) return;
+
+    // Attach + position the outgoing track on the dedicated player.
+    final outSource = await _getAudioSource(previousSong);
+    await outPlayer.setAudioSource(outSource);
+    await outPlayer.seek(previousPosition);
+    await outPlayer.setVolume(peakVolume);
+
+    // Load the incoming track at silence and start the ramp.
+    await _player.setAudioSource(source);
+    if (_lastPlayRequestId != requestId) return;
+    await _player.setVolume(0);
+    await _player.play();
+
+    await _xfade!.start(
+      incoming: AudioPlayerAdapter(_player),
+      duration: duration,
+      peakVolume: peakVolume,
+      startOutgoing: (_) async {}, // already attached/positioned above
+      onDone: () {
+        outPlayer.stop();
+        // Restore normal volume for subsequent tracks.
+        _player.setVolume(peakVolume);
+      },
+    );
   }
 
   Future<void> playNext(Map<String, dynamic> mediaItem) async {

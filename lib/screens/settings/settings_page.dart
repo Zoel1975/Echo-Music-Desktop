@@ -217,6 +217,18 @@ class SettingsPage extends StatelessWidget {
                       icon: Icons.equalizer,
                       feature: 'Pro-grade acoustic tuning with AutoEq headphone '
                           'profiles.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Song DNA',
+                      icon: Icons.biotech,
+                      feature: 'Genius / Wikipedia metadata for a song.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Export as MP3',
+                      icon: Icons.file_download_outlined,
+                      feature: 'Background export task queue (ExportTaskQueue).',
                       isLast: true,
                     ),
 

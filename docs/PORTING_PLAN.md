@@ -257,6 +257,17 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
 | **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
 
+**Crossfade + discovery + placeholders (this session):** Real two-player
+equal-power crossfade at track transitions via `QueueCrossfadeController` +
+`CrossfadeDecision` (unit-tested) wired into `MediaPlayer.playSong` — the
+outgoing track keeps playing on a dedicated player while the incoming track
+fades in. New Releases screen (`/new_releases` → ChipPage with
+`FEmusic_new_releases_albums`) reachable from Explore. All 9 lyrics providers
+(BetterLyrics, SimpMusic, YouLyPlus, KuGou, Paxsenix, Unison, LrcLib,
+YouTubeSubtitle, YouTubeMusic) are implemented + wired (verified in
+`lyrics.dart`/`lyrics_providers.dart`). Placeholders added for Song DNA and
+ExportTaskQueue.
+
 **Local audio + SponsorBlock (this session):** Android `LocalSongScreen` +
 `LocalSongScanner` → real `LocalSongsPage` (folder picker + recursive scan +
 filename metadata) + `MediaPlayer.playLocalFile` (local-file playback branch).

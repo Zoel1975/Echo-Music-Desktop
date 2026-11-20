@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
 
 import 'package:Echo/core/utils/service_locator.dart';
@@ -42,7 +43,17 @@ class _ExplorePage extends StatelessWidget {
             return Scaffold(body: Center(child: Text(message ?? '')));
           case BrowseSuccess(:final header, :final sections):
             return Scaffold(
-              appBar: AppBar(title: const Text('Explore'), centerTitle: true),
+              appBar: AppBar(
+                title: const Text('Explore'),
+                centerTitle: true,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.new_releases),
+                    tooltip: 'New releases',
+                    onPressed: () => context.push('/new_releases'),
+                  ),
+                ],
+              ),
               body: SingleChildScrollView(
                 padding: const EdgeInsets.all(8),
                 child: Column(

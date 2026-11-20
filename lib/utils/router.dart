@@ -337,6 +337,13 @@ List<StatefulShellBranch> branches = [
           path: '/explore',
           builder: (context, state) => const ExplorePage(),
         ),
+        GoRoute(
+          path: '/new_releases',
+          builder: (context, state) => const ChipPage(
+            title: 'New releases',
+            endpoint: {'browseId': 'FEmusic_new_releases_albums'},
+          ),
+        ),
       ],
     ),
     // --- Phase 4 - account pages ---
