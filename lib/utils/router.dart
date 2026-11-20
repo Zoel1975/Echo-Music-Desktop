@@ -17,6 +17,7 @@ import 'package:Echo/screens/library/playlist/playlist_details_page.dart';
 import 'package:Echo/screens/player/player_page.dart';
 import 'package:Echo/screens/search/search_page.dart';
 import 'package:Echo/screens/settings/about/about_page.dart';
+import 'package:Echo/screens/settings/ai/ai_hub_page.dart';
 import 'package:Echo/screens/settings/appearance/appearance_page.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
 
@@ -188,6 +189,10 @@ List<StatefulShellBranch> branches = [
             GoRoute(
             path: 'appearance',
             builder: (context, state) => const AppearancePage(),
+          ),
+          GoRoute(
+            path: 'ai',
+            builder: (context, state) => const AiHubPage(),
           ),
           GoRoute(
             path: 'coming_soon',

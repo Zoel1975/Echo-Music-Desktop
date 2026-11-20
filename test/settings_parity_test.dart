@@ -46,6 +46,7 @@ void main() {
     // Real, reachable features.
     for (final label in [
       'Account',
+      'AI Hub',
       'Appearence',
       'Player and audio',
       'Music Flow',
@@ -61,7 +62,6 @@ void main() {
 
     // Placeholder features from the mobile app.
     for (final label in [
-      'AI Hub',
       'Listening Summary',
       'Echo Wrapped',
       'Listen Together',

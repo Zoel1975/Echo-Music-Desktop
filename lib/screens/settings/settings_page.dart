@@ -68,12 +68,12 @@ class SettingsPage extends StatelessWidget {
                     ),
 
                     GroupTitle(title: "Smart features"),
-                    _comingSoonTile(
-                      context,
+                    SettingTile(
                       title: 'AI Hub',
-                      icon: Icons.auto_awesome,
-                      feature: 'AI-powered lyrics, translations and '
-                          'recommendations.',
+                      subtitle: 'AI-powered lyrics and translations',
+                      leading: const Icon(Icons.auto_awesome),
+                      isFirst: true,
+                      onTap: () => context.go('/settings/ai'),
                     ),
                     _comingSoonTile(
                       context,
