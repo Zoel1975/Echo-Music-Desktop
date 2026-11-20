@@ -25,6 +25,7 @@ import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
 import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
 import 'package:Echo/screens/settings/player/player_settings_page.dart';
 import 'package:Echo/screens/settings/privacy/privacy_page.dart';
+import 'package:Echo/screens/settings/storage/storage_page.dart';
 import 'package:Echo/screens/settings/services/yt_music/yt_music_page.dart';
 import 'package:Echo/screens/settings/settings_page.dart';
 import 'package:Echo/screens/detail/album_page.dart';
@@ -222,6 +223,10 @@ List<StatefulShellBranch> branches = [
           GoRoute(
             path: 'privacy',
             builder: (context, state) => const PrivacyPage(),
+          ),
+          GoRoute(
+            path: 'storage',
+            builder: (context, state) => const StoragePage(),
           ),
           GoRoute(
             path: 'about',

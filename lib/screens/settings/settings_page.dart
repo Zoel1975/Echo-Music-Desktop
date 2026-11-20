@@ -139,7 +139,7 @@ class SettingsPage extends StatelessWidget {
                       subtitle: 'Cache and downloads',
                       leading: const Icon(Icons.storage_rounded),
                       isFirst: true,
-                      onTap: () => context.go('/settings/backup_storage'),
+                      onTap: () => context.go('/settings/storage'),
                     ),
                     SettingTile(
                       title: "Backup and restore",
