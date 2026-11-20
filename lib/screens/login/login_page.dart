@@ -230,9 +230,12 @@ class _LoginPageState extends State<LoginPage> {
     final collected = cookies == null
         ? null
         : GoogleLoginService.collect(cookies);
+    // A google.com-only session is not enough: YouTube Music reads its own
+    // cookie jar, so require a youtube.com auth cookie (or confirm with the
+    // real account endpoint) before saving anything.
     if (collected != null &&
-        collected.hasAuth &&
-        collected.pairs.isNotEmpty) {
+        collected.pairs.isNotEmpty &&
+        (collected.youtubeAuth || await _verifySession(collected.pairs))) {
       final session = await _service.readSessionState();
       await _finishLogin(
         LoginCapture(cookies: collected.pairs, session: session),
@@ -240,7 +243,11 @@ class _LoginPageState extends State<LoginPage> {
     } else {
       setState(() {
         _checking = false;
-        _error = 'Nessun cookie di accesso trovato. Fai il login nel browser.';
+        _error = collected != null && collected.hasAuth
+            ? 'Accesso Google presente, ma YouTube Music non è ancora '
+                'autenticato: apri music.youtube.com nel browser e completa '
+                'il login.'
+            : 'Nessun cookie di accesso trovato. Fai il login nel browser.';
         _status = null;
       });
     }

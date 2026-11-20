@@ -160,7 +160,7 @@ Legend � **DONE** exists on desktop � **PART** partial � **TODO** missing 
 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
-| `LoginScreen` + WebView cookie auth | `google_login_service.dart` (browser-level CDP `Storage.getCookies`, `/json/version` + `--remote-allow-origins=*`) + `login_page.dart` (auto-detect + manual fallback) | DONE | 4 |
+| `LoginScreen` + WebView cookie auth | `google_login_service.dart` (Chrome/Edge + CDP: consent cookies via `Network.setCookie` before navigating, browser-level `Storage.getCookies`, YouTube-jar-only filtering, `window.yt.config_` read for `VISITOR_DATA`/`DATASYNC_ID`) + `login_page.dart` (auto-detect + manual fallback) + `session_service.dart` (`forgetAccount` port) | DONE | 4 |
 | `AccountScreen`, `AccountSettingsScreen` + device link | `account_page.dart` (`/account`) + `device_link_page.dart` (`/device_link` "Dispositivi collegati" page, live announces) + **linking via YouTube Music playback state**: `device_link_announcement.dart` (`accountFingerprint` SHA-256 of cookies + `DeviceLinkAnnounce` + `playingStateJson`), `remote_control_service.dart` (broadcasts announces every 2s on UDP :8898 to broadcast+LAN, `probePlaying` "ECHO_MUSIC_PLAYING" reply, discovery reply now carries `account`/`deviceId`/`announceProto`) - devices with the same account fingerprint are linked; legacy 6-digit-code pairing (`DeviceLinkService`) removed | DONE | 4 |
 | `ListenTogether*` (protocol + server) | `listen_together_service.dart` (real LAN HTTP room publish/join) + `/listen_together` config, wired to playback | DONE | 8 |
 | `DiscordPresenceManager` | `discord_rpc_service.dart` (local RPC SET_ACTIVITY) + `/discord` config, wired to playback | DONE | 8 |
