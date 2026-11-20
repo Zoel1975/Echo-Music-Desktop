@@ -75,12 +75,12 @@ class SettingsPage extends StatelessWidget {
                       isFirst: true,
                       onTap: () => context.go('/settings/ai'),
                     ),
-                    _comingSoonTile(
-                      context,
+                    SettingTile(
                       title: 'Listening Summary',
-                      icon: Icons.bar_chart,
-                      feature: 'View your music listening statistics.',
+                      subtitle: 'View your music listening statistics',
+                      leading: const Icon(Icons.bar_chart),
                       isLast: true,
+                      onTap: () => context.go('/settings/listening_summary'),
                     ),
                     _comingSoonTile(
                       context,

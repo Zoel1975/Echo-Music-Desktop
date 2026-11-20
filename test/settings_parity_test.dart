@@ -47,6 +47,7 @@ void main() {
     for (final label in [
       'Account',
       'AI Hub',
+      'Listening Summary',
       'Appearence',
       'Player and audio',
       'Music Flow',
@@ -63,7 +64,6 @@ void main() {
 
     // Placeholder features from the mobile app.
     for (final label in [
-      'Listening Summary',
       'Echo Wrapped',
       'Listen Together',
       'Discord Rich Presence',
@@ -83,5 +83,7 @@ class _StubHttp extends HttpOverrides {
       ..badCertificateCallback = (_, __, ___) => true;
   }
 }
+
+
 
 
