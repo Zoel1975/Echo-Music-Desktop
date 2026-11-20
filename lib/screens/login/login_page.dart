@@ -37,8 +37,11 @@ class _LoginBodyState extends State<_LoginBody> {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0';
 
   final controller = WebviewController();
+  final _cookieController = TextEditingController();
   bool _loggingIn = false;
+  bool _importing = false;
   String? _error;
+  String? _info;
   StreamSubscription<String>? _urlSub;
 
   @override
@@ -50,8 +53,40 @@ class _LoginBodyState extends State<_LoginBody> {
   @override
   void dispose() {
     _urlSub?.cancel();
+    _cookieController.dispose();
     controller.dispose();
     super.dispose();
+  }
+
+  /// Imports the `Cookie:` header copied from a signed-in browser (DevTools →
+  /// Network → music.youtube.com → Headers → Cookie).
+  Future<void> _importCookies() async {
+    final raw = _cookieController.text.trim();
+    if (raw.isEmpty) {
+      setState(() => _error = 'Incolla prima il cookie dal browser.');
+      return;
+    }
+    setState(() {
+      _importing = true;
+      _error = null;
+      _info = null;
+    });
+    try {
+      final count = await CookieStore.instance.importCookieHeader(raw);
+      if (count == 0) {
+        setState(() => _error = 'Nessun cookie valido trovato nel testo.');
+        return;
+      }
+      final info = await GetIt.I<YTMusic>().getAccountInfo();
+      await CookieStore.instance.saveAccount(info ?? {'name': 'YouTube Music'});
+      if (!mounted) return;
+      setState(() => _info = 'Importati $count cookie. Accesso verificato.');
+      context.go('/');
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Import cookie fallito: $e');
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
   }
 
   Future<void> _login() async {
@@ -127,7 +162,48 @@ class _LoginBodyState extends State<_LoginBody> {
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: Text('Sign in with Google, then press Done.'),
                 ),
-                Expanded(child: Webview(controller)),
+                 Expanded(child: Webview(controller)),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Text(
+                    'Oppure: accedi a music.youtube.com nel browser, poi copia '
+                    'l\'header Cookie da DevTools → Network → richiesta a '
+                    'music.youtube.com → Headers e incollalo qui.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: TextField(
+                    controller: _cookieController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Cookie incollato dal browser',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _importing
+                      ? const LinearProgressIndicator()
+                      : FilledButton.icon(
+                          onPressed: _importCookies,
+                          icon: const Icon(Icons.login),
+                          label: const Text('Importa cookie del browser'),
+                        ),
+                ),
+                if (_info != null)
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text(_info!, style: const TextStyle(color: Colors.green)),
+                  ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                  ),
+                const SizedBox(height: 12),
               ],
             ),
     );

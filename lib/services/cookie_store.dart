@@ -34,6 +34,29 @@ class CookieStore {
     return buildCookieHeader(cookies);
   }
 
+  /// Parses a `Cookie:` header copied from the browser DevTools into
+  /// `name=value` pairs.
+  static Map<String, String> parseCookieHeader(String header) {
+    final result = <String, String>{};
+    for (final part in header.split(';')) {
+      final i = part.indexOf('=');
+      if (i <= 0) continue;
+      final name = part.substring(0, i).trim();
+      final value = part.substring(i + 1).trim();
+      if (name.isNotEmpty && value.isNotEmpty) result[name] = value;
+    }
+    return result;
+  }
+
+  /// Imports cookies copied from a signed-in browser session.
+  Future<int> importCookieHeader(String header) async {
+    final cookies = parseCookieHeader(header);
+    for (final entry in cookies.entries) {
+      _box.put(entry.key, entry.value);
+    }
+    return cookies.length;
+  }
+
   /// All stored cookies as `name -> value`.
   Map<String, String> get cookies => Map<String, String>.from(_box.toMap());
 
