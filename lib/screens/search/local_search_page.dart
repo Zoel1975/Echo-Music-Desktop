@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../services/library_aggregation.dart';
 import '../../services/media_player.dart';
 import '../../utils/song_thumbnail.dart';
+import '../../../core/widgets/back_button.dart';
 
 /// Real port of Android `LocalSearchScreen`: searches locally stored songs
 /// (favourites, history, playlists) without a network request.
@@ -45,7 +46,9 @@ class _LocalSearchPageState extends State<LocalSearchPage> {
   Widget build(BuildContext context) {
     final player = context.read<MediaPlayer>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Local search')),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('Local search')),
       body: ValueListenableBuilder(
         valueListenable: Hive.box('FAVOURITES').listenable(),
         builder: (context, _, __) {

@@ -3,6 +3,7 @@ import 'package:Echo/services/chart_model.dart';
 import 'package:Echo/services/charts_service.dart';
 import 'package:Echo/core/widgets/section_item.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
+import '../../../core/widgets/back_button.dart';
 
 class ChartDetailsPage extends StatefulWidget {
   final ChartURL chartUrl;
@@ -33,6 +34,7 @@ class _ChartDetailsPageState extends State<ChartDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: Text(widget.chartUrl.title.replaceAll('\n', ' ')),
       ),
       body: FutureBuilder<ChartModel>(

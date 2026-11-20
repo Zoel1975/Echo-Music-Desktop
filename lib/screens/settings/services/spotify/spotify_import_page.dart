@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/back_button.dart';
 import '../../../../services/import_service.dart';
 
 /// Real port of Android `SpotifyImportScreen.kt`: import a Spotify (or
@@ -34,7 +35,10 @@ class _SpotifyImportPageState extends State<SpotifyImportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Import from Spotify')),
+      appBar: AppBar(
+        title: const Text('Import from Spotify'),
+        leading: echoBackButton(context),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(

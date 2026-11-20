@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../services/media_player.dart';
 import '../../../services/library_aggregation.dart';
 import '../../../utils/song_thumbnail.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Shows the songs of an album/artist tapped in Library Collections.
 class LibrarySongListPage extends StatelessWidget {
@@ -17,6 +18,7 @@ class LibrarySongListPage extends StatelessWidget {
     final list = LibraryAggregation.songList(songs);
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: Text(title ?? 'Songs'),
         actions: [
           IconButton(

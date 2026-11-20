@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `wrapped` ("Your year in sound"): a local recap
 /// computed from playback history — top artists, top songs and listening
@@ -11,7 +12,9 @@ class WrappedPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Echo Wrapped')),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('Echo Wrapped')),
       body: ValueListenableBuilder<Box>(
         valueListenable: Hive.box('SONG_HISTORY').listenable(),
         builder: (context, box, _) {

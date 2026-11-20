@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/export_task_queue.dart';
+import '../../../core/widgets/back_button.dart';
 
 /// Real screen for Android `ExportTaskQueue`: pick local audio files, enqueue
 /// them for export, and watch per-task progress.
@@ -15,6 +16,7 @@ class ExportQueuePage extends StatelessWidget {
     final queue = context.watch<ExportTaskQueue>();
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: const Text('Export as MP3'),
         actions: [
           IconButton(

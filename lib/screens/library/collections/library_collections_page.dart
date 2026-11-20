@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../services/library_aggregation.dart';
 import '../../../services/media_player.dart';
 import '../../../utils/song_thumbnail.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `LibrarySongsScreen` / `LibraryAlbumsScreen` /
 /// `LibraryArtistsScreen`: three tabs over the locally stored songs.
@@ -52,7 +53,9 @@ class _LibraryCollectionsPageState extends State<LibraryCollectionsPage> {
     final artists = LibraryAggregation.artists(raw);
 
     return Scaffold(
-      appBar: AppBar(title: Text('Library Â· ${titles[_tab]}')),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: Text('Library · ${titles[_tab]}')),
       body: Column(
         children: [
           Padding(

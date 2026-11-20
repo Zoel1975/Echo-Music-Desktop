@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import '../../../services/bottom_message.dart';
 import '../../../services/storage_service.dart';
 import '../widgets/setting_item.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `StorageSettings.kt`: cache sizes + clear actions.
 class StoragePage extends StatefulWidget {
@@ -42,7 +43,9 @@ class _StoragePageState extends State<StoragePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Storage')),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('Storage')),
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 1000),

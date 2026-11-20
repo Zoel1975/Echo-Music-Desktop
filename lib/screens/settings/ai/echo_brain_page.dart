@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../core/widgets/back_button.dart';
 import '../../../services/echo_brain_service.dart';
 import '../../../services/media_player.dart';
 import '../../../services/settings_manager.dart';
@@ -73,7 +74,10 @@ class _EchoBrainPageState extends State<EchoBrainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('EchoBrain playlists')),
+      appBar: AppBar(
+        title: const Text('EchoBrain playlists'),
+        leading: echoBackButton(context),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

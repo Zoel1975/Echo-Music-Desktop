@@ -7,6 +7,7 @@ import '../../../services/cloud_service.dart';
 import '../../../services/song_dna_service.dart';
 import '../widgets/setting_item.dart';
 import 'integration_catalog.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Data-driven settings screen for a mobile integration. Every field is
 /// persisted through `SettingsManager.extra<T>` (Hive) — credentials entered
@@ -19,7 +20,9 @@ class IntegrationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsManager>();
     return Scaffold(
-      appBar: AppBar(title: Text(screen.title)),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: Text(screen.title)),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [

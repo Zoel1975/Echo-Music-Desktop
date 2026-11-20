@@ -10,6 +10,7 @@ import '../../../../utils/bottom_modals.dart';
 import '../../../../utils/extensions.dart';
 import '../../../../utils/playlist_thumbnail.dart';
 import 'cubit/downloads_cubit.dart';
+import '../../../../core/widgets/back_button.dart';
 
 class DownloadsPage extends StatelessWidget {
   const DownloadsPage({super.key});
@@ -20,7 +21,8 @@ class DownloadsPage extends StatelessWidget {
       create: (_) => DownloadsCubit()..load(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(S.of(context).Downloads),
+        leading: echoBackButton(context),
+        title: Text(S.of(context).Downloads),
           centerTitle: true,
           actions: [
             IconButton(

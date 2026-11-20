@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:Echo/services/cookie_store.dart';
+import '../../../core/widgets/back_button.dart';
 
 /// Desktop port of `ui/screens/AccountScreen.kt`: shows the signed-in account
 /// and offers "Sign out" / "Close". When logged out it offers "Sign in"
@@ -13,7 +14,9 @@ class AccountPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Account'), centerTitle: true),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('Account'), centerTitle: true),
       body: Builder(builder: (context) {
         final account = CookieStore.instance.account;
         final name = account['name']?.toString();

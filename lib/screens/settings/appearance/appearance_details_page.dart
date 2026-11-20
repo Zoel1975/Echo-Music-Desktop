@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
 import '../widgets/setting_item.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Fine-grained appearance options from Android `AppearanceSettings.kt`,
 /// `GlassEffectSettings.kt`, `FontSelectionScreen.kt` and `HapticsSettings.kt`.
@@ -16,7 +17,9 @@ class AppearanceDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.watch<SettingsManager>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Appearance details')),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('Appearance details')),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [

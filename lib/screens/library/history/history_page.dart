@@ -8,6 +8,7 @@ import '../../../../utils/bottom_modals.dart';
 import '../../../../utils/adaptive_widgets/adaptive_widgets.dart';
 import 'cubit/history_cubit.dart';
 import '../../../../core/widgets/section_item.dart';
+import '../../../../core/widgets/back_button.dart';
 
 class HistoryPage extends StatelessWidget {
   const HistoryPage({super.key});
@@ -18,7 +19,8 @@ class HistoryPage extends StatelessWidget {
       create: (_) => HistoryCubit()..load(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(S.of(context).History),
+        leading: echoBackButton(context),
+        title: Text(S.of(context).History),
           centerTitle: true,
           actions: [
             IconButton(

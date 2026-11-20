@@ -7,6 +7,7 @@ import '../../../../utils/bottom_modals.dart';
 import '../../../../services/bottom_message.dart';
 
 import 'cubit/privacy_cubit.dart';
+import '../../../../core/widgets/back_button.dart';
 
 class PrivacyPage extends StatelessWidget {
   const PrivacyPage({super.key});
@@ -48,6 +49,7 @@ class _PrivacyView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: const Text("Privacy"),
       ),
       body: Center(

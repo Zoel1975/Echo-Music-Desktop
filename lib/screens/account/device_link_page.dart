@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../core/widgets/back_button.dart';
+
 import '../../services/device_link_announcement.dart';
 import '../../services/remote_control_service.dart';
 
@@ -44,7 +46,10 @@ class _DeviceLinkPageState extends State<DeviceLinkPage> {
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Dispositivi collegati')),
+      appBar: AppBar(
+        title: const Text('Dispositivi collegati'),
+        leading: echoBackButton(context),
+      ),
       body: entries.isEmpty
           ? const Center(
               child: Text('Nessun dispositivo collegato.\nIl telefono appare '

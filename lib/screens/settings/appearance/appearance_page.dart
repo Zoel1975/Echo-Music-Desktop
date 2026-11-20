@@ -7,6 +7,7 @@ import '../widgets/setting_item.dart';
 import '../../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../../utils/bottom_modals.dart';
 import 'cubit/appearance_cubit.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `AppearanceSettings.kt`: Theme + Mini-player + Player
 /// + Lyrics + Misc + Auto playlists groups. Android-only visual/hardware
@@ -20,7 +21,9 @@ class AppearancePage extends StatelessWidget {
     return BlocProvider(
       create: (_) => AppearanceCubit(),
       child: Scaffold(
-        appBar: AppBar(title: Text(S.of(context).Appearence)),
+        appBar: AppBar(
+        leading: echoBackButton(context),
+        title: Text(S.of(context).Appearence)),
         body: Center(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 1000),

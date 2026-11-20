@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
 import '../widgets/setting_item.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `ContentSettings.kt` (General + Lyrics groups):
 /// content filters and lyrics romanization. Proxy / IP version are Android
@@ -15,7 +16,9 @@ class ContentPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.watch<SettingsManager>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Content')),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('Content')),
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 1000),

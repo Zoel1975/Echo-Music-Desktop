@@ -203,9 +203,12 @@ class GoogleLoginService {
   }
 
   /// Poll until a real sign-in cookie appears, then return filtered pairs.
+  /// [verifySession] optionally confirms the session with a real API call —
+  /// useful if Google changes auth cookie names.
   Future<Map<String, String>?> waitForSignIn({
     required Duration timeout,
     required Future<bool> Function() cancelled,
+    Future<bool> Function(Map<String, String> cookies)? verifySession,
   }) async {
     final end = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(end)) {
@@ -213,8 +216,13 @@ class GoogleLoginService {
       final cookies = await readCookies();
       if (cookies != null) {
         final collected = collect(cookies);
-        if (collected.hasAuth && collected.pairs.isNotEmpty) {
-          return collected.pairs;
+        if (collected.pairs.isNotEmpty) {
+          if (collected.hasAuth) return collected.pairs;
+          // Auth cookie names may change: confirm with a real API call.
+          if (verifySession != null &&
+              await verifySession(collected.pairs)) {
+            return collected.pairs;
+          }
         }
       }
       await Future<void>.delayed(const Duration(seconds: 2));

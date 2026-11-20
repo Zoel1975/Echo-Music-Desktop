@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../widgets/setting_item.dart';
 import 'cubit/ai_hub_cubit.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `AiSettings.kt`: configure the AI provider used for
 /// lyrics translation (DeepL / OpenAI-compatible endpoints) and the streaming
@@ -15,7 +16,9 @@ class AiHubPage extends StatelessWidget {
     return BlocProvider(
       create: (_) => AiHubCubit(),
       child: Scaffold(
-        appBar: AppBar(title: const Text('AI Hub')),
+        appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('AI Hub')),
         body: Center(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 1000),

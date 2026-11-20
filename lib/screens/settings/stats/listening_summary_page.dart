@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `ListeningSummaryScreen.kt`: aggregates the local
 /// playback history into top artists / top songs / totals. No network needed.
@@ -9,7 +10,9 @@ class ListeningSummaryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Listening Summary')),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('Listening Summary')),
       body: ValueListenableBuilder<Box>(
         valueListenable: Hive.box('SONG_HISTORY').listenable(),
         builder: (context, box, _) {

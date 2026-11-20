@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../../services/content_filter_service.dart';
 import '../widgets/setting_item.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `BlockedArtistsScreen.kt` / `DislikedSongsScreen.kt`.
 class ContentFilterPage extends StatefulWidget {
@@ -43,6 +44,7 @@ class _ContentFilterPageState extends State<ContentFilterPage> {
     final entries = _isArtists ? service.blockedArtists : service.dislikedSongs;
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: Text(_isArtists ? 'Blocked Artists' : 'Disliked Songs'),
         actions: [
           if (entries.isNotEmpty)

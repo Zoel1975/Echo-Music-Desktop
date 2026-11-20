@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../services/history_detail.dart';
 import '../../../services/media_player.dart';
 import '../../../utils/song_thumbnail.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `DetailedListeningHistoryScreen.kt`: history entries
 /// grouped by day with total replay counts, from the local SONG_HISTORY box.
@@ -15,7 +16,9 @@ class HistoryDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final player = context.read<MediaPlayer>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Listening history details')),
+      appBar: AppBar(
+        leading: echoBackButton(context),
+        title: const Text('Listening history details')),
       body: ValueListenableBuilder(
         valueListenable: Hive.box('SONG_HISTORY').listenable(),
         builder: (context, box, _) {

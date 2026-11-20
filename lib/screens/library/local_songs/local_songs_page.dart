@@ -9,6 +9,7 @@ import '../../../services/file_storage.dart';
 import '../../../services/local_song_scanner.dart';
 import '../../../services/media_player.dart';
 import '../../../services/settings_manager.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `LocalSongScreen` + `LocalSongScanner`: pick a folder,
 /// scan it for audio files, and play them locally. The scan root is persisted
@@ -64,6 +65,7 @@ class _LocalSongsPageState extends State<LocalSongsPage> {
     final player = context.read<MediaPlayer>();
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: const Text('Local songs'),
         actions: [
           IconButton(

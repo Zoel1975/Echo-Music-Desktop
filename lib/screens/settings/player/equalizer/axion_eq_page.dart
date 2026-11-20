@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/widgets/back_button.dart';
 import '../../../../services/axion_eq_service.dart';
 import '../../../../services/settings_manager.dart';
 import '../../../../services/silence_filter.dart';
@@ -64,6 +65,7 @@ class _AxionEqPageState extends State<AxionEqPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('AXION / AutoEq equalizer'),
+        leading: echoBackButton(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.upload_file),

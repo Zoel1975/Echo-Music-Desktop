@@ -18,14 +18,19 @@ import 'package:Echo/ytmusic/ytmusic.dart';
 /// Pure login logic lives in [GoogleLoginService]; this widget only drives
 /// UI state. A manual cookie-paste fallback is kept for locked-down browsers.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, GoogleLoginService? service})
+      : _serviceOverride = service;
+
+  /// Injectable for tests; production uses the real CDP service.
+  final GoogleLoginService? _serviceOverride;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _service = GoogleLoginService();
+  late final GoogleLoginService _service =
+      widget._serviceOverride ?? GoogleLoginService();
   final _cookieController = TextEditingController();
   Timer? _timeout;
   Timer? _diagTimer;
@@ -153,6 +158,7 @@ class _LoginPageState extends State<LoginPage> {
     final pairs = await _service.waitForSignIn(
       timeout: const Duration(minutes: 5),
       cancelled: () async => !mounted,
+      verifySession: _verifySession,
     );
     _timeout?.cancel();
     if (pairs != null && mounted) {
@@ -162,6 +168,22 @@ class _LoginPageState extends State<LoginPage> {
         _error = 'Cookie di accesso non rilevati. Riprova o incolla il cookie.';
         _status = null;
       });
+    }
+  }
+
+  /// Fallback session check via the YouTube Music account endpoint: if Google
+  /// renames auth cookies, the API still tells us whether we are signed in.
+  Future<bool> _verifySession(Map<String, String> cookies) async {
+    final plausible = cookies.keys.any((k) =>
+        k.contains('SID') || k.contains('APISID') || k == 'LOGIN_INFO');
+    if (!plausible) return false;
+    try {
+      await CookieStore.instance.importCookieHeader(
+          cookies.entries.map((e) => '${e.key}=${e.value}').join('; '));
+      final info = await GetIt.I<YTMusic>().getAccountInfo();
+      return info != null && info['name']?.toString().isNotEmpty == true;
+    } catch (_) {
+      return false;
     }
   }
 

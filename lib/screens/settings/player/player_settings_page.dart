@@ -7,6 +7,7 @@ import '../../../services/audio_device_service.dart';
 import '../../../services/settings_manager.dart';
 import '../widgets/setting_item.dart';
 import 'cubit/player_settings_cubit.dart';
+import '../../../../core/widgets/back_button.dart';
 
 /// Desktop "Player & Audio" settings. Port of the Android `PlayerSettings`
 /// screen: network/streaming quality, audio DSP, output device selection and
@@ -20,7 +21,8 @@ class PlayerSettingsPage extends StatelessWidget {
       create: (_) => PlayerSettingsCubit(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(S.of(context).Audio_And_Playback),
+        leading: echoBackButton(context),
+        title: Text(S.of(context).Audio_And_Playback),
         ),
         body: Center(
           child: Container(

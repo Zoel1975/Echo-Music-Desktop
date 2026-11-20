@@ -8,6 +8,7 @@ import '../../../../../utils/bottom_modals.dart';
 import '../../../../../core/widgets/section_item.dart';
 import 'cubit/playlist_details_cubit.dart';
 import '../widgets/my_playlist_header.dart';
+import '../../../../core/widgets/back_button.dart';
 
 class PlaylistDetailsPage extends StatelessWidget {
   const PlaylistDetailsPage({
@@ -54,6 +55,7 @@ class _PlaylistView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: Text(playlist['title']),
         centerTitle: true,
       ),
