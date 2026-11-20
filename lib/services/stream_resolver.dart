@@ -96,9 +96,27 @@ class YtPlayerClient {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
   );
 
+  /// Plain ANDROID still answers `status=OK` without a login when other
+  /// clients are bot-blocked. Kept as a last resort; with a visitor token it
+  /// can serve a full file, otherwise the deep-probe validation rejects it.
+  static const android = YtPlayerClient(
+    name: 'ANDROID',
+    version: '20.10.38',
+    id: '3',
+    userAgent: 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
+    extra: {
+      'osName': 'Android',
+      'osVersion': '14',
+      'androidSdkVersion': '34',
+      'deviceMake': 'Google',
+      'deviceModel': 'Pixel 9',
+    },
+  );
+
   /// Ordered by measured ability to serve a complete audio file.
   static const fallbackOrder = [
     visionOs,
+    android,
     androidVr165,
     tvHtml5,
     webRemix,
@@ -123,7 +141,52 @@ class StreamResolver {
   String? Function()? cookieHeaderProvider;
   final Map<String, ({ResolvedStream stream, DateTime expiry})> _cache = {};
 
+  /// A public `visitorData` token, fetched from a normal YouTube page (no
+  /// login/cookies needed). YouTube's bot check rejects `/player` calls whose
+  /// client context lacks it — with it, VISIONOS serves the full audio file.
+  String? _visitorData;
+  DateTime? _visitorDataFetched;
+
   void clearCache() => _cache.clear();
+
+  /// Pure helper: pull the `VISITOR_DATA` token out of a YouTube page body.
+  /// It is escaped JSON, so decode it first to avoid `\\uXXXX` sequences.
+  static String? extractVisitorData(String pageHtml) {
+    final match = RegExp(r'"VISITOR_DATA":"([^"]+)"').firstMatch(pageHtml);
+    if (match == null) return null;
+    try {
+      final decoded = jsonDecode('"${match.group(1)}"') as String;
+      return decoded.isEmpty ? null : decoded;
+    } catch (_) {
+      return match.group(1);
+    }
+  }
+
+  /// Fetch (and cache for 6 h) a visitor token from a public YouTube page.
+  /// Returns null on failure so callers can degrade to the old behaviour.
+  Future<String?> _getVisitorData() async {
+    final now = DateTime.now();
+    if (_visitorData != null &&
+        _visitorDataFetched != null &&
+        now.difference(_visitorDataFetched!).inHours < 6) {
+      return _visitorData;
+    }
+    try {
+      final page = await _client
+          .get(
+            Uri.parse('https://www.youtube.com/'),
+            headers: {'User-Agent': YtPlayerClient.visionOs.userAgent},
+          )
+          .timeout(const Duration(seconds: 12));
+      final token = extractVisitorData(page.body);
+      if (token != null && token.isNotEmpty) {
+        _visitorData = token;
+        _visitorDataFetched = now;
+        return token;
+      }
+    } catch (_) {}
+    return null;
+  }
 
   /// Selects the best audio format. Prefers m4a/mp4 (media_kit on Windows),
   /// then highest bitrate. Pure helper, unit-testable.
@@ -182,7 +245,11 @@ class StreamResolver {
     return headers;
   }
 
-  Map<String, dynamic> _body(YtPlayerClient client, String videoId) {
+  Map<String, dynamic> _body(
+    YtPlayerClient client,
+    String videoId, {
+    String? visitorData,
+  }) {
     return {
       'context': {
         'client': <String, dynamic>{
@@ -191,6 +258,7 @@ class StreamResolver {
           'hl': 'en',
           'gl': 'US',
           ...client.extra,
+          if (visitorData != null) 'visitorData': visitorData,
         },
       },
       'videoId': videoId,
@@ -202,21 +270,31 @@ class StreamResolver {
   /// Probes the stream URL the same way ExoPlayer/media_kit does: a ranged
   /// GET. A Range-less probe answers 403 on every YouTube Music art track.
   Future<bool> _validate(ResolvedStream stream) async {
-    try {
-      final r = await _client
-          .get(
-            Uri.parse(stream.url),
-            headers: {
-              ...stream.headers,
-              'Range': 'bytes=0-1023',
-              'User-Agent': YtPlayerClient.visionOs.userAgent,
-            },
-          )
-          .timeout(const Duration(seconds: 12));
-      return r.statusCode == 200 || r.statusCode == 206;
-    } catch (_) {
-      return false;
+    // Probe both the head and a deep offset. Clients like plain ANDROID serve
+    // only the first ~1 MiB (403 past it); a byte-0 probe would wrongly accept
+    // that throttled stream and playback would die a minute in.
+    final probes = <int>[0];
+    if (stream.contentLength > 1500000) {
+      probes.add(stream.contentLength ~/ 2);
     }
+    for (final start in probes) {
+      try {
+        final r = await _client
+            .get(
+              Uri.parse(stream.url),
+              headers: {
+                ...stream.headers,
+                'Range': 'bytes=$start-${start + 1023}',
+                'User-Agent': YtPlayerClient.visionOs.userAgent,
+              },
+            )
+            .timeout(const Duration(seconds: 12));
+        if (r.statusCode != 200 && r.statusCode != 206) return false;
+      } catch (_) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<ResolvedStream> resolve(String videoId, {String quality = 'high'}) async {
@@ -226,6 +304,10 @@ class StreamResolver {
       return cached.stream;
     }
 
+    // A public visitor token clears the "confirm you're not a bot" check
+    // without requiring a Google sign-in. Fetch once per resolve; it is cached.
+    final visitorData = await _getVisitorData();
+
     final errors = <String>[];
     for (final client in YtPlayerClient.fallbackOrder) {
       try {
@@ -233,7 +315,7 @@ class StreamResolver {
             .post(
               Uri.parse(_playerUrl),
               headers: _headers(client),
-              body: jsonEncode(_body(client, videoId)),
+              body: jsonEncode(_body(client, videoId, visitorData: visitorData)),
             )
             .timeout(const Duration(seconds: 20));
         if (response.statusCode != 200) {
