@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 
+import 'package:Echo/services/account_refresh.dart';
 import 'package:Echo/services/cookie_store.dart';
+import 'package:Echo/ytmusic/ytmusic.dart';
 import '../../../core/widgets/back_button.dart';
 
 /// Desktop port of `ui/screens/AccountScreen.kt`: shows the signed-in account
@@ -10,6 +14,22 @@ import '../../../core/widgets/back_button.dart';
 /// (`lib/screens/login/login_page.dart`).
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
+
+  /// Desktop equivalent of Android `App.forgetAccount()`: clear cookies,
+  /// account details and visitor id, refresh the YT client (request headers
+  /// now drop the Cookie header), notify data screens, then go home.
+  Future<void> _signOut(BuildContext context) async {
+    await CookieStore.instance.clear();
+    await CookieStore.instance.clearAccount();
+    try {
+      await Hive.box('SETTINGS').delete('VISITOR_ID');
+      final yt = GetIt.I<YTMusic>();
+      await yt.resetVisitorId();
+      await yt.refreshHeaders();
+    } catch (_) {}
+    notifyAccountChanged();
+    if (context.mounted) context.go('/');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +43,10 @@ class AccountPage extends StatelessWidget {
         final email = account['email']?.toString();
         final handle = account['channelHandle']?.toString();
         final avatar = account['avatarUrl']?.toString();
-        final hasAccount = name != null && CookieStore.instance.cookieHeader != null;
+        // Android shows "Sign out" whenever any session data exists, even if
+        // the account-name lookup failed — so the user is never stuck logged in.
+        final hasAccount = CookieStore.instance.cookieHeader != null ||
+            account.isNotEmpty;
 
         return ListView(
           children: [
@@ -35,7 +58,8 @@ class AccountPage extends StatelessWidget {
                       ? const Icon(Icons.account_circle, size: 56)
                       : Image.network(avatar, width: 56, height: 56, fit: BoxFit.cover),
                 ),
-                title: Text(name!, style: const TextStyle(fontSize: 16)),
+                title: Text(name ?? 'YouTube Music',
+                    style: const TextStyle(fontSize: 16)),
                 subtitle: Text([email, handle]
                     .where((s) => s != null && s.isNotEmpty)
                     .join(' • ')),
@@ -44,11 +68,7 @@ class AccountPage extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.logout),
                 title: const Text('Sign out'),
-                onTap: () async {
-                  await CookieStore.instance.clear();
-                  await CookieStore.instance.clearAccount();
-                  if (context.mounted) context.go('/');
-                },
+                onTap: () => _signOut(context),
               ),
               const Divider(),
             ] else ...[

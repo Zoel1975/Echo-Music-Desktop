@@ -43,6 +43,8 @@ class YTClient {
 
   Future<void> refreshHeaders() async {
     headers = initializeHeaders();
+    final cookieHeader = CookieStore.instance.cookieHeader;
+    if (cookieHeader != null) headers['cookie'] = cookieHeader;
     if (config?.visitorData != null) {
       headers['X-Goog-Visitor-Id'] = config!.visitorData;
     }
@@ -90,7 +92,10 @@ class YTClient {
       final effectiveHeaders = {...?headers};
       final cookieHeader = CookieStore.instance.cookieHeader;
       if (cookieHeader != null) {
-        effectiveHeaders['Cookie'] = cookieHeader;
+        effectiveHeaders['cookie'] = cookieHeader;
+      } else {
+        effectiveHeaders.remove('cookie');
+        effectiveHeaders.remove('Cookie');
       }
       final Uri uri = Uri.parse(url);
       final Response response = await get(uri, headers: effectiveHeaders);
@@ -138,9 +143,14 @@ class YTClient {
 
       this.headers.addAll(headers ?? {});
 
+      // Mirror Android's reactive `YouTube.cookie = ...`: update the header
+      // on every request, and REMOVE it after logout so no stale auth is sent.
       final cookieHeader = CookieStore.instance.cookieHeader;
       if (cookieHeader != null) {
-        this.headers['Cookie'] = cookieHeader;
+        this.headers['cookie'] = cookieHeader;
+      } else {
+        this.headers.remove('cookie');
+        this.headers.remove('Cookie');
       }
 
       if (config?.visitorData == null || config!.visitorData.isEmpty) {

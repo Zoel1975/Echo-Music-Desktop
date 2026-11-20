@@ -7,7 +7,8 @@ Map<String, String> initializeHeaders({String language = 'en'}) {
     'accept': '*/*',
     'accept-encoding': 'gzip, deflate',
     'content-type': 'application/json',
-    'content-encoding': 'gzip',
+    // NOTE: no 'content-encoding: gzip' — request bodies are plain JSON.
+    // Claiming gzip here makes YouTube reject every browse/search request.
     "Origin": "https://music.youtube.com",
     'cookie': 'CONSENT=YES+1',
     'Accept-Language': language,
