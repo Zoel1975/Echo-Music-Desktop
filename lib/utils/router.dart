@@ -23,6 +23,7 @@ import 'package:Echo/screens/search/search_page.dart';
 import 'package:Echo/screens/search/local_search_page.dart';
 import 'package:Echo/screens/settings/about/about_page.dart';
 import 'package:Echo/screens/settings/ai/ai_hub_page.dart';
+import 'package:Echo/screens/settings/ai/echo_brain_page.dart';
 import 'package:Echo/screens/settings/appearance/appearance_page.dart';
 import 'package:Echo/screens/settings/appearance/appearance_details_page.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
@@ -37,6 +38,7 @@ import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
 import 'package:Echo/screens/settings/content/content_page.dart';
 import 'package:Echo/screens/settings/content/content_filter_page.dart';
 import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
+import 'package:Echo/screens/settings/player/equalizer/axion_eq_page.dart';
 import 'package:Echo/screens/settings/player/player_settings_page.dart';
 import 'package:Echo/screens/settings/privacy/privacy_page.dart';
 import 'package:Echo/screens/settings/stats/listening_summary_page.dart';
@@ -284,6 +286,12 @@ List<StatefulShellBranch> branches = [
           GoRoute(
             path: 'ai',
             builder: (context, state) => const AiHubPage(),
+            routes: [
+              GoRoute(
+                path: 'brain',
+                builder: (context, state) => const EchoBrainPage(),
+              ),
+            ],
           ),
           GoRoute(
             path: 'coming_soon',
@@ -300,6 +308,10 @@ List<StatefulShellBranch> branches = [
                 GoRoute(
                   path: 'equalizer',
                   builder: (context, state) => const EqualizerPage(),
+                ),
+                GoRoute(
+                  path: 'axion',
+                  builder: (context, state) => const AxionEqPage(),
                 )
               ]),
           GoRoute(

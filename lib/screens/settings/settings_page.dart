@@ -201,19 +201,25 @@ class SettingsPage extends StatelessWidget {
                       icon: Icons.extension,
                       route: '/extensions',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
-                      title: 'Song recognition & EchoBrain',
-                      icon: Icons.graphic_eq,
-                      feature: 'On-device song recognition (Echo Find) and AI '
-                          'playlists / recommendations.',
+                      title: 'EchoBrain playlists',
+                      icon: Icons.auto_awesome,
+                      route: '/settings/ai/brain',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'AXION / AutoEq equalizer',
                       icon: Icons.equalizer,
-                      feature: 'Pro-grade acoustic tuning with AutoEq headphone '
-                          'profiles.',
+                      route: '/settings/player/axion',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Song recognition (Echo Find)',
+                      icon: Icons.graphic_eq,
+                      feature: 'On-device audio fingerprinting needs native '
+                          'DSP / microphone capture, planned for a future update.',
+                      isLast: true,
                     ),
                     _integrationTile(
                       context,

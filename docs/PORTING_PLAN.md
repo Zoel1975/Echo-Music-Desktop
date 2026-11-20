@@ -142,7 +142,7 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | `PlaybackCutoffGuard`, `AdaptivePreArmManager` | `playback_cutoff.dart` adaptive pre-arm wired into MediaPlayer position stream | DONE | 6 |
 | `SponsorBlockRepository` | `sponsor_block_service.dart` (API + auto-skip in position stream) | DONE | 6 |
 | `usbaudio/*` bit-perfect, `dsp-core`, `audio-dsp` | `DesktopDsp` + mpv silenceremove; placeholder 'Bit-perfect USB DAC' | N/A/PART | 9 |
-| `EqualizerScreen` + `AXION`/AutoEq | `equalizer_page.dart` + placeholder 'AXION / AutoEq engine' | PART | 6 |
+| `EqualizerScreen` + `AXION`/AutoEq | `equalizer_page.dart` + real `axion_eq_page.dart` (10-band sliders, presets, AutoEq import) + `axion_eq_service.dart`, gains applied to mpv lavfi EQ | DONE | 6 |
 | `AudioExportService`, `ExportTaskQueue` | real `export_task_queue.dart` + `export_queue_page.dart` `/export_queue` | DONE | 4 |
 
 ### 3.7 Lyrics
@@ -168,8 +168,8 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | `cloud/Jellyfin*`, `cloud/Navidrome*` | `cloud_service.dart` (real connection checks) + `/jellyfin` with in-app Test button | DONE | 8 |
 | `spotify/*`, `SpotifyImportScreen` | `spotify.dart`, `import_service.dart` | PART | 4 |
 | `ExtensionManager` (320 kbps / lossless servers) | Real `IntegrationPage` `/extensions` (persisted config) | PART | 9 |
-| `recognition/*` (Shazam-style Echo Find) | AI Hub + recognition entry (needs native audio) | PART | 9 |
-| `EchoBrain`/`ai/*` (AI playlists, recommendations) | AI Hub settings page (`/settings/ai`) | PART | 9 |
+| `recognition/*` (Shazam-style Echo Find) | placeholder 'Song recognition (Echo Find)' — native audio fingerprinting infeasible | PART | 9 |
+| `EchoBrain`/`ai/*` (AI playlists, recommendations) | real `echo_brain_page.dart` + `echo_brain_service.dart` (OpenRouter playlist generation, play via search) | DONE | 9 |
 | `echomusic/updater/*` | `update_service/` | PART | 9 |
 | Android widgets (`widget/*`, 15 files) | N/A (replaced by tray/MPRIS) | N/A | 9 |
 | `Ringtone*`, `quicksettings/*`, `localmedia` | N/A | N/A | - |
