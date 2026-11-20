@@ -73,6 +73,12 @@ GoRouter router = GoRouter(
         ),
       ],
     ),
+    // /login is a full-screen route outside the shell: building the WebView2
+    // branch eagerly at startup produced invalid surface geometry errors.
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginPage(),
+    ),
   ],
 );
 
@@ -249,15 +255,7 @@ List<StatefulShellBranch> branches = [
         ),
       ],
     ),
-    // --- Phase 4 — account pages ---
-    StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: '/login',
-          builder: (context, state) => const LoginPage(),
-        ),
-      ],
-    ),
+    // --- Phase 4 - account pages ---
     StatefulShellBranch(
       routes: [
         GoRoute(

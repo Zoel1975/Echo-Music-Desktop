@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -101,8 +102,10 @@ void main() async {
   GetIt.I.registerSingleton<LibraryService>(libraryService);
   GetIt.I.registerSingleton<LyricsService>(LyricsService());
 
-  // Phase 1 remainder: resume the track that was playing at last shutdown.
-  await GetIt.I<MediaPlayer>().restoreLastPlayed();
+  // Resume playback in the background: awaiting it before runApp() could
+  // block the first Flutter frame (e.g. a slow/failed stream resolve), which
+  // left the process alive with an invisible window.
+  unawaited(GetIt.I<MediaPlayer>().restoreLastPlayed());
 
   runApp(
     MultiProvider(

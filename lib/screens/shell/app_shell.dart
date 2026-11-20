@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+﻿import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/core/widgets/floating_nav.dart';
@@ -63,6 +63,9 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final bool wide = MediaQuery.of(context).size.width >= 450;
+    // The shell has 10 route branches (detail/account/login/explore too) but
+    // only 4 visible tabs: clamp to avoid NavigationRail/Bar index assertions.
+    final shellIndex = widget.navigationShell.currentIndex.clamp(0, 3);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -101,7 +104,7 @@ class _AppShellState extends State<AppShell> {
                         label: Text(S.of(context).Settings),
                     )
                   ],
-                  selectedIndex: widget.navigationShell.currentIndex,
+                  selectedIndex: shellIndex,
                   onDestinationSelected: _goBranch,
                 ),
               Expanded(
@@ -109,7 +112,7 @@ class _AppShellState extends State<AppShell> {
               ),
             ],
           ),
-          // Floating glass tab bar — the desktop counterpart of Android's
+          // Floating glass tab bar â€” the desktop counterpart of Android's
           // FloatingTabBar. See `lib/core/widgets/floating_nav.dart`.
           if (wide)
             Positioned(
@@ -119,7 +122,7 @@ class _AppShellState extends State<AppShell> {
               child: Align(
                 alignment: Alignment.center,
                 child: EchoFloatingNavBar(
-                  selected: widget.navigationShell.currentIndex,
+                  selected: shellIndex,
                   destinations: _destinations(context),
                 ),
               ),
@@ -132,7 +135,7 @@ class _AppShellState extends State<AppShell> {
       ),
       bottomNavigationBar: !wide
           ? NavigationBar(
-              selectedIndex: widget.navigationShell.currentIndex,
+              selectedIndex: shellIndex,
               destinations: [
                 NavigationDestination(
                   selectedIcon: const Icon(CupertinoIcons.music_house_fill,
