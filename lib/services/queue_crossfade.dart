@@ -28,6 +28,38 @@ class CrossfadeDecision {
   }
 }
 
+/// Pure decision for near-end crossfade pre-arming at automatic queue advance.
+class QueueEndCrossfade {
+  const QueueEndCrossfade._(
+    this.shouldArm,
+    this.remaining,
+  );
+
+  final bool shouldArm;
+  final Duration remaining;
+
+  /// [position]/[duration] are the current track's progress, [crossfade] the
+  /// configured overlap duration, [hasNext] whether a queued track exists and
+  /// [alreadyArmed] guards against arming twice per track.
+  static QueueEndCrossfade evaluate({
+    required Duration position,
+    required Duration? duration,
+    required Duration crossfade,
+    required bool enabled,
+    required bool hasNext,
+    required bool alreadyArmed,
+  }) {
+    if (!enabled || !hasNext || alreadyArmed || duration == null) {
+      return const QueueEndCrossfade._(false, Duration.zero);
+    }
+    final remaining = duration - position;
+    if (remaining <= Duration.zero) {
+      return const QueueEndCrossfade._(false, Duration.zero);
+    }
+    return QueueEndCrossfade._(remaining <= crossfade, remaining);
+  }
+}
+
 /// Owns a dedicated "outgoing" player so a track switch can overlap the old
 /// and new audio using the equal-power [CrossfadeEngine], instead of cutting
 /// abruptly. [makePlayer] injects `AudioPlayer` in production and a fake in

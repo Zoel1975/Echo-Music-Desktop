@@ -166,7 +166,16 @@ class StreamResolver {
   String? _visitorData;
   DateTime? _visitorDataFetched;
 
-  void clearCache() => _cache.clear();
+  /// Loudness metadata of the last resolved stream per video, used by the
+  /// desktop normalization engine to compute replay gain.
+  final Map<String, double?> _loudness = {};
+
+  double? loudnessFor(String videoId) => _loudness[videoId];
+
+  void clearCache() {
+    _cache.clear();
+    _loudness.clear();
+  }
 
   /// Pure helper: pull the `VISITOR_DATA` token out of a YouTube page body.
   /// It is escaped JSON, so decode it first to avoid `\\uXXXX` sequences.
@@ -361,6 +370,7 @@ class StreamResolver {
 
         final expires = _asNum(data['streamingData']?['expiresInSeconds']) == 0 ? 3600 : _asNum(data['streamingData']?['expiresInSeconds']).toInt();
         final ttl = Duration(seconds: expires.clamp(300, 3600));
+        _loudness[videoId] = stream.loudnessDb;
         _cache[key] = (stream: stream, expiry: DateTime.now().add(ttl));
         return stream;
       } catch (e) {

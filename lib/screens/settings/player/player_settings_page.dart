@@ -74,7 +74,7 @@ class PlayerSettingsPage extends StatelessWidget {
                     const GroupTitle(title: 'Audio processing'),
                     SettingSwitchTile(
                       title: 'Audio normalization',
-                      subtitle: 'ReplayGain-style loudness normalization',
+                      subtitle: 'ReplayGain loudness normalization (via playback gain)',
                       leading: const Icon(Icons.volume_up),
                       isFirst: true,
                       value: s.audioNormalization,
@@ -101,6 +101,7 @@ class PlayerSettingsPage extends StatelessWidget {
                     if (s.audioNormalization)
                       SettingSwitchTile(
                         title: 'Skip silence',
+                        subtitle: 'Native processor where available',
                         leading: const Icon(Icons.fast_forward),
                         value: s.skipSilence,
                         onChanged: cubit.setSkipSilence,

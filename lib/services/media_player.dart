@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/crossfade_engine.dart';
+import 'package:Echo/services/desktop_dsp.dart';
 import 'package:Echo/services/queue_crossfade.dart';
 import 'package:Echo/services/sponsor_block_service.dart';
+import 'package:Echo/services/stream_resolver.dart';
 import 'package:Echo/services/yt_audio_stream.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -245,11 +247,16 @@ class MediaPlayer extends ChangeNotifier {
     _player.playbackEventStream.listen(
       (event) {},
       onError: (Object e, StackTrace st) {
-        // Phase 1 remainder: surface the failure to the UI instead of failing
-        // silently into "paused".
+        // Surface the failure to the UI instead of failing silently.
         playbackError.value = 'Playback error: ${e.toString()}';
         _buttonState.value = ButtonState.paused;
         notifyListeners();
+        // Android `auto_skip_next_on_error`: skip to the next queued track
+        // when enabled so playback stays continuous after a failed source.
+        if (GetIt.I<SettingsManager>().autoSkipOnError &&
+            (_player.currentIndex ?? -1) + 1 < _songList.length) {
+          unawaited(_player.seekToNext());
+        }
       },
     );
   }
@@ -314,6 +321,8 @@ class MediaPlayer extends ChangeNotifier {
   // track with the new one on user-initiated track switches.
   AudioPlayer? _xfadeOutPlayer;
   QueueCrossfadeController? _xfade;
+  bool _xfadeArmed = false;
+  int? _xfadeArmedIndex;
 
   void _listenToCurrentPosition() {
     _player.positionStream.listen((position) {
@@ -326,7 +335,70 @@ class MediaPlayer extends ChangeNotifier {
         );
       }
       _maybeSkipSponsor(position);
+      _maybePreArmQueueCrossfade(position);
     });
+  }
+
+  /// Automatic queue advance: when the current track is within the crossfade
+  /// window of its end and a next track is queued, overlap them using a
+  /// dedicated outgoing player + equal-power ramp instead of a hard cut.
+  Future<void> _maybePreArmQueueCrossfade(Duration position) async {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.crossfadeEnabled) return;
+    final idx = _player.currentIndex;
+    if (idx == null) return;
+    if (_xfadeArmedIndex == idx) return; // already armed for this track
+    final nextIdx = idx + 1;
+    final hasNext = nextIdx < _songList.length;
+    final decision = QueueEndCrossfade.evaluate(
+      position: position,
+      duration: _player.duration,
+      crossfade: Duration(
+          milliseconds: (settings.crossfadeDuration * 1000).round()),
+      enabled: settings.crossfadeEnabled,
+      hasNext: hasNext,
+      alreadyArmed: _xfadeArmedIndex == idx,
+    );
+    if (!decision.shouldArm) return;
+    _xfadeArmed = true;
+    _xfadeArmedIndex = idx;
+
+    try {
+      final currentTag = _songList[idx].tag;
+      final nextTag = _songList[nextIdx].tag;
+      if (currentTag is! MediaItem || nextTag is! MediaItem) return;
+      final outPlayer = _xfadeOutPlayer ??= AudioPlayer();
+      _xfade?.dispose();
+      _xfade = QueueCrossfadeController(makePlayer: () => AudioPlayerAdapter(outPlayer));
+      final outSource = await _getAudioSource(currentTag.extras ?? {});
+      await outPlayer.setAudioSource(outSource);
+      await outPlayer.seek(position);
+      await outPlayer.setVolume(1.0);
+      await outPlayer.play();
+
+      // Seek the main player to the next track (queue preserved) and ramp it in.
+      await _player.setVolume(0);
+      await _player.seek(Duration.zero, index: nextIdx);
+      _currentSongNotifier.value = nextTag;
+      _currentIndex.value = nextIdx;
+      await _player.play();
+
+      await _xfade!.start(
+        incoming: AudioPlayerAdapter(_player),
+        duration: Duration(milliseconds: (settings.crossfadeDuration * 1000).round()),
+        peakVolume: _dspTargetGain,
+        startOutgoing: (_) async {},
+        onDone: () {
+          outPlayer.stop();
+          _player.setVolume(_dspTargetGain);
+        },
+      );
+    } catch (e) {
+      debugPrint('Queue-end crossfade failed: $e');
+      _xfade?.cancel();
+      _xfadeArmed = false;
+      _xfadeArmedIndex = null;
+    }
   }
 
   /// Android SponsorBlock auto-skip: when the enabled setting is on, fetch
@@ -731,21 +803,49 @@ class MediaPlayer extends ChangeNotifier {
     await _player.play();
   }
 
+  /// Current track's normalization-adjusted playback gain (Windows-relevant:
+  /// applied via just_audio's cross-platform `setVolume`, not the Android-only
+  /// loudness enhancer).
+  double get _dspTargetGain {
+    final settings = GetIt.I<SettingsManager>();
+    final id = _currentSongNotifier.value?.id;
+    return DesktopDsp.forTrack(
+      userVolume: _player.volume == 0 ? 1.0 : _player.volume,
+      loudnessDb: id == null ? null : StreamResolver.instance.loudnessFor(id),
+      normalizationOn: settings.loudnessEnabled,
+      preset: settings.loudnessPreset,
+      targetGainDb: settings.loudnessTargetGain,
+    );
+  }
+
+  /// Apply replay-gain normalization immediately (no envelope).
+  Future<void> _applyDspGain() async {
+    await _player.setVolume(_dspTargetGain);
+  }
+
   /// Fades the newly-started track in from silence using the crossfade
-  /// duration/curve. Called after `play()` when crossfade is enabled.
+  /// duration/curve, ramping toward the DSP-adjusted target gain.
   Future<void> _applyTrackFadeIn() async {
     final settings = GetIt.I<SettingsManager>();
-    if (!settings.crossfadeEnabled) return;
+    if (!settings.crossfadeEnabled) {
+      await _applyDspGain();
+      return;
+    }
+    final peak = _dspTargetGain;
     final ms = (settings.crossfadeDuration * 1000).round();
-    if (ms <= 0) return;
+    if (ms <= 0) {
+      await _player.setVolume(peak);
+      return;
+    }
     final steps = (ms / 40).ceil().clamp(1, 100);
     final stepDuration = Duration(milliseconds: (ms ~/ steps).clamp(1, 1000));
     for (var i = 0; i <= steps; i++) {
       if (!_player.playing) break;
       final t = i / steps;
-      await _player.setVolume(CrossfadeCurve.fadeIn(t));
+      await _player.setVolume(peak * CrossfadeCurve.fadeIn(t));
       await Future<void>.delayed(stepDuration);
     }
+    await _player.setVolume(peak);
   }
 
   Future<void> stop() async {

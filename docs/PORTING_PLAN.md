@@ -257,6 +257,19 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
 | **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
 
+**Windows DSP (this session):** Genuine cross-platform DSP now wired to real
+playback behavior:
+- `DesktopDsp` computes replay-gain normalization from InnerTube `loudnessDb`
+  (exposed via `StreamResolver.loudnessFor`) and applies it through just_audio's
+  cross-platform `setVolume` — real effect on Windows (no Android enhancer).
+- `QueueEndCrossfade.evaluate` pre-arms at automatic queue advance: the
+  position listener overlaps the current and next queued tracks via a
+  dedicated outgoing player + equal-power ramp (`QueueCrossfadeController`).
+- `autoSkipOnError` now seeks to the next track on playback errors.
+- Skip-silence calls `setSkipSilenceEnabled` on all platforms (native processor
+  where available; a no-op elsewhere, subtitled honestly).
+Pure helpers unit-tested in `desktop_dsp_test.dart` (6 cases).
+
 **Crossfade + discovery + placeholders (this session):** Real two-player
 equal-power crossfade at track transitions via `QueueCrossfadeController` +
 `CrossfadeDecision` (unit-tested) wired into `MediaPlayer.playSong` — the
