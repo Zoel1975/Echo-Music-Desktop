@@ -53,6 +53,17 @@ void main() {
     });
   });
 
+  group('GoogleLoginService diagnostics (login verification)', () {
+    test('diagnostics with no browser/cookies reports empty state', () async {
+      // Point the service at a closed port: no browser, no CDP.
+      final svc = GoogleLoginService(port: 1);
+      final d = await svc.diagnostics();
+      expect(d.cookieCount, 0);
+      expect(d.hasAuth, isFalse);
+      expect(await GoogleLoginService.isCdpUp(1), isFalse);
+    });
+  });
+
   group('DeviceLinkService (mobile <-> desktop pairing)', () {
     test('generates a 6-digit code', () {
       final code = DeviceLinkService.generateCode(Random(1));

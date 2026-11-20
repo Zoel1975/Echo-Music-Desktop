@@ -27,14 +27,49 @@ class _LoginPageState extends State<LoginPage> {
   final _service = GoogleLoginService();
   final _cookieController = TextEditingController();
   Timer? _timeout;
+  Timer? _diagTimer;
   bool _opening = false;
   bool _checking = false;
   String? _status;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-refresh diagnostics every 2s so the user sees the state live.
+    _diagTimer = Timer.periodic(const Duration(seconds: 2), (_) => _refreshDiag());
+    _refreshDiag();
+  }
+
+  ({String text, Color color, bool isError}) _diag =
+      (text: 'Stato login non disponibile', color: Colors.grey, isError: false);
+
+  void _refreshDiag() {
+    unawaited(_updateDiag());
+  }
+
+  Future<void> _updateDiag() async {
+    final d = await _service.diagnostics();
+    if (!mounted) return;
+    final cdpUp = d.cookieCount > 0 || await GoogleLoginService.isCdpUp(_service.port);
+    if (!mounted) return;
+    setState(() {
+      _diag = (
+        text: 'Browser: ${GoogleLoginService.findBrowser()?.split('\\').last ?? "nessun Chrome/Edge"} · '
+            'CDP: ${cdpUp ? 'on' : 'off'} · Cookie: ${d.cookieCount} · '
+            '${d.hasAuth ? 'ACCREDENTI PRESENTI' : 'nessuna credenziale'}',
+        color: d.hasAuth
+            ? Colors.green
+            : cdpUp ? Colors.orange : Colors.red,
+        isError: !d.hasAuth,
+      );
+    });
+  }
+
+  @override
   void dispose() {
     _timeout?.cancel();
+    _diagTimer?.cancel();
     _service.closeBrowser();
     _cookieController.dispose();
     super.dispose();
@@ -193,7 +228,31 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
               ],
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _diag.text,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _diag.isError ? Colors.red : Colors.grey,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Aggiorna diagnostica',
+                        icon: const Icon(Icons.refresh),
+                        onPressed: _refreshDiag,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 16),
               const Text('Fallback — incolla l\'header Cookie da DevTools',

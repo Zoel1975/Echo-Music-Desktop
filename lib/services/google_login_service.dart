@@ -98,6 +98,40 @@ class GoogleLoginService {
     }
   }
 
+  /// Pure: the browser executable we will launch, or null if none found.
+  static String? findBrowser() {
+    const candidates = [
+      r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+      r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+      r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
+    ];
+    for (final c in candidates) {
+      if (File(c).existsSync()) return c;
+    }
+    return null;
+  }
+
+  /// Pure: is the remote-debugging endpoint answering on [port]?
+  static Future<bool> isCdpUp(int port) async {
+    try {
+      final r = await http
+          .get(Uri.parse('http://127.0.0.1:$port/json/version'))
+          .timeout(const Duration(seconds: 2));
+      return r.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Diagnostics: count of Google/YouTube cookies, and whether a real auth
+  /// cookie is present. Returns null if the CDP endpoint is unreachable.
+  Future<({int cookieCount, bool hasAuth})> diagnostics() async {
+    final cookies = await readCookies();
+    if (cookies == null) return (cookieCount: 0, hasAuth: false);
+    final collected = collect(cookies);
+    return (cookieCount: collected.pairs.length, hasAuth: collected.hasAuth);
+  }
+
   /// Read the browser-level WebSocket debugger URL from /json/version.
   Future<String?> _browserWebSocketUrl() async {
     try {
