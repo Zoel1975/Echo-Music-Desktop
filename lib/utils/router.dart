@@ -30,6 +30,8 @@ import 'package:Echo/screens/coming_soon/coming_soon_catalog.dart';
 import 'package:Echo/screens/explore/music_flow_feed_page.dart';
 import 'package:Echo/screens/player/ambient_page.dart';
 import 'package:Echo/screens/settings/export_queue_page.dart';
+import 'package:Echo/screens/settings/integrations/integration_page.dart';
+import 'package:Echo/screens/settings/integrations/integration_catalog.dart';
 
 import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
 import 'package:Echo/screens/settings/content/content_page.dart';
@@ -122,6 +124,12 @@ GoRouter router = GoRouter(
       path: '/export_queue',
       builder: (context, state) => const ExportQueuePage(),
     ),
+    // Real integration settings screens with persisted local config.
+    for (final integration in IntegrationCatalog.screens)
+      GoRoute(
+        path: '/${integration.route}',
+        builder: (context, state) => IntegrationPage(screen: integration),
+      ),
     for (final feature in ComingSoonCatalog.features)
       GoRoute(
         path: '/${feature.route}',

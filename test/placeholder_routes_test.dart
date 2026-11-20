@@ -5,35 +5,35 @@ import 'package:Echo/screens/coming_soon/coming_soon_catalog.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
 
 void main() {
-  test('every remaining parity feature has a stable reachable route', () {
-    final routes = ComingSoonCatalog.features.map((f) => '/${f.route}').toList();
-    expect(routes, containsAll(['/song_dna']));
-    // These were placeholders but are now real screens.
-    for (final real in [
-      '/podcasts',
-      '/canvas_ambient',
-      '/music_flow_full',
-      '/export_queue',
+  test('all formerly-placeholdered features are now real screens', () {
+    // The placeholder catalog is empty: every parity feature is reachable as
+    // a real screen (settings integrations, podcasts, music flow, ambient,
+    // export, song DNA).
+    expect(ComingSoonCatalog.features, isEmpty);
+    for (final route in [
+      'podcasts',
+      'canvas_ambient',
+      'music_flow_full',
+      'export_queue',
+      'song_dna',
     ]) {
-      expect(routes.contains(real), isFalse);
+      expect(
+        ComingSoonCatalog.byRoute('/$route'),
+        isNull,
+        reason: '$route should no longer be a placeholder',
+      );
     }
-    for (final f in ComingSoonCatalog.features) {
-      expect(ComingSoonCatalog.byRoute('/${f.route}')?.title, f.title);
-      expect(f.message, isNotEmpty);
-    }
-    expect(ComingSoonCatalog.byRoute('/unknown'), isNull);
   });
 
-  testWidgets('placeholder page shows an honest future-update message',
+  testWidgets('placeholder page still shows an honest future-update message',
       (tester) async {
-    final feature = ComingSoonCatalog.features.first;
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(const MaterialApp(
       home: ComingSoonPage(
-        title: feature.title,
-        feature: feature.message,
+        title: 'Example future feature',
+        feature: 'This is planned for a future update.',
       ),
     ));
-    expect(find.text(feature.title), findsWidgets);
+    expect(find.text('Example future feature'), findsWidgets);
     expect(find.text('Planned for a future update'), findsOneWidget);
     expect(find.byIcon(Icons.construction_rounded), findsOneWidget);
   });

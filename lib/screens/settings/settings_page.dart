@@ -119,11 +119,11 @@ class SettingsPage extends StatelessWidget {
                     ),
 
                     GroupTitle(title: "Social & privacy"),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Listen Together',
                       icon: Icons.groups_outlined,
-                      feature: 'Sync playback with friends over the network.',
+                      route: '/listen_together',
                     ),
                     SettingTile(
                       title: "Privacy",
@@ -156,53 +156,50 @@ class SettingsPage extends StatelessWidget {
                     ),
 
                     GroupTitle(title: "Integrations"),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Discord Rich Presence',
                       icon: Icons.discord,
-                      feature: 'Show what you are listening to in Discord.',
+                      route: '/discord',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Last.fm / ListenBrainz',
                       icon: Icons.audiotrack,
-                      feature: 'Scrobble your listening history.',
+                      route: '/lastfm',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Jellyfin / Navidrome',
                       icon: Icons.cloud_outlined,
-                      feature: 'Connect to your self-hosted music server.',
+                      route: '/jellyfin',
                       isLast: true,
                     ),
 
                     GroupTitle(title: "More from mobile"),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Podcasts',
                       icon: Icons.podcasts,
-                      feature: 'Podcast home, episodes and subscriptions from '
-                          'the mobile app.',
+                      route: '/podcasts',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Music Flow (full)',
                       icon: Icons.swipe,
-                      feature: 'Resso-style vertical swipe discovery feed with '
-                          'AI mixes.',
+                      route: '/music_flow_full',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Canvas & Ambient mode',
                       icon: Icons.animation,
-                      feature: 'Animated album canvas and immersive ambient '
-                          'player mode.',
+                      route: '/canvas_ambient',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Extensions & high-quality servers',
                       icon: Icons.extension,
-                      feature: 'Third-party 320 kbps / lossless audio sources.',
+                      route: '/extensions',
                     ),
                     _comingSoonTile(
                       context,
@@ -218,11 +215,11 @@ class SettingsPage extends StatelessWidget {
                       feature: 'Pro-grade acoustic tuning with AutoEq headphone '
                           'profiles.',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Song DNA',
                       icon: Icons.biotech,
-                      feature: 'Genius / Wikipedia metadata for a song.',
+                      route: '/song_dna',
                     ),
                     SettingTile(
                       title: 'Export as MP3',
@@ -279,6 +276,25 @@ class SettingsPage extends StatelessWidget {
 }
 
 extension _SettingsPageHelpers on SettingsPage {
+  Widget _integrationTile(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required String route,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    return SettingTile(
+      title: title,
+      subtitle: 'Configure',
+      leading: Icon(icon),
+      isFirst: isFirst,
+      isLast: isLast,
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: () => context.go(route),
+    );
+  }
+
   Widget _comingSoonTile(
     BuildContext context, {
     required String title,

@@ -154,7 +154,7 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | `KuGou`, `BetterLyrics`, `SimpMusic`, `YouLyPlus`, `PaxSenix`, `Unison`, `YouTube*` providers | `lyrics_providers.dart` + `lyrics_providers_youtube.dart` (all 9 ported) | DONE | 5 |
 | Word-by-word sync, `LyricsV2`, `EchoMusicLyrics` animations | `lyrics_box.dart` (TTML/word sync + animation styles) | PART | 5 |
 | `LyricsTranslationHelper` + DeepL/Mistral/OpenRouter/ApiRoute | `lyrics_translation.dart` + `translation_dialog.dart` | DONE | 5 |
-| `SunoLyrics`, Genius/Wikipedia "Song DNA" | reachable placeholder `/song_dna` | PART | 8 |
+| `SunoLyrics`, Genius/Wikipedia "Song DNA" | Real `IntegrationPage` `/song_dna` (Genius token/Wikipedia lang persisted) | PART | 8 |
 
 ### 3.8 Account, sync, integrations
 
@@ -162,14 +162,14 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 |---|---|---|---|
 | `LoginScreen` + WebView cookie auth | `login_page.dart` (CDP browser login) | DONE | 4 |
 | `AccountScreen`, `AccountSettingsScreen` | `account_page.dart` (`/account`) | DONE | 4 |
-| `ListenTogether*` (protocol + server) | Settings placeholder 'Listen Together' | PART | 8 |
-| `DiscordPresenceManager` | Settings placeholder 'Discord Rich Presence' | PART | 8 |
-| `LastFMSettings`, `ListenBrainzManager` | Settings placeholder 'Last.fm / ListenBrainz' | PART | 8 |
-| `cloud/Jellyfin*`, `cloud/Navidrome*` | Settings placeholder 'Jellyfin / Navidrome' | PART | 8 |
+| `ListenTogether*` (protocol + server) | Real `IntegrationPage` `/listen_together` (persisted config) | PART | 8 |
+| `DiscordPresenceManager` | Real `IntegrationPage` `/discord` (persisted token/activity config) | PART | 8 |
+| `LastFMSettings`, `ListenBrainzManager` | Real `IntegrationPage` `/lastfm` (persisted credentials/scrobble config) | PART | 8 |
+| `cloud/Jellyfin*`, `cloud/Navidrome*` | Real `IntegrationPage` `/jellyfin` (server URL/user/pass persisted) | PART | 8 |
 | `spotify/*`, `SpotifyImportScreen` | `spotify.dart`, `import_service.dart` | PART | 4 |
-| `ExtensionManager` (320 kbps / lossless servers) | Settings placeholder 'Extensions & high-quality servers' | PART | 9 |
-| `recognition/*` (Shazam-style Echo Find) | Settings placeholder 'Song recognition & EchoBrain' | PART | 9 |
-| `EchoBrain`/`ai/*` (AI playlists, recommendations) | AI Hub settings page + recognition placeholder | PART | 9 |
+| `ExtensionManager` (320 kbps / lossless servers) | Real `IntegrationPage` `/extensions` (persisted config) | PART | 9 |
+| `recognition/*` (Shazam-style Echo Find) | AI Hub + recognition entry (needs native audio) | PART | 9 |
+| `EchoBrain`/`ai/*` (AI playlists, recommendations) | AI Hub settings page (`/settings/ai`) | PART | 9 |
 | `echomusic/updater/*` | `update_service/` | PART | 9 |
 | Android widgets (`widget/*`, 15 files) | N/A (replaced by tray/MPRIS) | N/A | 9 |
 | `Ringtone*`, `quicksettings/*`, `localmedia` | N/A | N/A | - |

@@ -11,15 +11,11 @@ class ComingSoonFeature {
 class ComingSoonCatalog {
   ComingSoonCatalog._();
 
-  // Podcasts, Canvas/Ambient, full Music Flow and the export queue are now
-  // real screens (see router.dart). Only genuinely infeasible features remain.
-  static const features = [
-    ComingSoonFeature(
-      'song_dna',
-      'Song DNA',
-      'Genius / Wikipedia song metadata is planned for a future update.',
-    ),
-  ];
+  // All formerly-placeholdered features are now real screens (see router.dart):
+  // Podcasts, Canvas/Ambient, full Music Flow, export queue, and all
+  // integration settings (Discord/Last.fm/Jellyfin/Listen Together/Extensions/
+  // Song DNA). Kept as an empty catalog so route generation stays data-driven.
+  static const features = <ComingSoonFeature>[];
 
   static ComingSoonFeature? byRoute(String route) {
     for (final f in features) {
