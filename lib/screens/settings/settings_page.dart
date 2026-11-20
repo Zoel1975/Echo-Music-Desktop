@@ -224,12 +224,12 @@ class SettingsPage extends StatelessWidget {
                       icon: Icons.biotech,
                       feature: 'Genius / Wikipedia metadata for a song.',
                     ),
-                    _comingSoonTile(
-                      context,
+                    SettingTile(
                       title: 'Export as MP3',
-                      icon: Icons.file_download_outlined,
-                      feature: 'Background export task queue (ExportTaskQueue).',
+                      subtitle: 'Background export task queue',
+                      leading: const Icon(Icons.file_download_outlined),
                       isLast: true,
+                      onTap: () => context.go('/export_queue'),
                     ),
 
                     GroupTitle(title: "Updates & About"),

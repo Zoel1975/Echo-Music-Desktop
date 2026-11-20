@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/crossfade_engine.dart';
 import 'package:Echo/services/desktop_dsp.dart';
+import 'package:Echo/services/playback_cutoff.dart';
 import 'package:Echo/services/queue_crossfade.dart';
 import 'package:Echo/services/sponsor_block_service.dart';
 import 'package:Echo/services/stream_resolver.dart';
@@ -359,7 +360,15 @@ class MediaPlayer extends ChangeNotifier {
       hasNext: hasNext,
       alreadyArmed: _xfadeArmedIndex == idx,
     );
-    if (!decision.shouldArm) return;
+    // Adaptive pre-arm: also fire when buffering is thin near the end, even
+    // if crossfade itself is off (Android AdaptivePreArmManager).
+    final cutoffArm = PlaybackCutoffGuard.shouldPreArm(
+      positionMs: position.inMilliseconds,
+      durationMs: (_player.duration ?? Duration.zero).inMilliseconds,
+      bufferedMs: _player.bufferedPosition.inMilliseconds,
+      baseLeadMs: (settings.crossfadeDuration * 1000).round(),
+    );
+    if (!decision.shouldArm && !cutoffArm) return;
     _xfadeArmed = true;
     _xfadeArmedIndex = idx;
 

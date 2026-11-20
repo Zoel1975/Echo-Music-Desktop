@@ -19,6 +19,7 @@ import 'services/file_storage.dart';
 import 'services/storage_service.dart';
 import 'services/content_filter_service.dart';
 import 'services/silence_filter.dart';
+import 'services/export_task_queue.dart';
 import 'services/audio_device_service.dart';
 import 'services/remote_control_service.dart';
 import 'services/library.dart';
@@ -94,6 +95,7 @@ void main() async {
   SilenceFilter.apply(enabled: settingsManager.skipSilence);
   GetIt.I.registerSingleton<StorageService>(StorageService());
   GetIt.I.registerSingleton<ContentFilterService>(ContentFilterService());
+  GetIt.I.registerSingleton<ExportTaskQueue>(ExportTaskQueue());
   GetIt.I.registerSingleton<AudioDeviceService>(AudioDeviceService());
   final remoteControl = RemoteControlService();
   GetIt.I.registerSingleton<RemoteControlService>(remoteControl);

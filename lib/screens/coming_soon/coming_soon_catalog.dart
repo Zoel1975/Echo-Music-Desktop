@@ -11,34 +11,13 @@ class ComingSoonFeature {
 class ComingSoonCatalog {
   ComingSoonCatalog._();
 
+  // Podcasts, Canvas/Ambient, full Music Flow and the export queue are now
+  // real screens (see router.dart). Only genuinely infeasible features remain.
   static const features = [
-    ComingSoonFeature(
-      'podcasts',
-      'Podcasts',
-      'Podcast home, episodes and subscriptions from the mobile app are '
-      'planned for a future update.',
-    ),
-    ComingSoonFeature(
-      'canvas_ambient',
-      'Canvas & Ambient mode',
-      'Animated album canvas and the immersive ambient player are planned '
-      'for a future update.',
-    ),
-    ComingSoonFeature(
-      'music_flow_full',
-      'Music Flow',
-      'The full Resso-style vertical swipe discovery feed with AI mixes is '
-      'planned for a future update.',
-    ),
     ComingSoonFeature(
       'song_dna',
       'Song DNA',
       'Genius / Wikipedia song metadata is planned for a future update.',
-    ),
-    ComingSoonFeature(
-      'export_queue',
-      'Export as MP3',
-      'The background export task queue is planned for a future update.',
     ),
   ];
 

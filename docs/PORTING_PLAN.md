@@ -99,8 +99,8 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | `ChartsScreen` | `chart_details_page.dart` | PART | 3 |
 | `MoodAndGenresScreen` | `chip_page.dart` | PART | 3 |
 | `BrowseScreen`, `YouTubeBrowseScreen` | `browse_page.dart` | PART | 3 |
-| `PodcastHome`, `podcast/*` | reachable placeholder `/podcasts` (Library tile) | PART | 7 |
-| `musicflow/*` (9 files, Resso-style flow) | `/explore` feed + reachable placeholder `/music_flow_full` | PART | 6 |
+| `PodcastHome`, `podcast/*` | real `ChipPage` `/podcasts` via `FEmusic_podcasts` browse endpoint | DONE | 7 |
+| `musicflow/*` (9 files, Resso-style flow) | real `music_flow_feed_page.dart` vertical-swipe `/music_flow_full` + ranking services | DONE | 6 |
 
 ### 3.3 Search
 
@@ -118,7 +118,7 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | `ArtistScreen`, `ArtistSongs`, `ArtistAlbums`, `ArtistItems` | `artist_page.dart` (`/artist`) | DONE | 3 |
 | `OnlinePlaylistScreen`, `BottomPlaylistScreen`, `TopPlaylistScreen` | `playlist_page.dart` (`/playlist`) + download-playlist | PART | 3 |
 | `LocalPlaylistScreen`, `AutoPlaylistScreen`, `CachePlaylistScreen` | `playlist_details_page.dart` | PART | 4 |
-| `CanvasAlbum`, `AmbientModeScreen` | reachable placeholder `/canvas_ambient` (Explore + player) | PART | 8 |
+| `CanvasAlbum`, `AmbientModeScreen` | real `ambient_page.dart` `/canvas_ambient` (animated bg + art + lyrics) | DONE | 8 |
 
 ### 3.5 Library
 
@@ -139,11 +139,11 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | `Queue`, `YouTubeQueue`, `RadioQueuePageFilter`, `QueueExt` | `queue_list.dart` + full queue persistence | PART | 1 |
 | `SleepTimer` | `sleep_timer.dart` (timed + end-of-track) | DONE | 1 |
 | Crossfade / `StandbyCrossfadeScheduler`, `EqualPowerCurve` | `CrossfadeEngine` + `QueueCrossfadeController` (2-player equal-power, track switch + near-end pre-arm) | DONE | 6 |
-| `PlaybackCutoffGuard`, `AdaptivePreArmManager` | placeholder 'Playback cutoff guard' in Player settings | PART | 6 |
+| `PlaybackCutoffGuard`, `AdaptivePreArmManager` | `playback_cutoff.dart` adaptive pre-arm wired into MediaPlayer position stream | DONE | 6 |
 | `SponsorBlockRepository` | `sponsor_block_service.dart` (API + auto-skip in position stream) | DONE | 6 |
 | `usbaudio/*` bit-perfect, `dsp-core`, `audio-dsp` | `DesktopDsp` + mpv silenceremove; placeholder 'Bit-perfect USB DAC' | N/A/PART | 9 |
 | `EqualizerScreen` + `AXION`/AutoEq | `equalizer_page.dart` + placeholder 'AXION / AutoEq engine' | PART | 6 |
-| `AudioExportService`, `ExportTaskQueue` | `download_manager.dart` + reachable placeholder `/export_queue` | PART | 4 |
+| `AudioExportService`, `ExportTaskQueue` | real `export_task_queue.dart` + `export_queue_page.dart` `/export_queue` | DONE | 4 |
 
 ### 3.7 Lyrics
 

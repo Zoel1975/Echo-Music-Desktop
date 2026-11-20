@@ -27,6 +27,9 @@ import 'package:Echo/screens/settings/appearance/appearance_page.dart';
 import 'package:Echo/screens/settings/appearance/appearance_details_page.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_catalog.dart';
+import 'package:Echo/screens/explore/music_flow_feed_page.dart';
+import 'package:Echo/screens/player/ambient_page.dart';
+import 'package:Echo/screens/settings/export_queue_page.dart';
 
 import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
 import 'package:Echo/screens/settings/content/content_page.dart';
@@ -94,8 +97,31 @@ GoRouter router = GoRouter(
       path: '/login',
       builder: (context, state) => const LoginPage(),
     ),
+    // Real Podcasts home via YouTube Music's public podcasts browse endpoint.
+    GoRoute(
+      path: '/podcasts',
+      builder: (context, state) => const ChipPage(
+        title: 'Podcasts',
+        endpoint: {'browseId': 'FEmusic_podcasts'},
+      ),
+    ),
     // Reachable "coming in a future update" placeholder routes for the
     // mobile features that have no desktop implementation.
+    // Real vertical-swipe Music Flow feed.
+    GoRoute(
+      path: '/music_flow_full',
+      builder: (context, state) => const MusicFlowFeedPage(),
+    ),
+    // Real Canvas / Ambient immersive player.
+    GoRoute(
+      path: '/canvas_ambient',
+      builder: (context, state) => const AmbientPage(),
+    ),
+    // Real Export-as-MP3 task queue.
+    GoRoute(
+      path: '/export_queue',
+      builder: (context, state) => const ExportQueuePage(),
+    ),
     for (final feature in ComingSoonCatalog.features)
       GoRoute(
         path: '/${feature.route}',

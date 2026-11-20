@@ -7,13 +7,16 @@ import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
 void main() {
   test('every remaining parity feature has a stable reachable route', () {
     final routes = ComingSoonCatalog.features.map((f) => '/${f.route}').toList();
-    expect(routes, containsAll([
+    expect(routes, containsAll(['/song_dna']));
+    // These were placeholders but are now real screens.
+    for (final real in [
       '/podcasts',
       '/canvas_ambient',
       '/music_flow_full',
-      '/song_dna',
       '/export_queue',
-    ]));
+    ]) {
+      expect(routes.contains(real), isFalse);
+    }
     for (final f in ComingSoonCatalog.features) {
       expect(ComingSoonCatalog.byRoute('/${f.route}')?.title, f.title);
       expect(f.message, isNotEmpty);
