@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'generated/l10n.dart';
+import 'services/audio_fallback.dart';
 import 'services/download_manager.dart';
 import 'services/file_storage.dart';
 import 'services/storage_service.dart';
@@ -26,6 +27,7 @@ import 'services/cloud_service.dart';
 import 'services/discord_rpc_service.dart';
 import 'services/listen_together_service.dart';
 import 'services/remote_control_service.dart';
+import 'services/runtime_probe_service.dart';
 import 'services/audio_device_service.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
@@ -64,6 +66,11 @@ void main() async {
       androidShowNotificationBadge: true,
     );
   }
+
+  // If the previous launch died while libmpv was opening the audio endpoint
+  // (AUDCLNT_E_DEVICE_IN_USE is a hard native crash), retry without an audio
+  // output so the UI - including login and sign out - remains usable.
+  await prepareAudioFallback();
 
   // Initialize JustAudioMediaKit for Windows, Linux, and macOS
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
@@ -132,10 +139,17 @@ void main() async {
   GetIt.I.registerSingleton<LibraryService>(libraryService);
   GetIt.I.registerSingleton<LyricsService>(LyricsService());
 
+  // Opt-in loopback diagnostics for verifying session behaviour at runtime.
+  if (Platform.environment['ECHO_DIAG'] == '1') {
+    await RuntimeProbeService.start();
+  }
+
   // Resume playback in the background: awaiting it before runApp() could
   // block the first Flutter frame (e.g. a slow/failed stream resolve), which
   // left the process alive with an invisible window.
-  unawaited(GetIt.I<MediaPlayer>().restoreLastPlayed());
+  if (!audioFallback.value) {
+    unawaited(GetIt.I<MediaPlayer>().restoreLastPlayed());
+  }
 
   runApp(
     MultiProvider(

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/core/widgets/floating_nav.dart';
+import 'package:Echo/services/audio_fallback.dart';
 import 'package:Echo/services/update_service/update_service.dart';
 
 import '../../generated/l10n.dart';
@@ -69,11 +70,38 @@ class _AppShellState extends State<AppShell> {
     final shellIndex = widget.navigationShell.currentIndex.clamp(0, 3);
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: EchoShellChrome(
-        content: widget.navigationShell,
-        bottom: const BottomPlayer(),
-        selected: shellIndex,
-        destinations: _destinations(context),
+      body: Column(
+        children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: audioFallback,
+            builder: (context, silent, _) => silent
+                ? MaterialBanner(
+                    backgroundColor: Colors.orange.shade900,
+                    leading: const Icon(Icons.volume_off, color: Colors.white),
+                    content: const Text(
+                      'Audio non disponibile: un\'altra app usa l\'uscita audio. '
+                      'L\'app funziona, ma la riproduzione è senza suono.',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => audioFallback.value = false,
+                        child: const Text('Chiudi',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+          Expanded(
+            child: EchoShellChrome(
+              content: widget.navigationShell,
+              bottom: const BottomPlayer(),
+              selected: shellIndex,
+              destinations: _destinations(context),
+            ),
+          ),
+        ],
       ),
     );
   }

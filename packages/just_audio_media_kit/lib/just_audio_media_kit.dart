@@ -53,6 +53,11 @@ class JustAudioMediaKit extends JustAudioPlatform {
   /// desktop, where just_audio has no native processor.
   static String? audioFilter;
 
+  /// Use mpv's built-in `NativePlayer.test` mode (`ao=null`, `vo=null`) so a
+  /// busy or missing audio endpoint cannot crash the whole application during
+  /// startup. The UI still works; only sound output is disabled.
+  static bool silentFallback = false;
+
   static final _logger = Logger('JustAudioMediaKit');
   final _players = HashMap<String, MediaKitPlayer>();
 
@@ -80,6 +85,7 @@ class JustAudioMediaKit extends JustAudioPlatform {
         (UniversalPlatform.isIOS && iOS) ||
         (UniversalPlatform.isMacOS && macOS)) {
       registerWith();
+      if (silentFallback) NativePlayer.test = true;
       MediaKit.ensureInitialized(libmpv: libmpv);
     }
   }
