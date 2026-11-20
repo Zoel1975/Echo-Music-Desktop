@@ -6,6 +6,7 @@ import 'package:Echo/services/scrobble_service.dart';
 import 'package:Echo/services/song_dna_service.dart';
 import 'package:Echo/services/cloud_service.dart';
 import 'package:Echo/services/discord_rpc_service.dart';
+import 'package:Echo/services/listen_together_service.dart';
 
 void main() {
   group('ScrobbleService (Last.fm / ListenBrainz)', () {
@@ -101,11 +102,35 @@ void main() {
         showWhenPaused: false, nonce: 2)['args']['activity']['type'], 0);
     });
 
-    test('authorize url includes client id and scope', () {
-      final url = DiscordRpcService.authorizeUrl('123');
-      expect(url, startsWith('ws://127.0.0.1:6463'));
-      expect(url, contains('client_id=123'));
-      expect(url, contains('scope='));
+    test('handshake URL uses the in-app client id', () {
+      final url = DiscordRpcService.authorizeUrl('my-app-id');
+      expect(url, startsWith('ws://127.0.0.1:6463/'));
+      expect(url, contains('client_id=my-app-id'));
+      expect(url, contains('v=1'));
+      expect(url, contains('encoding=json'));
+      // No hardcoded id leaked.
+      expect(url, isNot(contains('112233445566778899')));
+    });
+
+    test('AUTHENTICATE command carries the in-app access token', () {
+      final p = DiscordRpcService.authenticatePayload(
+        accessToken: 'entered-token', nonce: 7);
+      expect(p['cmd'], 'AUTHENTICATE');
+      expect(p['args']['access_token'], 'entered-token');
+      expect(p['nonce'], '7');
+    });
+  });
+
+  group('ListenTogetherService (real LAN protocol)', () {
+    test('state round-trips through JSON', () {
+      final s = ListenState(
+        username: 'alice', songId: 'abc', title: 'Song',
+        positionMs: 12000, playing: true, updatedAt: 99);
+      final decoded = ListenState.fromJson(jsonDecode(jsonEncode(s.toJson())));
+      expect(decoded.username, 'alice');
+      expect(decoded.songId, 'abc');
+      expect(decoded.positionMs, 12000);
+      expect(decoded.playing, isTrue);
     });
   });
 }

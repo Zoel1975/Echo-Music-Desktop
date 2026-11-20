@@ -162,7 +162,7 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 |---|---|---|---|
 | `LoginScreen` + WebView cookie auth | `login_page.dart` (CDP browser login) | DONE | 4 |
 | `AccountScreen`, `AccountSettingsScreen` | `account_page.dart` (`/account`) | DONE | 4 |
-| `ListenTogether*` (protocol + server) | `IntegrationPage` `/listen_together` + LAN remote-control endpoint | PART | 8 |
+| `ListenTogether*` (protocol + server) | `listen_together_service.dart` (real LAN HTTP room publish/join) + `/listen_together` config, wired to playback | DONE | 8 |
 | `DiscordPresenceManager` | `discord_rpc_service.dart` (local RPC SET_ACTIVITY) + `/discord` config, wired to playback | DONE | 8 |
 | `LastFMSettings`, `ListenBrainzManager` | `scrobble_service.dart` (real now-playing/scrobble HTTP) + `/lastfm`, wired to playback | DONE | 8 |
 | `cloud/Jellyfin*`, `cloud/Navidrome*` | `cloud_service.dart` (real connection checks) + `/jellyfin` with in-app Test button | DONE | 8 |

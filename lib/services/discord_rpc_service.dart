@@ -4,18 +4,37 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 /// Port of Android `DiscordPresenceManager.kt`: connects to the local Discord
-/// RPC socket (ws://127.0.0.1:6463) and publishes the current track as a
-/// "Listening" activity using the token/activity config entered in-app.
+/// RPC WebSocket (ports 6463–6472), authenticates with the access token
+/// entered in-app, and publishes the current track as a "Listening" activity.
 class DiscordRpcService {
   DiscordRpcService();
 
   WebSocket? _socket;
   int _nonce = 0;
-  String? _token;
+  String _clientId = '';
+  String _token = '';
+  bool _authenticated = false;
 
-  bool get isConnected => _socket != null;
+  bool get isConnected => _socket != null && _authenticated;
 
-  /// Pure builder for the SET_ACTIVITY payload (unit-testable).
+  /// Pure builder for the handshake URL with the user's in-app client id.
+  /// Discord verifies Origin, so we send https://localhost.
+  static String authorizeUrl(String clientId) =>
+      'ws://127.0.0.1:6463/?v=1&client_id=${Uri.encodeComponent(clientId)}'
+      '&encoding=json';
+
+  /// Pure builder for the AUTHENTICATE command using the in-app token.
+  static Map<String, dynamic> authenticatePayload({
+    required String accessToken,
+    required int nonce,
+  }) =>
+      {
+        'cmd': 'AUTHENTICATE',
+        'args': {'access_token': accessToken},
+        'nonce': nonce.toString(),
+      };
+
+  /// Pure builder for the SET_ACTIVITY payload.
   static Map<String, dynamic> activityPayload({
     required String name,
     required String details,
@@ -37,8 +56,10 @@ class DiscordRpcService {
             'large_image': 'echo',
             'large_text': 'Echo Music',
           },
-          'timestamps': {'start': DateTime.now().millisecondsSinceEpoch ~/ 1000},
-          if (!showWhenPaused) 'instance': false,
+          'timestamps': {
+            'start': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          },
+          'instance': showWhenPaused,
         },
       },
       'nonce': nonce.toString(),
@@ -53,22 +74,40 @@ class DiscordRpcService {
         _ => 2,
       };
 
-  /// Pure: build the AUTHORIZE handshake URL with client id + scopes.
-  static String authorizeUrl(String clientId) =>
-      'ws://127.0.0.1:6463/?v=1&client_id=$clientId'
-      '&scope=identify%20rpc.notifications.read';
+  Future<bool> connect({
+    required String clientId,
+    required String accessToken,
+  }) async {
+    _clientId = clientId;
+    _token = accessToken;
+    if (clientId.isEmpty || accessToken.isEmpty) return false;
 
-  Future<bool> connect(String token) async {
-    _token = token;
-    try {
-      _socket = await WebSocket.connect(authorizeUrl('112233445566778899'))
-          .timeout(const Duration(seconds: 5));
-      return true;
-    } catch (e) {
-      debugPrint('[discord] connect failed (client not running?): $e');
-      _socket = null;
+    // Discord may bind any port in 6463..6472.
+    WebSocket? socket;
+    for (var port = 6463; port <= 6472; port++) {
+      try {
+        socket = await WebSocket.connect(
+          'ws://127.0.0.1:$port/?v=1&client_id=${Uri.encodeComponent(clientId)}'
+          '&encoding=json',
+          headers: {'Origin': 'https://localhost'},
+        ).timeout(const Duration(seconds: 2));
+        break;
+      } catch (_) {
+        continue;
+      }
+    }
+    if (socket == null) {
+      debugPrint('[discord] no local RPC server found on 6463-6472');
       return false;
     }
+    _socket = socket;
+    // Send AUTHENTICATE with the in-app token.
+    socket.add(jsonEncode(authenticatePayload(
+      accessToken: accessToken,
+      nonce: ++_nonce,
+    )));
+    _authenticated = true;
+    return true;
   }
 
   Future<void> setActivity({
@@ -79,20 +118,20 @@ class DiscordRpcService {
     required bool showWhenPaused,
   }) async {
     final socket = _socket;
-    if (socket == null) return;
-    final payload = activityPayload(
+    if (socket == null || !_authenticated) return;
+    socket.add(jsonEncode(activityPayload(
       name: name,
       details: details,
       state: state,
       activityType: activityType,
       showWhenPaused: showWhenPaused,
       nonce: ++_nonce,
-    );
-    socket.add(jsonEncode(payload));
+    )));
   }
 
   void disconnect() {
     _socket?.close();
     _socket = null;
+    _authenticated = false;
   }
 }

@@ -9,6 +9,7 @@ import 'package:Echo/services/desktop_dsp.dart';
 import 'package:Echo/services/playback_cutoff.dart';
 import 'package:Echo/services/scrobble_service.dart';
 import 'package:Echo/services/discord_rpc_service.dart';
+import 'package:Echo/services/listen_together_service.dart';
 import 'package:Echo/services/queue_crossfade.dart';
 import 'package:Echo/services/sponsor_block_service.dart';
 import 'package:Echo/services/stream_resolver.dart';
@@ -851,12 +852,13 @@ class MediaPlayer extends ChangeNotifier {
     // Last.fm now playing (requires user session key stored as apiKey field).
     if (settings.extra<bool>('lastfmNowPlaying', false)) {
       final apiKey = settings.extra<String>('lastfmApiKey', '');
-      final session = settings.extra<String>('lastfmUsername', '');
-      if (apiKey.isNotEmpty && session.isNotEmpty) {
+      final session = settings.extra<String>('lastfmSessionKey', '');
+      final secret = settings.extra<String>('lastfmApiSecret', '');
+      if (apiKey.isNotEmpty && session.isNotEmpty && secret.isNotEmpty) {
         unawaited(GetIt.I<ScrobbleService>().sendNowPlaying(
           apiKey: apiKey,
           sessionKey: session,
-          secret: '',
+          secret: secret,
           artist: artist,
           track: track,
           album: album,
@@ -880,8 +882,11 @@ class MediaPlayer extends ChangeNotifier {
     // Discord RPC.
     if (settings.extra<bool>('discordEnabled', false)) {
       final token = settings.extra<String>('discordToken', '');
+      final clientId = settings.extra<String>('discordClientId', '');
       final rpc = GetIt.I<DiscordRpcService>();
-      if (token.isNotEmpty && !rpc.isConnected) await rpc.connect(token);
+      if (token.isNotEmpty && clientId.isNotEmpty && !rpc.isConnected) {
+        await rpc.connect(clientId: clientId, accessToken: token);
+      }
       await rpc.setActivity(
         name: settings.extra<String>('discordActivityName', 'Echo Music'),
         details: track,
@@ -890,6 +895,22 @@ class MediaPlayer extends ChangeNotifier {
         showWhenPaused:
             settings.extra<bool>('discordShowPaused', false),
       );
+    }
+    // Listen Together: publish playback state to the local room.
+    if (settings.extra<bool>('ltTopBar', false)) {
+      final lt = GetIt.I<ListenTogetherService>();
+      if (!lt.isHosting) {
+        await lt.startHosting(
+            settings.extra<String>('ltUsername', 'Listener'));
+      }
+      lt.publishState(ListenState(
+        username: settings.extra<String>('ltUsername', 'Listener'),
+        songId: tag.id,
+        title: track,
+        positionMs: _player.position.inMilliseconds,
+        playing: _player.playing,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ));
     }
   }
 
@@ -904,12 +925,13 @@ class MediaPlayer extends ChangeNotifier {
     final ts = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     if (settings.extra<bool>('lastfmScrobble', false)) {
       final apiKey = settings.extra<String>('lastfmApiKey', '');
-      final session = settings.extra<String>('lastfmUsername', '');
-      if (apiKey.isNotEmpty && session.isNotEmpty) {
+      final session = settings.extra<String>('lastfmSessionKey', '');
+      final secret = settings.extra<String>('lastfmApiSecret', '');
+      if (apiKey.isNotEmpty && session.isNotEmpty && secret.isNotEmpty) {
         unawaited(GetIt.I<ScrobbleService>().scrobbleLastfm(
           apiKey: apiKey,
           sessionKey: session,
-          secret: '',
+          secret: secret,
           artist: artist,
           track: track,
           timestamp: ts,

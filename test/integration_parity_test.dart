@@ -56,13 +56,22 @@ void main() {
 
     for (final label in [
       'Enable Discord RPC',
-      'User token',
+      'Application ID (client_id)',
+      'Access token',
       'Activity type',
       'Activity name',
       'Show when paused',
     ]) {
       expect(find.text(label), findsWidgets, reason: 'missing: $label');
     }
+  });
+
+  test('Last.fm screen exposes secret and session key fields', () {
+    final lastfm = IntegrationCatalog.byRoute('/lastfm')!;
+    final keys = lastfm.fields.map((f) => f.key).toList();
+    expect(keys, contains('lastfmApiKey'));
+    expect(keys, contains('lastfmApiSecret'));
+    expect(keys, contains('lastfmSessionKey'));
   });
 
   test('integration credentials persist via SettingsManager.extra', () {

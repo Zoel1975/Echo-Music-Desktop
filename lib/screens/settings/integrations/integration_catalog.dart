@@ -63,7 +63,8 @@ class IntegrationCatalog {
     IntegrationScreen('discord', 'Discord Rich Presence', Icons.discord, [
       IntegrationField.toggle('discordEnabled', 'Enable Discord RPC',
           toggleFallback: false),
-      IntegrationField.text('discordToken', 'User token', obscure: true),
+      IntegrationField.text('discordClientId', 'Application ID (client_id)'),
+      IntegrationField.text('discordToken', 'Access token', obscure: true),
       IntegrationField.choice('discordActivityType', 'Activity type',
           ['Listening', 'Playing', 'Streaming', 'Watching'],
           fallback: 'Listening'),
@@ -74,6 +75,10 @@ class IntegrationCatalog {
     IntegrationScreen('lastfm', 'Last.fm / ListenBrainz', Icons.audiotrack, [
       IntegrationField.text('lastfmUsername', 'Last.fm username'),
       IntegrationField.text('lastfmApiKey', 'Last.fm API key', obscure: true),
+      IntegrationField.text('lastfmApiSecret', 'Last.fm API secret',
+          obscure: true),
+      IntegrationField.text('lastfmSessionKey', 'Last.fm session key',
+          obscure: true),
       IntegrationField.toggle('lastfmScrobble', 'Enable scrobbling'),
       IntegrationField.toggle('lastfmNowPlaying', 'Send Now Playing'),
       IntegrationField.toggle('lastfmLikes', 'Send Likes/Unlikes'),
