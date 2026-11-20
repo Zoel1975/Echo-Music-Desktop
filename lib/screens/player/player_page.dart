@@ -192,6 +192,12 @@ class _PlayerPageState extends State<PlayerPage> {
                                 Row(
                                   children: [
                                     AdaptiveIconButton(
+                                      onPressed: () =>
+                                          context.push('/canvas_ambient'),
+                                      icon: Icon(Icons.animation,
+                                          color: Colors.white.withValues(alpha: 0.7)),
+                                    ),
+                                    AdaptiveIconButton(
                                       onPressed: () {
                                         _key.currentState?.openEndDrawer();
                                       },

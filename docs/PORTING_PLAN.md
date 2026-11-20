@@ -95,84 +95,84 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
 | `HomeScreen` + `HomeViewModel` | `home_page.dart` | PART | 3 |
-| `ExploreScreen`, `NewReleaseScreen` | — | TODO | 3 |
+| `ExploreScreen`, `NewReleaseScreen` | `explore_page.dart` + `/new_releases` (`FEmusic_new_releases_albums`) | DONE | 3 |
 | `ChartsScreen` | `chart_details_page.dart` | PART | 3 |
 | `MoodAndGenresScreen` | `chip_page.dart` | PART | 3 |
 | `BrowseScreen`, `YouTubeBrowseScreen` | `browse_page.dart` | PART | 3 |
-| `PodcastHome`, `podcast/*` | — | TODO | 7 |
-| `musicflow/*` (9 files, Resso-style flow) | — | TODO | 6 |
+| `PodcastHome`, `podcast/*` | reachable placeholder `/podcasts` (Library tile) | PART | 7 |
+| `musicflow/*` (9 files, Resso-style flow) | `/explore` feed + reachable placeholder `/music_flow_full` | PART | 6 |
 
 ### 3.3 Search
 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
-| `OnlineSearchScreen` + suggestions (`suggestions/*`) | `search_page.dart` | PART | 3 |
-| `LocalSearchScreen` | — | TODO | 5 |
-| `SearchBar`, `search/history` | inline | PART | 3 |
+| `OnlineSearchScreen` + suggestions (`suggestions/*`) | `search_page.dart` + `getSearchSuggestions` | PART | 3 |
+| `LocalSearchScreen` | `local_search_page.dart` (`/search/local`) | DONE | 5 |
+| `SearchBar`, `search/history` | inline + Hive `SEARCH_HISTORY` | PART | 3 |
 
 ### 3.4 Detail screens
 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
-| `AlbumScreen` + `AlbumViewModel` | — | **TODO** | 3 |
-| `ArtistScreen`, `ArtistSongs`, `ArtistAlbums`, `ArtistItems` | — | **TODO** | 3 |
-| `OnlinePlaylistScreen`, `BottomPlaylistScreen`, `TopPlaylistScreen` | download-playlist only | PART | 3 |
+| `AlbumScreen` + `AlbumViewModel` | `album_page.dart` (`/album`) | DONE | 3 |
+| `ArtistScreen`, `ArtistSongs`, `ArtistAlbums`, `ArtistItems` | `artist_page.dart` (`/artist`) | DONE | 3 |
+| `OnlinePlaylistScreen`, `BottomPlaylistScreen`, `TopPlaylistScreen` | `playlist_page.dart` (`/playlist`) + download-playlist | PART | 3 |
 | `LocalPlaylistScreen`, `AutoPlaylistScreen`, `CachePlaylistScreen` | `playlist_details_page.dart` | PART | 4 |
-| `CanvasAlbum`, `AmbientModeScreen` | — | TODO | 8 |
+| `CanvasAlbum`, `AmbientModeScreen` | reachable placeholder `/canvas_ambient` (Explore + player) | PART | 8 |
 
 ### 3.5 Library
 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
-| `LibraryScreen` + songs/albums/artists/playlists/mix/podcasts | `library_page.dart` (favourites, downloads, history) | PART | 4 |
-| `LibrarySongsScreen`, `LibraryAlbumsScreen`, `LibraryArtistsScreen` | — | **TODO** | 4 |
-| `HistoryScreen`, `DetailedListeningHistoryScreen` | `history_page.dart` | PART | 4 |
-| `LocalSongScreen` + `LocalSongScanner` | — | TODO | 6 |
-| `StatsScreen`, `ListeningSummaryScreen`, `wrapped/*` | — | TODO | 8 |
-| `BlockedArtistsScreen`, `DislikedSongsScreen` | — | TODO | 5 |
+| `LibraryScreen` + songs/albums/artists/playlists/mix/podcasts | `library_page.dart` + Podcasts placeholder tile | PART | 4 |
+| `LibrarySongsScreen`, `LibraryAlbumsScreen`, `LibraryArtistsScreen` | `library_collections_page.dart` (`/saved/library_songs` tabs 0/1/2) | DONE | 4 |
+| `HistoryScreen`, `DetailedListeningHistoryScreen` | `history_page.dart` + `/saved/history_detail` | DONE | 4 |
+| `LocalSongScreen` + `LocalSongScanner` | `local_songs_page.dart` (`/saved/local_songs`) | DONE | 6 |
+| `StatsScreen`, `ListeningSummaryScreen`, `wrapped/*` | `listening_summary_page.dart` + `wrapped_page.dart` | DONE | 8 |
+| `BlockedArtistsScreen`, `DislikedSongsScreen` | `content_filter_page.dart` (`/settings/content/*`) | DONE | 5 |
 
 ### 3.6 Playback engine
 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
-| `MusicService` (Media3) + `PlayerConnection` | `media_player.dart` (just_audio) | PART | 1 |
-| `Queue`, `YouTubeQueue`, `RadioQueuePageFilter`, `QueueExt` | `queue_list.dart` (read-only) | PART | 1 |
-| `SleepTimer` | — | **TODO** | 1 |
-| Crossfade / `StandbyCrossfadeScheduler`, `EqualPowerCurve` | — | TODO | 6 |
-| `PlaybackCutoffGuard`, `AdaptivePreArmManager` | — | TODO | 6 |
-| `SponsorBlockRepository` | — | TODO | 6 |
-| `usbaudio/*` bit-perfect, `dsp-core`, `audio-dsp` | — | N/A (no Android audio HAL) | 9 |
-| `EqualizerScreen` + `AXION`/AutoEq | `equalizer_page.dart` | PART | 6 |
-| `AudioExportService`, `ExportTaskQueue` | `download_manager.dart` | PART | 4 |
+| `MusicService` (Media3) + `PlayerConnection` | `media_player.dart` (just_audio + media_kit) | PART | 1 |
+| `Queue`, `YouTubeQueue`, `RadioQueuePageFilter`, `QueueExt` | `queue_list.dart` + full queue persistence | PART | 1 |
+| `SleepTimer` | `sleep_timer.dart` (timed + end-of-track) | DONE | 1 |
+| Crossfade / `StandbyCrossfadeScheduler`, `EqualPowerCurve` | `CrossfadeEngine` + `QueueCrossfadeController` (2-player equal-power, track switch + near-end pre-arm) | DONE | 6 |
+| `PlaybackCutoffGuard`, `AdaptivePreArmManager` | placeholder 'Playback cutoff guard' in Player settings | PART | 6 |
+| `SponsorBlockRepository` | `sponsor_block_service.dart` (API + auto-skip in position stream) | DONE | 6 |
+| `usbaudio/*` bit-perfect, `dsp-core`, `audio-dsp` | `DesktopDsp` + mpv silenceremove; placeholder 'Bit-perfect USB DAC' | N/A/PART | 9 |
+| `EqualizerScreen` + `AXION`/AutoEq | `equalizer_page.dart` + placeholder 'AXION / AutoEq engine' | PART | 6 |
+| `AudioExportService`, `ExportTaskQueue` | `download_manager.dart` + reachable placeholder `/export_queue` | PART | 4 |
 
 ### 3.7 Lyrics
 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
-| `LyricsHelper`, `LyricsUtils`, `LyricsProviderRegistry` | `lyrics.dart` | PART | 5 |
-| `LrcLibLyricsProvider` | `lrcnet_api.dart` | PART | 5 |
-| `KuGou`, `BetterLyrics`, `SimpMusic`, `YouLyPlus`, `PaxSenix`, `Unison`, `YouTube*` providers | — | **TODO** | 5 |
-| Word-by-word sync, `LyricsV2`, `EchoMusicLyrics` animations | `lyrics_box.dart` | PART | 5 |
-| `LyricsTranslationHelper` + DeepL/Mistral/OpenRouter/ApiRoute | — | TODO | 5 |
-| `SunoLyrics`, Genius/Wikipedia "Song DNA" | — | TODO | 8 |
+| `LyricsHelper`, `LyricsUtils`, `LyricsProviderRegistry` | `lyrics.dart` + `lyrics_registry.dart` | PART | 5 |
+| `LrcLibLyricsProvider` | `lrcnet_api.dart` | DONE | 5 |
+| `KuGou`, `BetterLyrics`, `SimpMusic`, `YouLyPlus`, `PaxSenix`, `Unison`, `YouTube*` providers | `lyrics_providers.dart` + `lyrics_providers_youtube.dart` (all 9 ported) | DONE | 5 |
+| Word-by-word sync, `LyricsV2`, `EchoMusicLyrics` animations | `lyrics_box.dart` (TTML/word sync + animation styles) | PART | 5 |
+| `LyricsTranslationHelper` + DeepL/Mistral/OpenRouter/ApiRoute | `lyrics_translation.dart` + `translation_dialog.dart` | DONE | 5 |
+| `SunoLyrics`, Genius/Wikipedia "Song DNA" | reachable placeholder `/song_dna` | PART | 8 |
 
 ### 3.8 Account, sync, integrations
 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
-| `LoginScreen` + WebView cookie auth | — | **TODO** | 4 |
-| `AccountScreen`, `AccountSettingsScreen` | — | TODO | 4 |
-| `ListenTogether*` (protocol + server) | — | TODO | 8 |
-| `DiscordPresenceManager` | — | TODO (desktop RPC is easier) | 8 |
-| `LastFMSettings`, `ListenBrainzManager` | — | TODO | 8 |
-| `cloud/Jellyfin*`, `cloud/Navidrome*` | — | TODO | 8 |
+| `LoginScreen` + WebView cookie auth | `login_page.dart` (CDP browser login) | DONE | 4 |
+| `AccountScreen`, `AccountSettingsScreen` | `account_page.dart` (`/account`) | DONE | 4 |
+| `ListenTogether*` (protocol + server) | Settings placeholder 'Listen Together' | PART | 8 |
+| `DiscordPresenceManager` | Settings placeholder 'Discord Rich Presence' | PART | 8 |
+| `LastFMSettings`, `ListenBrainzManager` | Settings placeholder 'Last.fm / ListenBrainz' | PART | 8 |
+| `cloud/Jellyfin*`, `cloud/Navidrome*` | Settings placeholder 'Jellyfin / Navidrome' | PART | 8 |
 | `spotify/*`, `SpotifyImportScreen` | `spotify.dart`, `import_service.dart` | PART | 4 |
-| `ExtensionManager` (320 kbps / lossless servers) | — | TODO | 9 |
-| `recognition/*` (Shazam-style Echo Find) | — | TODO | 9 |
-| `EchoBrain`/`ai/*` (AI playlists, recommendations) | — | TODO | 9 |
+| `ExtensionManager` (320 kbps / lossless servers) | Settings placeholder 'Extensions & high-quality servers' | PART | 9 |
+| `recognition/*` (Shazam-style Echo Find) | Settings placeholder 'Song recognition & EchoBrain' | PART | 9 |
+| `EchoBrain`/`ai/*` (AI playlists, recommendations) | AI Hub settings page + recognition placeholder | PART | 9 |
 | `echomusic/updater/*` | `update_service/` | PART | 9 |
-| Android widgets (`widget/*`, 15 files) | — | N/A (replaced by tray/MPRIS) | 9 |
-| `Ringtone*`, `quicksettings/*`, `localmedia` | — | N/A | — |
+| Android widgets (`widget/*`, 15 files) | N/A (replaced by tray/MPRIS) | N/A | 9 |
+| `Ringtone*`, `quicksettings/*`, `localmedia` | N/A | N/A | - |
 
 ---
 

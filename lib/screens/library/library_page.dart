@@ -142,6 +142,12 @@ class _LibraryBody extends StatelessWidget {
       'icon': Icons.person,
       'onTap': () => context.push('/saved/library_songs', extra: 2),
     });
+    gridItems.add({
+      'title': 'Podcasts',
+      'subtitle': 'Coming in a future update',
+      'icon': Icons.podcasts,
+      'onTap': () => context.push('/podcasts'),
+    });
 
     // Playlists
     final sortedPlaylists = SplayTreeMap.from(playlists);

@@ -26,6 +26,7 @@ import 'package:Echo/screens/settings/ai/ai_hub_page.dart';
 import 'package:Echo/screens/settings/appearance/appearance_page.dart';
 import 'package:Echo/screens/settings/appearance/appearance_details_page.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
+import 'package:Echo/screens/coming_soon/coming_soon_catalog.dart';
 
 import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
 import 'package:Echo/screens/settings/content/content_page.dart';
@@ -93,6 +94,16 @@ GoRouter router = GoRouter(
       path: '/login',
       builder: (context, state) => const LoginPage(),
     ),
+    // Reachable "coming in a future update" placeholder routes for the
+    // mobile features that have no desktop implementation.
+    for (final feature in ComingSoonCatalog.features)
+      GoRoute(
+        path: '/${feature.route}',
+        builder: (context, state) => ComingSoonPage(
+          title: feature.title,
+          feature: feature.message,
+        ),
+      ),
   ],
 );
 

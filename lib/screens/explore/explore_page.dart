@@ -52,6 +52,16 @@ class _ExplorePage extends StatelessWidget {
                     tooltip: 'New releases',
                     onPressed: () => context.push('/new_releases'),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.auto_awesome_mosaic),
+                    tooltip: 'Music Flow (coming soon)',
+                    onPressed: () => context.push('/music_flow_full'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.animation),
+                    tooltip: 'Canvas & Ambient (coming soon)',
+                    onPressed: () => context.push('/canvas_ambient'),
+                  ),
                 ],
               ),
               body: SingleChildScrollView(
