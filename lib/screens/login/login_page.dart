@@ -54,10 +54,15 @@ class _LoginPageState extends State<LoginPage> {
     final cdpUp = d.cookieCount > 0 || await GoogleLoginService.isCdpUp(_service.port);
     if (!mounted) return;
     setState(() {
+      final names = d.cookieNames.isEmpty
+          ? '—'
+          : d.cookieNames.take(6).join(', ') +
+              (d.cookieNames.length > 6 ? '…' : '');
       _diag = (
-        text: 'Browser: ${GoogleLoginService.findBrowser()?.split('\\').last ?? "nessun Chrome/Edge"} · '
+        text: 'Browser: ${d.browserVersion ?? GoogleLoginService.findBrowser()?.split('\\').last ?? "nessun Chrome/Edge"} · '
             'CDP: ${cdpUp ? 'on' : 'off'} · Cookie: ${d.cookieCount} · '
-            '${d.hasAuth ? 'ACCREDENTI PRESENTI' : 'nessuna credenziale'}',
+            '${d.hasAuth ? 'ACCREDENTI PRESENTI' : 'nessuna credenziale'}\n'
+            'Cookie visti: $names',
         color: d.hasAuth
             ? Colors.green
             : cdpUp ? Colors.orange : Colors.red,

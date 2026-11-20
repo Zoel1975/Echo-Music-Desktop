@@ -131,12 +131,14 @@ class RemoteControlService {
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
       final data = announce.toBytes();
-      // Broadcast to the whole subnet — on some platforms (Windows) this is
-      // blocked by the OS, so failures are fine: the unicast send below still
-      // reaches same-LAN peers that know the address.
-      try {
-        _discovery?.send(data, InternetAddress('255.255.255.255'), discoveryPort);
-      } catch (_) {}
+      // Broadcast only where the OS allows it: Windows rejects sends to the
+      // limited broadcast address (errno 10013). Peers discover us through the
+      // ECHO_MUSIC_DISCOVER probe instead, so this is not required there.
+      if (!Platform.isWindows) {
+        try {
+          _discovery?.send(data, InternetAddress('255.255.255.255'), discoveryPort);
+        } catch (_) {}
+      }
       final host = _host;
       if (host != null && host != '255.255.255.255') {
         try {

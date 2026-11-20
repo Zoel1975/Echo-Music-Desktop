@@ -123,13 +123,40 @@ class GoogleLoginService {
     }
   }
 
-  /// Diagnostics: count of Google/YouTube cookies, and whether a real auth
-  /// cookie is present. Returns null if the CDP endpoint is unreachable.
-  Future<({int cookieCount, bool hasAuth})> diagnostics() async {
+  /// Diagnostics: count of Google/YouTube cookies, whether a real auth cookie
+  /// is present, the names seen, and the browser/CDP version string.
+  Future<({
+    int cookieCount,
+    bool hasAuth,
+    List<String> cookieNames,
+    String? browserVersion,
+  })> diagnostics() async {
     final cookies = await readCookies();
-    if (cookies == null) return (cookieCount: 0, hasAuth: false);
+    String? version;
+    try {
+      final r = await _client
+          .get(Uri.parse('http://127.0.0.1:$port/json/version'))
+          .timeout(const Duration(seconds: 2));
+      if (r.statusCode == 200) {
+        version = (jsonDecode(r.body) as Map<String, dynamic>)['Browser'] as String?;
+      }
+    } catch (_) {}
+    if (cookies == null) {
+      return (
+        cookieCount: 0,
+        hasAuth: false,
+        cookieNames: const <String>[],
+        browserVersion: version,
+      );
+    }
     final collected = collect(cookies);
-    return (cookieCount: collected.pairs.length, hasAuth: collected.hasAuth);
+    final names = collected.pairs.keys.toList()..sort();
+    return (
+      cookieCount: collected.pairs.length,
+      hasAuth: collected.hasAuth,
+      cookieNames: names,
+      browserVersion: version,
+    );
   }
 
   /// Read the browser-level WebSocket debugger URL from /json/version.
