@@ -278,31 +278,13 @@ class MyPageView extends StatefulWidget {
 }
 
 class MyPageViewState extends State<MyPageView> {
-  final PageController controller = PageController(initialPage: 0);
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void didUpdateWidget(covariant MyPageView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentIndex != widget.currentIndex) {
-      controller.animateToPage(
-        widget.currentIndex,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return PageView(
-      scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(),
-      controller: controller,
+    // IndexedStack keeps every branch alive and switches instantly: no
+    // PageController animation, no off-screen scroll work, no tab jank.
+    final index = widget.currentIndex.clamp(0, widget.children.length - 1);
+    return IndexedStack(
+      index: index,
       children: [
         for (var i = 0; i < widget.children.length; i++)
           RepaintBoundary(key: ValueKey('page-$i'), child: widget.children[i]),

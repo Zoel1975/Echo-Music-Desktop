@@ -33,6 +33,15 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool _loudnessEnabled = false;
   double _loudnessTargetGain = 0.0;
 
+  // Desktop player / "wireless" features (persisted in the SETTINGS box).
+  bool _showSeekButtons = false;
+  bool _crossfadeEnabled = false;
+  double _crossfadeDuration = 5.0;
+  bool _dataSaver = false;
+  String _audioDeviceId = '';
+  bool _castEnabled = true;
+  bool _remoteControlEnabled = false;
+
   ThemeMode get themeMode => _themeMode;
   List<ThemeMode> get themeModes => _themeModes;
   Map<String, String> get location => _location;
@@ -52,6 +61,14 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   List<double> get equalizerBandsGain => _equalizerBandsGain;
   bool get loudnessEnabled => _loudnessEnabled;
   double get loudnessTargetGain => _loudnessTargetGain;
+
+  bool get showSeekButtons => _showSeekButtons;
+  bool get crossfadeEnabled => _crossfadeEnabled;
+  double get crossfadeDuration => _crossfadeDuration;
+  bool get dataSaver => _dataSaver;
+  String get audioDeviceId => _audioDeviceId;
+  bool get castEnabled => _castEnabled;
+  bool get remoteControlEnabled => _remoteControlEnabled;
 
   Map get settings => _box.toMap();
   SettingsManager() {
@@ -81,6 +98,16 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _loudnessTargetGain = _box.get('LOUDNESS_TARGET_GAIN', defaultValue: 0.0);
     _equalizerBandsGain =
         _box.get('EQUALIZER_BANDS_GAIN', defaultValue: []).cast<double>();
+
+    _showSeekButtons = _box.get('SHOW_SEEK_BUTTONS', defaultValue: false);
+    _crossfadeEnabled = _box.get('CROSSFADE_ENABLED', defaultValue: false);
+    _crossfadeDuration =
+        (_box.get('CROSSFADE_DURATION', defaultValue: 5.0) as num).toDouble();
+    _dataSaver = _box.get('DATA_SAVER', defaultValue: false);
+    _audioDeviceId = _box.get('AUDIO_DEVICE_ID', defaultValue: '');
+    _castEnabled = _box.get('CAST_ENABLED', defaultValue: true);
+    _remoteControlEnabled =
+        _box.get('REMOTE_CONTROL_ENABLED', defaultValue: false);
   }
 
   // -------------------------------------------------- lyrics translation --
@@ -226,6 +253,48 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   set loudnessTargetGain(double value) {
     _box.put('LOUDNESS_TARGET_GAIN', value);
     _loudnessTargetGain = value;
+    notifyListeners();
+  }
+
+  set showSeekButtons(bool value) {
+    _box.put('SHOW_SEEK_BUTTONS', value);
+    _showSeekButtons = value;
+    notifyListeners();
+  }
+
+  set crossfadeEnabled(bool value) {
+    _box.put('CROSSFADE_ENABLED', value);
+    _crossfadeEnabled = value;
+    notifyListeners();
+  }
+
+  set crossfadeDuration(double value) {
+    _box.put('CROSSFADE_DURATION', value);
+    _crossfadeDuration = value;
+    notifyListeners();
+  }
+
+  set dataSaver(bool value) {
+    _box.put('DATA_SAVER', value);
+    _dataSaver = value;
+    notifyListeners();
+  }
+
+  set audioDeviceId(String value) {
+    _box.put('AUDIO_DEVICE_ID', value);
+    _audioDeviceId = value;
+    notifyListeners();
+  }
+
+  set castEnabled(bool value) {
+    _box.put('CAST_ENABLED', value);
+    _castEnabled = value;
+    notifyListeners();
+  }
+
+  set remoteControlEnabled(bool value) {
+    _box.put('REMOTE_CONTROL_ENABLED', value);
+    _remoteControlEnabled = value;
     notifyListeners();
   }
 

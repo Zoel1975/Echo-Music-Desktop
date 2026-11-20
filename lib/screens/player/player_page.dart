@@ -17,6 +17,7 @@ import 'package:palette_generator/palette_generator.dart';
 import 'widgets/animated_gradient_bg.dart';
 
 import '../../services/media_player.dart';
+import '../../services/settings_manager.dart';
 import '../../themes/dark.dart';
 import '../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../utils/bottom_modals.dart';
@@ -407,6 +408,7 @@ class _PlayerPageState extends State<PlayerPage> {
   Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
     if (currentSong == null) return const SizedBox();
     MediaPlayer mediaPlayer = context.watch<MediaPlayer>();
+    final showSeek = GetIt.I<SettingsManager>().showSeekButtons;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment:
@@ -556,6 +558,17 @@ class _PlayerPageState extends State<PlayerPage> {
                 color: Colors.white,
               ),
             ),
+            // Seek back 10s
+            if (showSeek)
+              AdaptiveIconButton(
+                onPressed: () => mediaPlayer.player
+                    .seek(mediaPlayer.player.position - const Duration(seconds: 10)),
+                icon: Icon(
+                  Icons.replay_10,
+                  size: 28,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
             // Play/Pause
             Container(
               height: 64,
@@ -597,6 +610,17 @@ class _PlayerPageState extends State<PlayerPage> {
                 color: Colors.white,
               ),
             ),
+            // Seek forward 10s
+            if (showSeek)
+              AdaptiveIconButton(
+                onPressed: () => mediaPlayer.player.seek(
+                    mediaPlayer.player.position + const Duration(seconds: 10)),
+                icon: Icon(
+                  Icons.forward_10,
+                  size: 28,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
             // Repeat
             ValueListenableBuilder(
                 valueListenable: mediaPlayer.loopMode,

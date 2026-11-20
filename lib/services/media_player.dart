@@ -160,7 +160,9 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> setLoudnessEnabled(bool value) async {
-    await _loudnessEnhancer.setEnabled(value);
+    if (Platform.isAndroid) {
+      await _loudnessEnhancer.setEnabled(value);
+    }
     GetIt.I<SettingsManager>().loudnessEnabled = value;
   }
 
@@ -170,7 +172,9 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> setLoudnessTargetGain(double value) async {
-    await _loudnessEnhancer.setTargetGain(value);
+    if (Platform.isAndroid) {
+      await _loudnessEnhancer.setTargetGain(value);
+    }
     GetIt.I<SettingsManager>().loudnessTargetGain = value;
   }
 
@@ -380,7 +384,11 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   Future<void> skipSilence(bool value) async {
-    await _player.setSkipSilenceEnabled(value);
+    // Only Android has a native skip-silence processor; elsewhere this is a
+    // no-op so toggling the setting never throws on desktop.
+    if (Platform.isAndroid) {
+      await _player.setSkipSilenceEnabled(value);
+    }
     GetIt.I<SettingsManager>().skipSilence = value;
   }
 
@@ -402,15 +410,19 @@ class MediaPlayer extends ChangeNotifier {
     if (isDownloaded) {
       return AudioSource.file(song['path'], tag: tag);
     } else {
+      // Data Saver forces the low-bitrate stream (Android's Wi-Fi/Cellular
+      // quality ceiling, adapted for desktop).
+      final settings = GetIt.I<SettingsManager>();
+      final quality = settings.dataSaver
+          ? 'low'
+          : settings.streamingQuality.name.toLowerCase();
       // Use direct URL approach for macOS for better compatibility with AVFoundation
       if (Platform.isMacOS) {
-        final quality =
-            GetIt.I<SettingsManager>().streamingQuality.name.toLowerCase();
         return await getDirectUrlAudioSource(song['videoId'], quality, tag);
       }
       return YouTubeAudioSource(
         videoId: song['videoId'],
-        quality: GetIt.I<SettingsManager>().streamingQuality.name.toLowerCase(),
+        quality: quality,
         tag: tag,
       );
     }

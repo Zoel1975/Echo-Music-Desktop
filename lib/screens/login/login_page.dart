@@ -8,6 +8,7 @@ import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:Echo/services/cookie_store.dart';
+import 'package:Echo/services/stream_resolver.dart';
 import 'package:Echo/ytmusic/ytmusic.dart';
 
 /// Login flow without the embedded WebView (which renders black on this
@@ -20,6 +21,24 @@ bool isAllowedCookieDomain(String domain) {
   final d = domain.toLowerCase();
   return _LoginPageState.allowedDomains
       .any((allowed) => d == allowed || d.endsWith('.$allowed'));
+}
+
+/// Pure helper: filters CDP cookies to Google/YouTube hosts and reports
+/// whether a real sign-in cookie is present.
+({Map<String, String> pairs, bool hasAuth}) collectAuthCookies(
+  List<Map<String, dynamic>> cookies,
+) {
+  final pairs = <String, String>{};
+  var hasAuth = false;
+  for (final c in cookies) {
+    final name = c['name'] as String? ?? '';
+    final value = c['value'] as String? ?? '';
+    final domain = (c['domain'] as String? ?? '').toLowerCase();
+    if (!isAllowedCookieDomain(domain)) continue;
+    if (isAuthCookie(name)) hasAuth = true;
+    if (name.isNotEmpty && value.isNotEmpty) pairs[name] = value;
+  }
+  return (pairs: pairs, hasAuth: hasAuth);
 }
 
 class LoginPage extends StatefulWidget {
@@ -132,7 +151,9 @@ class _LoginPageState extends State<LoginPage> {
       } finally {
         await ws.close();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[login] CDP read failed: $e');
+    }
     return null;
   }
 
@@ -148,28 +169,37 @@ class _LoginPageState extends State<LoginPage> {
         }
         return;
       }
-      final pairs = <String, String>{};
-      var hasAuth = false;
-      for (final c in cookies) {
-        final name = c['name'] as String? ?? '';
-        final value = c['value'] as String? ?? '';
-        final domain = (c['domain'] as String? ?? '').toLowerCase();
-        if (!allowedDomains.any((d) => domain == d || domain.endsWith('.$d'))) {
-          continue;
-        }
-        if (authCookies.contains(name)) hasAuth = true;
-        if (name.isNotEmpty && value.isNotEmpty) pairs[name] = value;
-      }
-      if (!hasAuth || pairs.isEmpty) return;
+      final collected = collectAuthCookies(cookies);
+      debugPrint(
+        '[login] CDP cookies=${cookies.length} filtered=${collected.pairs.length} '
+        'auth=${collected.hasAuth}',
+      );
+      if (!collected.hasAuth || collected.pairs.isEmpty) return;
 
       await CookieStore.instance.importCookieHeader(
-        pairs.entries.map((e) => '${e.key}=${e.value}').join('; '),
+        collected.pairs.entries
+            .map((e) => '${e.key}=${e.value}')
+            .join('; '),
       );
-      final info = await GetIt.I<YTMusic>().getAccountInfo();
-      await CookieStore.instance.saveAccount(info ?? {'name': 'YouTube Music'});
+      // account/account_menu may fail without a po-token: the auth cookies are
+      // the source of truth for being signed in, so do not gate on this call.
+      Map<String, dynamic>? info;
+      try {
+        info = await GetIt.I<YTMusic>().getAccountInfo();
+      } catch (e) {
+        debugPrint('[login] accountInfo failed (non-fatal): $e');
+      }
+      await CookieStore.instance.saveAccount({
+        'name': info?['name'] ?? 'YouTube Music',
+        if (info != null) ...info,
+        'signedIn': true,
+      });
+      // Drop cached "bot check" failures so the next play uses the new cookies.
+      StreamResolver.instance.clearCache();
       _poll?.cancel();
       if (mounted) {
-        setState(() => _status = 'Accesso effettuato.');
+        setState(() => _status =
+            'Accesso effettuato${info != null ? ' come ${info['name']}' : ''}.');
         context.go('/');
       }
     } catch (e) {
@@ -187,8 +217,16 @@ class _LoginPageState extends State<LoginPage> {
     }
     try {
       final count = await CookieStore.instance.importCookieHeader(raw);
-      final info = await GetIt.I<YTMusic>().getAccountInfo();
-      await CookieStore.instance.saveAccount(info ?? {'name': 'YouTube Music'});
+      Map<String, dynamic>? info;
+      try {
+        info = await GetIt.I<YTMusic>().getAccountInfo();
+      } catch (_) {}
+      await CookieStore.instance.saveAccount({
+        'name': info?['name'] ?? 'YouTube Music',
+        if (info != null) ...info,
+        'signedIn': true,
+      });
+      StreamResolver.instance.clearCache();
       if (!mounted) return;
       setState(() => _status = 'Importati $count cookie.');
       context.go('/');

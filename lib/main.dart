@@ -16,6 +16,8 @@ import 'package:provider/provider.dart';
 import 'generated/l10n.dart';
 import 'services/download_manager.dart';
 import 'services/file_storage.dart';
+import 'services/audio_device_service.dart';
+import 'services/remote_control_service.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
 import 'services/cookie_store.dart';
@@ -84,6 +86,10 @@ void main() async {
   SettingsManager settingsManager = SettingsManager();
 
   GetIt.I.registerSingleton<SettingsManager>(settingsManager);
+  GetIt.I.registerSingleton<AudioDeviceService>(AudioDeviceService());
+  final remoteControl = RemoteControlService();
+  GetIt.I.registerSingleton<RemoteControlService>(remoteControl);
+  if (settingsManager.remoteControlEnabled) unawaited(remoteControl.start());
 
   // Start Local Audio Server
   final String audioStreamUrl = await createAudioStreamServer();
