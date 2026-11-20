@@ -5,6 +5,7 @@ import 'package:Echo/core/widgets/floating_nav.dart';
 import 'package:Echo/services/update_service/update_service.dart';
 
 import '../../generated/l10n.dart';
+import 'echo_shell_chrome.dart';
 import 'widgets/bottom_player.dart';
 
 /// App shell: one navigation surface only — the floating glass bar.
@@ -68,27 +69,11 @@ class _AppShellState extends State<AppShell> {
     final shellIndex = widget.navigationShell.currentIndex.clamp(0, 3);
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          RepaintBoundary(child: widget.navigationShell),
-          // The single, floating glass nav bar (Android FloatingTabBar parity).
-          Positioned(
-            bottom: 76,
-            left: 0,
-            right: 0,
-            child: Align(
-              alignment: Alignment.center,
-              child: EchoFloatingNavBar(
-                selected: shellIndex,
-                destinations: _destinations(context),
-              ),
-            ),
-          ),
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: BottomPlayer(),
-          ),
-        ],
+      body: EchoShellChrome(
+        content: widget.navigationShell,
+        bottom: const BottomPlayer(),
+        selected: shellIndex,
+        destinations: _destinations(context),
       ),
     );
   }
