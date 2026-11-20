@@ -82,12 +82,12 @@ class SettingsPage extends StatelessWidget {
                       isLast: true,
                       onTap: () => context.go('/settings/listening_summary'),
                     ),
-                    _comingSoonTile(
-                      context,
+                    SettingTile(
                       title: 'Echo Wrapped',
-                      icon: Icons.auto_stories,
-                      feature: 'Your year in sound & personal music recap.',
+                      subtitle: 'Your year in sound & personal music recap',
+                      leading: const Icon(Icons.auto_stories),
                       isLast: true,
+                      onTap: () => context.go('/settings/wrapped'),
                     ),
 
                     GroupTitle(title: "Appearance & player"),

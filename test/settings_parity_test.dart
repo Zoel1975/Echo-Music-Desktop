@@ -48,6 +48,7 @@ void main() {
       'Account',
       'AI Hub',
       'Listening Summary',
+      'Echo Wrapped',
       'Appearence',
       'Player and audio',
       'Music Flow',
@@ -64,7 +65,6 @@ void main() {
 
     // Placeholder features from the mobile app.
     for (final label in [
-      'Echo Wrapped',
       'Listen Together',
       'Discord Rich Presence',
       'Last.fm / ListenBrainz',
