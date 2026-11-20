@@ -95,6 +95,14 @@ class _LibraryBody extends StatelessWidget {
     // Collect all items into a list
     final List<Map<String, dynamic>> gridItems = [];
 
+    // Signed-in YouTube Music library (real playlists/songs/albums/artists).
+    gridItems.add({
+      'title': 'YouTube Music library',
+      'subtitle': 'Your playlists, liked songs, albums & artists',
+      'icon': Icons.cloud_done,
+      'onTap': () => context.push('/ytm_library'),
+    });
+
     // Static Items
     gridItems.add({
       'title': S.of(context).Favourites,

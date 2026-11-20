@@ -17,6 +17,7 @@ import 'package:Echo/screens/library/library_page.dart';
 import 'package:Echo/screens/library/playlist/playlist_details_page.dart';
 import 'package:Echo/screens/library/collections/library_collections_page.dart';
 import 'package:Echo/screens/library/local_songs/local_songs_page.dart';
+import 'package:Echo/screens/library/ytm_library_page.dart';
 import 'package:Echo/screens/library/collections/library_song_list_page.dart';
 import 'package:Echo/screens/player/player_page.dart';
 import 'package:Echo/screens/search/search_page.dart';
@@ -395,6 +396,10 @@ List<StatefulShellBranch> branches = [
   ),
   StatefulShellBranch(
     routes: [
+      GoRoute(
+        path: '/ytm_library',
+        builder: (context, state) => const YtmLibraryPage(),
+      ),
       GoRoute(
         path: '/playlist',
         builder: (context, state) {
