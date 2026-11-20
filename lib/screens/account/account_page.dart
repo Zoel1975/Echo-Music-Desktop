@@ -62,8 +62,14 @@ class AccountPage extends StatelessWidget {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.login),
-              title: const Text('Sign in'),
+              title: const Text('Sign in with Google'),
               onTap: () => context.go('/login'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text('Link mobile device'),
+              subtitle: const Text('Pair like YouTube Music (LAN code)'),
+              onTap: () => context.go('/device_link'),
             ),
             ListTile(
               leading: const Icon(Icons.close),

@@ -86,7 +86,7 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | `DESIGN.md` tokens (30% surfaces, 24dp, flat) | ad-hoc Material 3 | PART | 2 |
 | Dynamic seed `0xFFED5564` → `materialKolor` | `ColorScheme.fromSeed` | PART | 2 |
 | `PlayerMenu`, `MiniPlayer`, `FloatingMiniPlayer` | `bottom_player.dart` | PART | 2 |
-| `Player.kt` (full player, 3 layouts) | `player_page.dart` | PART | 2 |
+| `Player.kt` (full player, 3 layouts) | `player_page.dart` + `player_layout.dart` (compact/narrow/wide) | DONE | 2 |
 | `BigSeekBar`, `WavySlider`, `SquigglySlider` | `audio_video_progress_bar` | PART | 2 |
 | `AppNavigation` / `NavigationBuilder` | `router.dart` | PART | 2 |
 
@@ -116,7 +116,7 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 |---|---|---|---|
 | `AlbumScreen` + `AlbumViewModel` | `album_page.dart` (`/album`) | DONE | 3 |
 | `ArtistScreen`, `ArtistSongs`, `ArtistAlbums`, `ArtistItems` | `artist_page.dart` (`/artist`) | DONE | 3 |
-| `OnlinePlaylistScreen`, `BottomPlaylistScreen`, `TopPlaylistScreen` | `playlist_page.dart` (`/playlist`) + download-playlist | PART | 3 |
+| `OnlinePlaylistScreen`, `BottomPlaylistScreen`, `TopPlaylistScreen` | `playlist_page.dart` (`/playlist`) + `playlist_details_page.dart` + ranked auto-playlists (Top/Bottom) | DONE | 3 |
 | `LocalPlaylistScreen`, `AutoPlaylistScreen`, `CachePlaylistScreen` | `playlist_details_page.dart` | PART | 4 |
 | `CanvasAlbum`, `AmbientModeScreen` | real `ambient_page.dart` `/canvas_ambient` (animated bg + art + lyrics) | DONE | 8 |
 
@@ -136,7 +136,7 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
 | `MusicService` (Media3) + `PlayerConnection` | `media_player.dart` (just_audio + media_kit) | PART | 1 |
-| `Queue`, `YouTubeQueue`, `RadioQueuePageFilter`, `QueueExt` | `queue_list.dart` + full queue persistence | PART | 1 |
+| `Queue`, `YouTubeQueue`, `RadioQueuePageFilter`, `QueueExt` | `queue_list.dart` (reorder/remove + search/dedupe filter) + `queue_filter.dart` + full queue persistence | DONE | 1 |
 | `SleepTimer` | `sleep_timer.dart` (timed + end-of-track) | DONE | 1 |
 | Crossfade / `StandbyCrossfadeScheduler`, `EqualPowerCurve` | `CrossfadeEngine` + `QueueCrossfadeController` (2-player equal-power, track switch + near-end pre-arm) | DONE | 6 |
 | `PlaybackCutoffGuard`, `AdaptivePreArmManager` | `playback_cutoff.dart` adaptive pre-arm wired into MediaPlayer position stream | DONE | 6 |
@@ -160,8 +160,8 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
-| `LoginScreen` + WebView cookie auth | `login_page.dart` (CDP browser login) | DONE | 4 |
-| `AccountScreen`, `AccountSettingsScreen` | `account_page.dart` (`/account`) | DONE | 4 |
+| `LoginScreen` + WebView cookie auth | `google_login_service.dart` (browser-level CDP `Storage.getCookies`, `/json/version` + `--remote-allow-origins=*`) + `login_page.dart` (auto-detect + manual fallback) | DONE | 4 |
+| `AccountScreen`, `AccountSettingsScreen` | `account_page.dart` (`/account`) + `device_link_page.dart` + `device_link_service.dart` (LAN pairing, shares session like YouTube Music) | DONE | 4 |
 | `ListenTogether*` (protocol + server) | `listen_together_service.dart` (real LAN HTTP room publish/join) + `/listen_together` config, wired to playback | DONE | 8 |
 | `DiscordPresenceManager` | `discord_rpc_service.dart` (local RPC SET_ACTIVITY) + `/discord` config, wired to playback | DONE | 8 |
 | `LastFMSettings`, `ListenBrainzManager` | `scrobble_service.dart` (real now-playing/scrobble HTTP) + `/lastfm`, wired to playback | DONE | 8 |

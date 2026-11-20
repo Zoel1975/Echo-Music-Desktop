@@ -46,6 +46,7 @@ void main() {
     // Real, reachable features.
     for (final label in [
       'Account',
+      'Link mobile device',
       'AI Hub',
       'Listening Summary',
       'Echo Wrapped',

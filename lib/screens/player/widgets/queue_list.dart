@@ -4,23 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:Echo/generated/l10n.dart';
 import 'package:Echo/services/media_player.dart';
+import 'package:Echo/services/queue_filter.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
-/// Desktop port of the queue sheet (`ui/player/Queue.kt`).
-///
-/// Differences from the previous implementation:
-///  * shuffling is available on every platform (it was gated to Android even
-///    though `just_audio` implements shuffle in Dart);
-///  * every key is scoped by index, so a queue that contains the same song
-///    twice no longer produces duplicate `Dismissible` keys;
-///  * reordering uses an explicit drag handle so it does not fight the
-///    swipe-to-remove gesture (especially with a mouse);
-///  * removal no longer also dismisses the widget, which used to leave stale
-///    `Dismissible` widgets in the tree.
-class QueueList extends StatelessWidget {
+/// Desktop port of the queue sheet (`ui/player/Queue.kt`) with the Android
+/// `QueueExt` / `RadioQueuePageFilter` features: search filtering and
+/// duplicate removal, plus reordering and swipe-to-remove.
+class QueueList extends StatefulWidget {
   const QueueList({super.key});
+
+  @override
+  State<QueueList> createState() => _QueueListState();
+}
+
+class _QueueListState extends State<QueueList> {
+  final _search = TextEditingController();
+  bool _hideDuplicates = false;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,14 +46,35 @@ class QueueList extends StatelessWidget {
             child: StreamBuilder(
               stream: mediaPlayer.currentTrackStream,
               builder: (context, snapshot) {
-                final sequence = snapshot.data?.sequence ?? [];
+                var sequence = snapshot.data?.sequence ?? [];
                 final currentIndex = snapshot.data?.currentIndex ?? 0;
+
+                // Android QueueExt: remove duplicates / filter by query.
+                if (_hideDuplicates) {
+                  sequence = QueueFilter.dedupe(
+                    sequence,
+                    (s) => s.tag?.id ?? '',
+                  );
+                }
+                if (_search.text.trim().isNotEmpty) {
+                  sequence = QueueFilter.search(
+                    sequence,
+                    _search.text,
+                    titleOf: (s) => (s.tag as MediaItem?)?.title ?? '',
+                    artistOf: (s) => (s.tag as MediaItem?)?.artist ?? '',
+                  );
+                }
 
                 return Column(
                   children: [
                     _QueueHeader(
                       count: sequence.length,
                       player: player,
+                      search: _search,
+                      hideDuplicates: _hideDuplicates,
+                      onToggleDuplicates: () => setState(
+                          () => _hideDuplicates = !_hideDuplicates),
+                      onSearchChanged: (_) => setState(() {}),
                     ),
                     const Divider(height: 1),
                     Expanded(
@@ -81,38 +109,69 @@ class QueueList extends StatelessWidget {
 }
 
 class _QueueHeader extends StatelessWidget {
-  const _QueueHeader({required this.count, required this.player});
+  const _QueueHeader({
+    required this.count,
+    required this.player,
+    required this.search,
+    required this.hideDuplicates,
+    required this.onToggleDuplicates,
+    required this.onSearchChanged,
+  });
 
   final int count;
   final AudioPlayer player;
+  final TextEditingController search;
+  final bool hideDuplicates;
+  final VoidCallback onToggleDuplicates;
+  final ValueChanged<String> onSearchChanged;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-      child: Row(
+      child: Column(
         children: [
-          Text(
-            'Queue • $count',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Text(
+                'Queue • $count',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Hide duplicates',
+                isSelected: hideDuplicates,
+                onPressed: onToggleDuplicates,
+                icon: const Icon(Icons.filter_alt_off),
+                color: hideDuplicates ? colorScheme.primary : null,
+              ),
+              StreamBuilder<bool>(
+                stream: player.shuffleModeEnabledStream,
+                builder: (context, snapshot) {
+                  final shuffle = snapshot.data ?? false;
+                  return IconButton(
+                    tooltip: S.of(context).Shuffle,
+                    isSelected: shuffle,
+                    onPressed: () => player.setShuffleModeEnabled(!shuffle),
+                    icon: const Icon(Icons.shuffle),
+                    color: shuffle ? colorScheme.primary : null,
+                  );
+                },
+              ),
+            ],
           ),
-          const Spacer(),
-          StreamBuilder<bool>(
-            stream: player.shuffleModeEnabledStream,
-            builder: (context, snapshot) {
-              final shuffle = snapshot.data ?? false;
-              return IconButton(
-                tooltip: S.of(context).Shuffle,
-                isSelected: shuffle,
-                onPressed: () => player.setShuffleModeEnabled(!shuffle),
-                icon: const Icon(Icons.shuffle),
-                color: shuffle ? colorScheme.primary : null,
-              );
-            },
+          TextField(
+            controller: search,
+            onChanged: onSearchChanged,
+            decoration: const InputDecoration(
+              hintText: 'Filter queue…',
+              prefixIcon: Icon(Icons.search, size: 18),
+              isDense: true,
+            ),
           ),
         ],
       ),
@@ -141,98 +200,46 @@ class QueueTile extends StatelessWidget {
 
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Dismissible(
-      key: ValueKey('dismiss-$index-${song.id}'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        color: colorScheme.error,
-        child: Icon(Icons.delete_outline, color: colorScheme.onError),
-      ),
-      // The queue is owned by the player, not by this list: remove the source
-      // and let the stream rebuild. Returning false keeps the Dismissible from
-      // being disposed twice ("dismissed widget still in the tree").
-      confirmDismiss: (_) async {
-        await player.removeAudioSourceAt(index);
-        return false;
-      },
-      child: ListTile(
-        selected: isCurrent,
-        onTap: () => player.seek(Duration.zero, index: index),
-        leading: ArtworkWidget(song: song, isCurrent: isCurrent),
-        title: Text(
-          song.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        subtitle: Text(
-          song.artist ?? song.album ?? song.extras?['subtitle'] ?? '',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: ReorderableDragStartListener(
-          index: index,
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
-            child: Icon(Icons.drag_handle),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class ArtworkWidget extends StatelessWidget {
-  final MediaItem song;
-  final bool isCurrent;
-
-  const ArtworkWidget({
-    super.key,
-    required this.song,
-    required this.isCurrent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final double dp = MediaQuery.of(context).devicePixelRatio;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Stack(
+    return ListTile(
+      selected: isCurrent,
+      selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SongThumbnail(
-            song: song.extras!,
-            dp: dp,
-            height: 50,
-            width: 50,
-            fit: BoxFit.fill,
-            errorWidget: (_, __, ___) => const Icon(Icons.music_note, size: 32),
+          ReorderableDragStartListener(
+            index: index,
+            child: const Icon(Icons.drag_handle),
           ),
-          if (isCurrent)
-            Container(
-              height: 50,
-              width: 50,
-              color: Colors.black.withValues(alpha: 0.6),
-            ),
-          if (isCurrent)
-            const Positioned(
-              width: 34,
-              height: 34,
-              left: 8,
-              top: 8,
-              child: Center(
-                child: Icon(
-                  Icons.music_note_outlined,
-                  color: Colors.white,
-                ),
+          if (song.extras?['thumbnails'] is List &&
+              (song.extras!['thumbnails'] as List).isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SongThumbnail(
+                song: Map<String, dynamic>.from(song.extras!),
+                width: 44,
+                height: 44,
               ),
             ),
         ],
       ),
+      title: Text(
+        song.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: isCurrent ? colorScheme.primary : null,
+          fontWeight: isCurrent ? FontWeight.bold : null,
+        ),
+      ),
+      subtitle: song.artist != null
+          ? Text(song.artist!, maxLines: 1, overflow: TextOverflow.ellipsis)
+          : null,
+      trailing: IconButton(
+        icon: const Icon(Icons.remove_circle_outline),
+        tooltip: 'Remove from queue',
+        onPressed: () => player.removeAudioSourceAt(index),
+      ),
+      onTap: () => player.seek(Duration.zero, index: index),
     );
   }
 }

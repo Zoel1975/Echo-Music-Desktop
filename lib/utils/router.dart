@@ -45,11 +45,13 @@ import 'package:Echo/screens/settings/stats/listening_summary_page.dart';
 import 'package:Echo/screens/settings/stats/wrapped_page.dart';
 import 'package:Echo/screens/settings/storage/storage_page.dart';
 import 'package:Echo/screens/settings/services/yt_music/yt_music_page.dart';
+import 'package:Echo/screens/settings/services/spotify/spotify_import_page.dart';
 import 'package:Echo/screens/settings/settings_page.dart';
 import 'package:Echo/screens/detail/album_page.dart';
 import 'package:Echo/screens/detail/artist_page.dart';
 import 'package:Echo/screens/detail/playlist_page.dart';
 import 'package:Echo/screens/account/account_page.dart';
+import 'package:Echo/screens/account/device_link_page.dart';
 import 'package:Echo/screens/explore/explore_page.dart';
 import 'package:Echo/screens/login/login_page.dart';
 import 'package:Echo/screens/shell/app_shell.dart';
@@ -100,6 +102,10 @@ GoRouter router = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginPage(),
+    ),
+    GoRoute(
+      path: '/device_link',
+      builder: (context, state) => const DeviceLinkPage(),
     ),
     // Real Podcasts home via YouTube Music's public podcasts browse endpoint.
     GoRoute(
@@ -317,6 +323,10 @@ List<StatefulShellBranch> branches = [
           GoRoute(
             path: 'services/ytmusic',
             builder: (context, state) => const YTMusicPage(),
+          ),
+          GoRoute(
+            path: 'services/spotify_import',
+            builder: (context, state) => const SpotifyImportPage(),
           ),
           GoRoute(
             path: 'backup_storage',

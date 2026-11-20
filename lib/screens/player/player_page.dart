@@ -17,6 +17,7 @@ import 'package:palette_generator/palette_generator.dart';
 import 'widgets/animated_gradient_bg.dart';
 
 import '../../services/media_player.dart';
+import '../../services/player_layout.dart';
 import '../../services/settings_manager.dart';
 import '../../themes/dark.dart';
 import '../../utils/adaptive_widgets/adaptive_widgets.dart';
@@ -212,7 +213,9 @@ class _PlayerPageState extends State<PlayerPage> {
                           Expanded(
                             child: LayoutBuilder(
                               builder: (context, constraints) {
-                                bool isWide = constraints.maxWidth > 800;
+                                final layout = PlayerLayoutResolver.resolve(
+                                    constraints.maxWidth);
+                                final bool isWide = layout == PlayerLayout.wide;
                                 if (isWide) {
                                   return Stack(
                                     children: [
@@ -350,10 +353,13 @@ class _PlayerPageState extends State<PlayerPage> {
                                     ],
                                   );
                                 } else {
-                                  // Mobile / Narrow Layout (Vertical)
+                                  // Mobile layouts: compact (<480) and
+                                  // narrow (<900) share the vertical stack but
+                                  // compact uses tighter padding (Android 3rd layout).
+                                  final compact = layout == PlayerLayout.compact;
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 24.0),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: compact ? 12.0 : 24.0),
                                     child: Column(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceEvenly,

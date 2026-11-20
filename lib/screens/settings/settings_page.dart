@@ -63,8 +63,14 @@ class SettingsPage extends StatelessWidget {
                       }(),
                       leading: const Icon(Icons.account_circle_outlined),
                       isFirst: true,
-                      isLast: true,
                       onTap: () => context.go('/account'),
+                    ),
+                    SettingTile(
+                      title: 'Link mobile device',
+                      subtitle: 'Pair phone with Echo Desktop (LAN code)',
+                      leading: const Icon(Icons.link),
+                      isLast: true,
+                      onTap: () => context.go('/device_link'),
                     ),
 
                     GroupTitle(title: "Smart features"),
@@ -151,8 +157,15 @@ class SettingsPage extends StatelessWidget {
                       title: "Youtube Music",
                       subtitle: 'Streaming service configuration',
                       leading: const Icon(Icons.play_circle_fill),
-                      isLast: true,
                       onTap: () => context.go('/settings/services/ytmusic'),
+                    ),
+                    SettingTile(
+                      title: 'Import from Spotify',
+                      subtitle: 'Import a playlist by URL',
+                      leading: const Icon(Icons.library_music),
+                      isLast: true,
+                      onTap: () =>
+                          context.go('/settings/services/spotify_import'),
                     ),
 
                     GroupTitle(title: "Integrations"),
