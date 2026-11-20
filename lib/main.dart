@@ -17,6 +17,7 @@ import 'generated/l10n.dart';
 import 'services/download_manager.dart';
 import 'services/file_storage.dart';
 import 'services/storage_service.dart';
+import 'services/content_filter_service.dart';
 import 'services/audio_device_service.dart';
 import 'services/remote_control_service.dart';
 import 'services/library.dart';
@@ -88,6 +89,7 @@ void main() async {
 
   GetIt.I.registerSingleton<SettingsManager>(settingsManager);
   GetIt.I.registerSingleton<StorageService>(StorageService());
+  GetIt.I.registerSingleton<ContentFilterService>(ContentFilterService());
   GetIt.I.registerSingleton<AudioDeviceService>(AudioDeviceService());
   final remoteControl = RemoteControlService();
   GetIt.I.registerSingleton<RemoteControlService>(remoteControl);
@@ -208,4 +210,6 @@ Future<void> initialiseHive() async {
   await Hive.openBox('QUEUE');
   await Hive.openBox('COOKIES');
   await Hive.openBox('ACCOUNT');
+  await Hive.openBox('BLOCKED_ARTISTS');
+  await Hive.openBox('DISLIKED_SONGS');
 }

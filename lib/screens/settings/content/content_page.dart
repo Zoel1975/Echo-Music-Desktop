@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
@@ -21,6 +22,21 @@ class ContentPage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             children: [
+              const GroupTitle(title: 'Privacy'),
+              SettingTile(
+                title: 'Blocked Artists',
+                subtitle: 'Manage hidden artists',
+                leading: const Icon(Icons.person_off),
+                isFirst: true,
+                onTap: () => context.go('/settings/content/blocked_artists'),
+              ),
+              SettingTile(
+                title: 'Disliked Songs',
+                subtitle: 'Manage songs you dislike',
+                leading: const Icon(Icons.heart_broken),
+                isLast: true,
+                onTap: () => context.go('/settings/content/disliked_songs'),
+              ),
               const GroupTitle(title: 'General'),
               SettingSwitchTile(
                 title: 'Hide explicit content',

@@ -23,6 +23,7 @@ import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
 
 import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
 import 'package:Echo/screens/settings/content/content_page.dart';
+import 'package:Echo/screens/settings/content/content_filter_page.dart';
 import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
 import 'package:Echo/screens/settings/player/player_settings_page.dart';
 import 'package:Echo/screens/settings/privacy/privacy_page.dart';
@@ -232,6 +233,16 @@ List<StatefulShellBranch> branches = [
           GoRoute(
             path: 'content',
             builder: (context, state) => const ContentPage(),
+            routes: [
+              GoRoute(
+                path: 'blocked_artists',
+                builder: (context, state) => const ContentFilterPage(mode: 'artists'),
+              ),
+              GoRoute(
+                path: 'disliked_songs',
+                builder: (context, state) => const ContentFilterPage(mode: 'songs'),
+              ),
+            ],
           ),
           GoRoute(
             path: 'about',
