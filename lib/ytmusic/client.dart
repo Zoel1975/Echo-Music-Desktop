@@ -19,6 +19,9 @@ class YTClient {
   static const ytmDomain = 'music.youtube.com';
   static const httpsYtmDomain = 'https://music.youtube.com';
   static const baseApiEndpoint = '/youtubei/v1/';
+
+  /// Overridable for tests; production always talks to music.youtube.com.
+  static String baseUrl = httpsYtmDomain;
   static const String ytmParams =
       '?alt=json&key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
   static const userAgent =
@@ -31,8 +34,8 @@ class YTClient {
   Future<void> init() async {
     headers = initializeHeaders();
     context = initializeContext();
-
-    if (config?.visitorData != null) {
+    _applySessionHeaders(headers);
+    if (config?.visitorData != null && config!.visitorData.isNotEmpty) {
       headers['X-Goog-Visitor-Id'] = config!.visitorData;
     }
   }
@@ -41,11 +44,34 @@ class YTClient {
     context = initializeContext();
   }
 
+  /// Port of `InnerTube.ytClient`: every request carries the cookie and, when
+  /// signed in, the `SAPISIDHASH` authorization. Both are removed after logout
+  /// so no stale auth is sent (Android does `YouTube.cookie = null`).
+  void _applySessionHeaders(Map<String, String> target) {
+    final cookieHeader = CookieStore.instance.cookieHeader;
+    if (cookieHeader != null) {
+      target['cookie'] = cookieHeader;
+    } else {
+      target.remove('cookie');
+      target.remove('Cookie');
+    }
+    final auth = CookieStore.instance.authorizationHeader;
+    if (auth != null) {
+      target['Authorization'] = auth;
+      // Second header used by the web player; Android sends only the former,
+      // but the Music web app relies on both for account-scoped endpoints.
+      target['X-Goog-AuthUser'] ??= '0';
+    } else {
+      target.remove('Authorization');
+      target.remove('X-Goog-AuthUser');
+    }
+  }
+
   Future<void> refreshHeaders() async {
     headers = initializeHeaders();
-    final cookieHeader = CookieStore.instance.cookieHeader;
-    if (cookieHeader != null) headers['cookie'] = cookieHeader;
-    if (config?.visitorData != null) {
+    context = initializeContext();
+    _applySessionHeaders(headers);
+    if (config?.visitorData != null && config!.visitorData.isNotEmpty) {
       headers['X-Goog-Visitor-Id'] = config!.visitorData;
     }
   }
@@ -90,13 +116,7 @@ class YTClient {
   ) async {
     try {
       final effectiveHeaders = {...?headers};
-      final cookieHeader = CookieStore.instance.cookieHeader;
-      if (cookieHeader != null) {
-        effectiveHeaders['cookie'] = cookieHeader;
-      } else {
-        effectiveHeaders.remove('cookie');
-        effectiveHeaders.remove('Cookie');
-      }
+      _applySessionHeaders(effectiveHeaders);
       final Uri uri = Uri.parse(url);
       final Response response = await get(uri, headers: effectiveHeaders);
       return response;
@@ -139,19 +159,17 @@ class YTClient {
       {Map<String, String>? headers, String additionalParams = ''}) async {
     //
     try {
+      // Rebuild the context per request like Android's `client.toContext`:
+      // dataSyncId / visitorData change when the user signs in or out, and the
+      // library endpoints need the fresh account ids immediately.
+      context = initializeContext();
       body = {...body, ...context};
 
       this.headers.addAll(headers ?? {});
 
-      // Mirror Android's reactive `YouTube.cookie = ...`: update the header
-      // on every request, and REMOVE it after logout so no stale auth is sent.
-      final cookieHeader = CookieStore.instance.cookieHeader;
-      if (cookieHeader != null) {
-        this.headers['cookie'] = cookieHeader;
-      } else {
-        this.headers.remove('cookie');
-        this.headers.remove('Cookie');
-      }
+      // Mirror Android's reactive `YouTube.cookie = ...`: update the cookie
+      // and SAPISIDHASH on every request, and remove both after logout.
+      _applySessionHeaders(this.headers);
 
       if (config?.visitorData == null || config!.visitorData.isEmpty) {
         await resetVisitorId();
@@ -160,7 +178,7 @@ class YTClient {
           config?.visitorData != null) {
         this.headers['X-Goog-Visitor-Id'] = config!.visitorData;
       }
-      final Uri uri = Uri.parse(httpsYtmDomain +
+      final Uri uri = Uri.parse(baseUrl +
           baseApiEndpoint +
           endpoint +
           ytmParams +
@@ -197,11 +215,19 @@ class YTClient {
       ],
     );
     if (header == null) return null;
+    // The real API field is `accountName` (see Android's
+    // `AccountMenuResponse.ActiveAccountHeaderRenderer.accountName`); older
+    // payloads used `name`, so accept both.
+    final thumbnails =
+        nav(header, ['accountPhoto', 'thumbnails']) as List?;
     final info = <String, dynamic>{
-      'name': nav(header, ['name', 'runs', 0, 'text']),
+      'name': nav(header, ['accountName', 'runs', 0, 'text']) ??
+          nav(header, ['name', 'runs', 0, 'text']),
       'email': nav(header, ['email', 'runs', 0, 'text']),
       'channelHandle': nav(header, ['channelHandle', 'runs', 0, 'text']),
-      'avatarUrl': nav(header, ['accountPhoto', 'thumbnails', 0, 'url']),
+      'avatarUrl': thumbnails != null && thumbnails.isNotEmpty
+          ? nav(thumbnails.last, ['url'])
+          : null,
     };
     info.removeWhere((k, v) => v == null || (v is List && v.isEmpty));
     return info;

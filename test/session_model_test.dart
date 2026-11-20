@@ -9,29 +9,76 @@ void main() {
         reason: 'content-encoding on requests makes YouTube reject browse/search');
   });
 
-  test('YT client drops stale Cookie header when signed out', () {
+  test('request headers match Android InnerTube (client identity + origin)', () {
+    final src = File('lib/ytmusic/helpers.dart').readAsStringSync();
+    for (final header in [
+      "'X-Origin'",
+      "'Referer'",
+      "'X-Goog-Api-Format-Version'",
+      "'X-YouTube-Client-Name'",
+      "'X-YouTube-Client-Version'",
+      "ytmClientId = '67'",
+      "ytmClientName = 'WEB_REMIX'",
+    ]) {
+      expect(src, contains(header), reason: 'missing Android header: $header');
+    }
+  });
+
+  test('context carries visitorData and dataSyncId (onBehalfOfUser)', () {
+    final src = File('lib/ytmusic/helpers.dart').readAsStringSync();
+    expect(src, contains("'visitorData': visitorData"));
+    expect(src, contains("'onBehalfOfUser': dataSyncId"));
+    expect(src, contains("'DATASYNC_ID'"),
+        reason: 'dataSyncId must be read from SETTINGS');
+  });
+
+  test('YT client drops stale Cookie + Authorization when signed out', () {
     final src = File('lib/ytmusic/client.dart').readAsStringSync();
-    // Both request paths must remove the header when cookieHeader == null.
-    final removals = RegExp(r"effectiveHeaders\.remove\('cookie'\)|this\.headers\.remove\('cookie'\)")
-        .allMatches(src)
-        .length;
-    expect(removals, greaterThanOrEqualTo(2),
-        reason: 'sendGetRequest + sendRequest must mirror YouTube.cookie = null');
-    expect(src, contains("headers['cookie'] = cookieHeader"));
+    expect(src, contains('_applySessionHeaders'));
+    expect(src, contains("target.remove('cookie')"));
+    expect(src, contains("target.remove('Authorization')"));
+    expect(src, contains("target['Authorization'] = auth"));
+    expect(src, contains('CookieStore.instance.authorizationHeader'));
+    // Both request paths must refresh auth (sendRequest + sendGetRequest).
+    expect(RegExp(r'_applySessionHeaders\(').allMatches(src).length,
+        greaterThanOrEqualTo(3));
+  });
+
+  test('SAPISIDHASH is built exactly like Android InnerTube.ytClient', () {
+    final src = File('lib/services/cookie_store.dart').readAsStringSync();
+    expect(src, contains('SAPISIDHASH'));
+    expect(src, contains("sha1.convert(utf8.encode('\$ts \$sapisid \$origin'))"));
+    expect(src, contains("origin = 'https://music.youtube.com'"));
+  });
+
+  test('login stores dataSyncId + visitorData before validating the account', () {
+    final src = File('lib/screens/login/login_page.dart').readAsStringSync();
+    final saveDataSync = src.indexOf('saveDataSyncId(session?.dataSyncId)');
+    final getInfo = src.indexOf('getAccountInfo()');
+    expect(saveDataSync, greaterThanOrEqualTo(0));
+    expect(getInfo, greaterThan(0));
+    expect(saveDataSync, lessThan(getInfo),
+        reason: 'account/account_menu needs onBehalfOfUser');
+    expect(src, contains("settings.put('VISITOR_ID', pageVisitor)"));
   });
 
   test('logout follows Android forgetAccount: clear all + notify + home', () {
-    final src = File('lib/screens/account/account_page.dart').readAsStringSync();
+    final src = File('lib/services/session_service.dart').readAsStringSync();
     for (final step in [
       'CookieStore.instance.clear()',
       'CookieStore.instance.clearAccount()',
       "delete('VISITOR_ID')",
+      'saveDataSyncId(null)',
       'resetVisitorId()',
+      'refreshHeaders()',
+      '_clearBrowserProfile()',
       'notifyAccountChanged()',
-      "context.go('/')",
-      "hasAccount = CookieStore.instance.cookieHeader != null ||",
     ]) {
       expect(src, contains(step), reason: 'logout missing: $step');
     }
+    final page = File('lib/screens/account/account_page.dart').readAsStringSync();
+    expect(page, contains('SessionService().signOut()'));
+    expect(page, contains("context.go('/')"));
+    expect(page, contains("hasAccount = CookieStore.instance.cookieHeader != null ||"));
   });
 }

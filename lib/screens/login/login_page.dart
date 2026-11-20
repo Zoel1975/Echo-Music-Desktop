@@ -1,14 +1,15 @@
 ﻿import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_it/get_it.dart';
+import 'package:hive/hive.dart';
 
 import 'package:Echo/services/account_refresh.dart';
 import 'package:Echo/services/cookie_store.dart';
 import 'package:Echo/services/google_login_service.dart';
 import 'package:Echo/services/stream_resolver.dart';
+import 'package:Echo/ytmusic/modals/yt_config.dart';
 import 'package:Echo/ytmusic/ytmusic.dart';
 
 /// Google sign-in for YouTube Music on desktop. Opens the system browser with
@@ -64,11 +65,13 @@ class _LoginPageState extends State<LoginPage> {
           ? '—'
           : d.cookieNames.take(6).join(', ') +
               (d.cookieNames.length > 6 ? '…' : '');
+      final sessionOk = CookieStore.instance.dataSyncId != null;
       _diag = (
         text: 'Browser: ${d.browserVersion ?? GoogleLoginService.findBrowser()?.split('\\').last ?? "nessun Chrome/Edge"} · '
             'CDP: ${cdpUp ? 'on' : 'off'} · Cookie: ${d.cookieCount} · '
             '${d.hasAuth ? 'ACCREDENTI PRESENTI' : 'nessuna credenziale'}\n'
-            'Cookie visti: $names',
+            'Cookie visti: $names\n'
+            'ID account: ${sessionOk ? 'datasync ok' : 'datasync assente'}',
         color: d.hasAuth
             ? Colors.green
             : cdpUp ? Colors.orange : Colors.red,
@@ -87,28 +90,56 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<String> _profileDir() async {
-    final support = await getSupportDir();
-    final dir = Directory('${support.path}/login-browser');
-    if (!await dir.exists()) await dir.create(recursive: true);
+    final dir = await GoogleLoginService.profileDirectory();
     return dir.path;
   }
 
-  Future<void> _finishLogin(Map<String, String> pairs) async {
+  /// Port of Android's `processSuccessfulAuth`: store the cookie, the account
+  /// ids from the page (`VISITOR_DATA` / `DATASYNC_ID`), validate the session
+  /// with `account/account_menu`, persist the account and go home.
+  Future<void> _finishLogin(LoginCapture capture) async {
+    final pairs = capture.cookies;
     await CookieStore.instance.importCookieHeader(
         pairs.entries.map((e) => '${e.key}=${e.value}').join('; '));
 
-    // The YTMusic client was created at startup with the ANONYMOUS visitor id.
-    // With auth cookies but the old visitor id YouTube returns empty/anonymous
-    // feed data. Fetch a fresh visitor id bound to the signed-in session.
+    final YTMusic yt = GetIt.I<YTMusic>();
+
+    // The page shell may still be loading when the cookie appears: wait for
+    // `window.yt.config_.DATASYNC_ID` before giving up on the account id.
+    var session = capture.session;
+    if (session?.dataSyncId == null &&
+        await GoogleLoginService.isCdpUp(_service.port)) {
+      session = await _service.waitForSessionState() ?? session;
+    }
+
+    // 1. Account id first: `user.onBehalfOfUser` is required by the library
+    //    endpoints and by `account/account_menu`.
+    await CookieStore.instance.saveDataSyncId(session?.dataSyncId);
+
+    // 2. Account-bound visitor id (Android stores `VISITOR_DATA` too).
+    final settings = Hive.box('SETTINGS');
+    final pageVisitor = session?.visitorData;
+    if (pageVisitor != null && pageVisitor.isNotEmpty) {
+      await settings.put('VISITOR_ID', pageVisitor);
+      yt.config = (yt.config ??
+              YTConfig(visitorData: '', language: 'en', location: 'IN'))
+          .copyWith(visitorData: pageVisitor);
+    }
+
     try {
-      final yt = GetIt.I<YTMusic>();
-      await yt.resetVisitorId();
+      // 3. The client was created at startup with the ANONYMOUS visitor id.
+      //    Ask music.youtube.com for the id bound to this session when the
+      //    page did not expose one (manual cookie paste, or page still
+      //    loading).
+      if (pageVisitor == null || pageVisitor.isEmpty) {
+        await yt.resetVisitorId();
+      }
       await yt.refreshHeaders();
     } catch (_) {}
 
     Map<String, dynamic>? info;
     try {
-      info = await GetIt.I<YTMusic>().getAccountInfo();
+      info = await yt.getAccountInfo();
     } catch (_) {}
     await CookieStore.instance.saveAccount({
       'name': info?['name'] ?? 'YouTube Music',
@@ -119,7 +150,9 @@ class _LoginPageState extends State<LoginPage> {
     notifyAccountChanged();
     _service.closeBrowser();
     if (mounted) {
-      setState(() => _status = 'Accesso effettuato.');
+      setState(() => _status = info?['name'] != null
+          ? 'Accesso effettuato come ${info!['name']}.'
+          : 'Accesso effettuato.');
       context.go('/');
     }
   }
@@ -155,14 +188,14 @@ class _LoginPageState extends State<LoginPage> {
       });
     });
 
-    final pairs = await _service.waitForSignIn(
+    final capture = await _service.waitForSignIn(
       timeout: const Duration(minutes: 5),
       cancelled: () async => !mounted,
       verifySession: _verifySession,
     );
     _timeout?.cancel();
-    if (pairs != null && mounted) {
-      await _finishLogin(pairs);
+    if (capture != null && mounted) {
+      await _finishLogin(capture);
     } else if (mounted) {
       setState(() {
         _error = 'Cookie di accesso non rilevati. Riprova o incolla il cookie.';
@@ -200,7 +233,10 @@ class _LoginPageState extends State<LoginPage> {
     if (collected != null &&
         collected.hasAuth &&
         collected.pairs.isNotEmpty) {
-      await _finishLogin(collected.pairs);
+      final session = await _service.readSessionState();
+      await _finishLogin(
+        LoginCapture(cookies: collected.pairs, session: session),
+      );
     } else {
       setState(() {
         _checking = false;
@@ -216,7 +252,9 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _error = 'Incolla prima il cookie dal browser.');
       return;
     }
-    await _finishLogin(CookieStore.parseCookieHeader(raw));
+    await _finishLogin(
+      LoginCapture(cookies: CookieStore.parseCookieHeader(raw)),
+    );
   }
 
   @override
@@ -316,11 +354,4 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-}
-
-Future<Directory> getSupportDir() async {
-  final dir =
-      Directory('${Platform.environment['LOCALAPPDATA']}\\com.echo\\Echo Music');
-  if (!await dir.exists()) await dir.create(recursive: true);
-  return dir;
 }

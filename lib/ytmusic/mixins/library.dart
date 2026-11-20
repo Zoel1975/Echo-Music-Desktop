@@ -157,7 +157,8 @@ mixin LibraryMixin on YTClient {
       continuation = getContinuationString(continuation);
     }
     List contents = nav(outerContents, ['items']) ?? const [];
-    if (continuationParams == null) {
+    if (continuationParams == null && contents.isNotEmpty) {
+      // First item is the "New playlist" card.
       contents = contents.sublist(1);
     }
 

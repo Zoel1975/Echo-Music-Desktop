@@ -1,5 +1,21 @@
 import "package:hive_flutter/hive_flutter.dart";
 
+/// Client identity that the Android app uses for YouTube Music.
+/// Port of `YouTubeClient.WEB_REMIX` (`loginSupported = true`).
+const String ytmClientName = 'WEB_REMIX';
+const String ytmClientId = '67';
+const String ytmOrigin = 'https://music.youtube.com';
+const String ytmReferer = '$ytmOrigin/';
+
+/// `WEB_REMIX` client version: `1.<yyyymmdd>.01.00`, exactly like Android.
+String ytmClientVersion([DateTime? now]) {
+  final d = now ?? DateTime.now();
+  final year = d.year.toString();
+  final month = d.month.toString().padLeft(2, '0');
+  final day = d.day.toString().padLeft(2, '0');
+  return '1.$year$month$day.01.00';
+}
+
 Map<String, String> initializeHeaders({String language = 'en'}) {
   Map<String, String> h = {
     "User-Agent":
@@ -7,9 +23,16 @@ Map<String, String> initializeHeaders({String language = 'en'}) {
     'accept': '*/*',
     'accept-encoding': 'gzip, deflate',
     'content-type': 'application/json',
-    // NOTE: no 'content-encoding: gzip' — request bodies are plain JSON.
+    // NOTE: no 'content-encoding: gzip' - request bodies are plain JSON.
     // Claiming gzip here makes YouTube reject every browse/search request.
-    "Origin": "https://music.youtube.com",
+    "Origin": ytmOrigin,
+    // Headers Android's InnerTube always sends (`InnerTube.ytClient`).
+    'X-Origin': ytmOrigin,
+    'Referer': ytmReferer,
+    'X-Goog-Api-Format-Version': '1',
+    'X-YouTube-Client-Name': ytmClientId,
+    'X-YouTube-Client-Version': ytmClientVersion(),
+    'Cache-Control': 'no-cache',
     'cookie': 'CONSENT=YES+1',
     'Accept-Language': language,
   };
@@ -17,21 +40,26 @@ Map<String, String> initializeHeaders({String language = 'en'}) {
   return h;
 }
 
+/// Port of Android's `YouTubeClient.toContext`: the client block carries the
+/// (account-bound) visitor id and `user.onBehalfOfUser` carries `dataSyncId`.
+/// Without `dataSyncId` YouTube answers the library endpoints with an
+/// anonymous/empty response even when the cookie is valid.
 Map<String, dynamic> initializeContext() {
-  final DateTime now = DateTime.now();
-  final String year = now.year.toString();
-  final String month = now.month.toString().padLeft(2, '0');
-  final String day = now.day.toString().padLeft(2, '0');
-  final String date = year + month + day;
+  final settings = Hive.box('SETTINGS');
+  final visitorData = settings.get('VISITOR_ID')?.toString() ?? '';
+  final dataSyncId = settings.get('DATASYNC_ID')?.toString() ?? '';
   return {
     'context': {
       'client': {
-        "hl": Hive.box('SETTINGS').get('LANGUAGE', defaultValue: 'en-IN'),
-        "gl": Hive.box('SETTINGS').get('LOCATION', defaultValue: 'IN'),
-        'clientName': 'WEB_REMIX',
-        'clientVersion': '1.$date.01.00',
+        "hl": settings.get('LANGUAGE', defaultValue: 'en-IN'),
+        "gl": settings.get('LOCATION', defaultValue: 'IN'),
+        'clientName': ytmClientName,
+        'clientVersion': ytmClientVersion(),
+        if (visitorData.isNotEmpty) 'visitorData': visitorData,
       },
-      'user': {}
+      'user': <String, dynamic>{
+        if (dataSyncId.isNotEmpty) 'onBehalfOfUser': dataSyncId,
+      },
     }
   };
 }

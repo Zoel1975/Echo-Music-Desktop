@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
 
-import 'package:Echo/services/account_refresh.dart';
 import 'package:Echo/services/cookie_store.dart';
-import 'package:Echo/ytmusic/ytmusic.dart';
+import 'package:Echo/services/session_service.dart';
 import '../../../core/widgets/back_button.dart';
 
 /// Desktop port of `ui/screens/AccountScreen.kt`: shows the signed-in account
@@ -15,19 +12,9 @@ import '../../../core/widgets/back_button.dart';
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
 
-  /// Desktop equivalent of Android `App.forgetAccount()`: clear cookies,
-  /// account details and visitor id, refresh the YT client (request headers
-  /// now drop the Cookie header), notify data screens, then go home.
+  /// Port of Android `App.forgetAccount()`; see `SessionService.signOut()`.
   Future<void> _signOut(BuildContext context) async {
-    await CookieStore.instance.clear();
-    await CookieStore.instance.clearAccount();
-    try {
-      await Hive.box('SETTINGS').delete('VISITOR_ID');
-      final yt = GetIt.I<YTMusic>();
-      await yt.resetVisitorId();
-      await yt.refreshHeaders();
-    } catch (_) {}
-    notifyAccountChanged();
+    await SessionService().signOut();
     if (context.mounted) context.go('/');
   }
 

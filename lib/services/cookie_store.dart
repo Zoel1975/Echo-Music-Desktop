@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
@@ -29,9 +32,55 @@ class CookieStore {
 
   /// The `Cookie` header to merge into requests, or `null` when logged out.
   String? get cookieHeader {
+    if (!_cookiesBoxOpen) return null;
     final cookies = Map<String, String>.from(_box.toMap());
     if (cookies.isEmpty) return null;
     return buildCookieHeader(cookies);
+  }
+
+  static bool get _cookiesBoxOpen => Hive.isBoxOpen('COOKIES');
+
+  static bool get _settingsBoxOpen => Hive.isBoxOpen('SETTINGS');
+
+  /// The account-scoped `DATASYNC_ID` (`user.onBehalfOfUser` in the context).
+  /// Ported from Android's `DataSyncIdKey`.
+  String? get dataSyncId {
+    if (!_settingsBoxOpen) return null;
+    final id = Hive.box('SETTINGS').get('DATASYNC_ID')?.toString() ?? '';
+    return id.isEmpty ? null : id;
+  }
+
+  Future<void> saveDataSyncId(String? id) async {
+    if (!_settingsBoxOpen) return;
+    final box = Hive.box('SETTINGS');
+    if (id == null || id.isEmpty) {
+      await box.delete('DATASYNC_ID');
+    } else {
+      await box.put('DATASYNC_ID', id);
+    }
+  }
+
+  /// `Authorization: SAPISIDHASH <ts>_<sha1(ts sapisid origin)>`.
+  ///
+  /// Android's `InnerTube.ytClient` adds this for every authenticated request.
+  /// Music YouTube ignores an authenticated cookie without it for account
+  /// endpoints, which is why the library stayed empty after login.
+  String? get authorizationHeader {
+    if (!_cookiesBoxOpen) return null;
+    final sapisid = _box.get('SAPISID')?.toString() ?? '';
+    if (sapisid.isEmpty) return null;
+    return buildSapisidHash(sapisid);
+  }
+
+  /// Pure: builds the SAPISIDHASH value. [now] is injectable for tests.
+  static String buildSapisidHash(
+    String sapisid, {
+    DateTime? now,
+    String origin = 'https://music.youtube.com',
+  }) {
+    final ts = (now ?? DateTime.now()).millisecondsSinceEpoch ~/ 1000;
+    final digest = sha1.convert(utf8.encode('$ts $sapisid $origin')).toString();
+    return 'SAPISIDHASH ${ts}_$digest';
   }
 
   /// Parses a `Cookie:` header copied from the browser DevTools into
@@ -78,6 +127,7 @@ class CookieStore {
   /// callers use `account['name']`, `account['email']`, etc. directly. Falls
   /// back to the raw box for older installs that stored fields flat.
   Map<String, dynamic> get account {
+    if (!Hive.isBoxOpen('ACCOUNT')) return const {};
     final saved = _accountBox.get('info');
     if (saved is Map) return Map<String, dynamic>.from(saved);
     return Map<String, dynamic>.from(_accountBox.toMap());

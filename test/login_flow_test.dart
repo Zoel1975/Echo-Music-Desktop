@@ -38,7 +38,9 @@ void main() {
       ]);
       expect(result.hasAuth, isTrue);
       expect(result.pairs.containsKey('SAPISID'), isTrue);
-      expect(result.pairs.containsKey('SID'), isTrue);
+      // Android reads only the music.youtube.com cookie jar: a google.com-only
+      // cookie is not sent when YouTube already carries the session.
+      expect(result.pairs.containsKey('SID'), isFalse);
       expect(result.pairs.containsKey('tracker'), isFalse);
     });
 

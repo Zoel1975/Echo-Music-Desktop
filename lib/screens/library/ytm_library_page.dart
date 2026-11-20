@@ -39,8 +39,13 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
   }
 
   void _onAccountChanged() {
-    _cache.clear();
-    _errors.clear();
+    if (!mounted) return;
+    // Rebuild immediately: after a sign-out `_load` returns early, so without
+    // this setState the page would keep showing the previous account's items.
+    setState(() {
+      _cache.clear();
+      _errors.clear();
+    });
     _load(_tabs.index);
   }
 
@@ -51,11 +56,14 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
     super.dispose();
   }
 
-  Future<void> _load(int index) async {
+  Future<void> _load(int index, {bool force = false}) async {
     // Never hit the network while logged out (avoids hangs and empty errors).
     if (CookieStore.instance.cookieHeader == null) return;
-    if (_cache.containsKey(index)) return;
-    setState(() => _loading = true);
+    if (!force && _cache.containsKey(index)) return;
+    setState(() {
+      _loading = true;
+      if (force) _errors.remove(index);
+    });
     try {
       final res = switch (index) {
         0 => await _yt.getLibraryPlaylists(),
@@ -76,10 +84,11 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
   }
 
   void _open(Map item, int tab) {
-    final endpoint = item['endpoint'] as Map?;
-    final browseId = endpoint?['browseId']?.toString() ??
-        item['browseId']?.toString() ??
-        '';
+    final endpoint = item['endpoint'];
+    final browseId = endpoint is Map
+        ? endpoint['browseId']?.toString()
+        : null;
+    final type = item['type']?.toString();
     if (tab == 1) {
       final videoId = item['videoId']?.toString();
       if (videoId != null && videoId.isNotEmpty) {
@@ -91,13 +100,18 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
       }
       return;
     }
-    if (browseId.isEmpty) return;
-    if (tab == 0) {
-      context.go('/playlist', extra: {'playlistId': browseId});
-    } else if (tab == 2) {
-      context.go('/album', extra: {'browseId': browseId});
+    // Playlist items carry `playlistId`; albums/artists carry `browseId`.
+    if (tab == 0 || type == 'PLAYLIST') {
+      final playlistId = item['playlistId']?.toString() ?? browseId;
+      if (playlistId == null || playlistId.isEmpty) return;
+      context.push('/playlist', extra: {'playlistId': playlistId});
+      return;
+    }
+    if (browseId == null || browseId.isEmpty) return;
+    if (tab == 2 || type == 'ALBUM') {
+      context.push('/album', extra: {'browseId': browseId});
     } else {
-      context.go('/artist', extra: {'browseId': browseId});
+      context.push('/artist', extra: {'browseId': browseId});
     }
   }
 
@@ -108,6 +122,11 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
       appBar: AppBar(
         title: const Text('La tua libreria YouTube Music'),
         actions: [
+          IconButton(
+            tooltip: 'Aggiorna',
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _load(_tabs.index, force: true),
+          ),
           IconButton(
             tooltip: 'Libreria locale (file sul dispositivo)',
             icon: const Icon(Icons.folder_special_outlined),
@@ -136,7 +155,24 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
       return const Center(child: CircularProgressIndicator());
     }
     final error = _errors[index];
-    if (error != null) return Center(child: Text('Errore: $error'));
+    if (error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Errore: $error', textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => _load(index, force: true),
+                child: const Text('Riprova'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final items = _cache[index] ?? const [];
     if (items.isEmpty) {
       return const Center(child: Text('Nessun elemento.'));
