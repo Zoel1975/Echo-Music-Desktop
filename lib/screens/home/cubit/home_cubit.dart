@@ -1,5 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:Echo/ytmusic/ytmusic.dart';
+import 'package:Echo/services/account_refresh.dart';
 import 'package:Echo/services/charts_service.dart';
 import 'package:Echo/services/chart_model.dart';
 import 'package:meta/meta.dart';
@@ -8,7 +9,18 @@ part 'home_state.dart';
 
 class HomeCubit extends Cubit<HomeState> {
   final YTMusic _ytMusic;
-  HomeCubit(this._ytMusic) : super(HomeLoading());
+  HomeCubit(this._ytMusic) : super(HomeLoading()) {
+    // Re-fetch with fresh credentials when the account changes (login).
+    accountEpoch.addListener(_onAccountChanged);
+  }
+
+  void _onAccountChanged() => fetch();
+
+  @override
+  Future<void> close() {
+    accountEpoch.removeListener(_onAccountChanged);
+    return super.close();
+  }
 
   Future<void> fetch() async {
     emit(const HomeLoading());

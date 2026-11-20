@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:Echo/services/account_refresh.dart';
 import 'package:Echo/services/cookie_store.dart';
 import 'package:Echo/services/google_login_service.dart';
 import 'package:Echo/services/stream_resolver.dart';
@@ -90,6 +91,16 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _finishLogin(Map<String, String> pairs) async {
     await CookieStore.instance.importCookieHeader(
         pairs.entries.map((e) => '${e.key}=${e.value}').join('; '));
+
+    // The YTMusic client was created at startup with the ANONYMOUS visitor id.
+    // With auth cookies but the old visitor id YouTube returns empty/anonymous
+    // feed data. Fetch a fresh visitor id bound to the signed-in session.
+    try {
+      final yt = GetIt.I<YTMusic>();
+      await yt.resetVisitorId();
+      await yt.refreshHeaders();
+    } catch (_) {}
+
     Map<String, dynamic>? info;
     try {
       info = await GetIt.I<YTMusic>().getAccountInfo();
@@ -100,6 +111,7 @@ class _LoginPageState extends State<LoginPage> {
       'signedIn': true,
     });
     StreamResolver.instance.clearCache();
+    notifyAccountChanged();
     _service.closeBrowser();
     if (mounted) {
       setState(() => _status = 'Accesso effettuato.');
