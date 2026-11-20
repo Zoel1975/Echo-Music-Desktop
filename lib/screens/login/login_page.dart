@@ -1,163 +1,200 @@
-import 'dart:async';
+﻿import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_it/get_it.dart';
-import 'package:webview_flutter_windows/webview_flutter_windows.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:Echo/services/cookie_store.dart';
 import 'package:Echo/ytmusic/ytmusic.dart';
 
-/// Desktop port of `ui/screens/LoginScreen.kt`: a real WebView2 login page.
-///
-/// The user signs in with Google inside the app; the cookies written by the
-/// WebView are copied into the `CookieStore` Hive box and merged into every
-/// `YTClient` request. This widget embeds the native `Webview` view — without
-/// it the controller would load the page off-screen and the user would see
-/// nothing.
-/// Whether a WebView navigation means the user is done signing in.
-/// Login/consent/sign-in pages never count, even on youtube.com hosts.
-bool shouldAutoCompleteLogin(Uri uri) {
-  final host = uri.host.toLowerCase();
-  final path = uri.path.toLowerCase();
-  if (host.contains('google.com') ||
-      path.contains('/login') ||
-      path.contains('signin') ||
-      path.contains('consent')) {
-    return false;
-  }
-  return host == 'music.youtube.com' ||
-      host == 'www.youtube.com' ||
-      host == 'youtube.com';
+/// Login flow without the embedded WebView (which renders black on this
+/// machine). We open Edge with a dedicated profile and a loopback CDP port;
+/// after the user signs in, the cookies are read over the DevTools protocol
+/// and imported into the app. No manual copy/paste is required.
+bool isAuthCookie(String name) => _LoginPageState.authCookies.contains(name);
+
+bool isAllowedCookieDomain(String domain) {
+  final d = domain.toLowerCase();
+  return _LoginPageState.allowedDomains
+      .any((allowed) => d == allowed || d.endsWith('.$allowed'));
 }
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _LoginBody(),
-    );
-  }
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginBody extends StatefulWidget {
-  @override
-  State<_LoginBody> createState() => _LoginBodyState();
-}
+class _LoginPageState extends State<LoginPage> {
+  static const _port = 9333;
+  static const authCookies = {
+    'SID', 'HSID', 'SSID', 'APISID', 'SAPISID',
+    '__Secure-3PAPISID', '__Secure-1PAPISID', '__Secure-3PSID', 'LOGIN_INFO',
+  };
+  static const allowedDomains = [
+    'youtube.com', 'google.com', 'gstatic.com', 'googleusercontent.com',
+    'googleapis.com', 'g.co',
+  ];
 
-class _LoginBodyState extends State<_LoginBody> {
-  static const _userAgent =
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0';
-
-  final controller = WebviewController();
   final _cookieController = TextEditingController();
-  bool _loggingIn = false;
-  bool _importing = false;
+  Timer? _poll;
+  bool _opening = false;
+  bool _checking = false;
+  String? _status;
   String? _error;
-  String? _info;
-  StreamSubscription<String>? _urlSub;
-
-  @override
-  void initState() {
-    super.initState();
-    _login();
-  }
 
   @override
   void dispose() {
-    _urlSub?.cancel();
+    _poll?.cancel();
     _cookieController.dispose();
-    controller.dispose();
     super.dispose();
   }
 
-  /// Imports the `Cookie:` header copied from a signed-in browser (DevTools →
-  /// Network → music.youtube.com → Headers → Cookie).
-  Future<void> _importCookies() async {
+  Future<String> _profileDir() async {
+    final support = await getSupportDir();
+    final dir = Directory('${support.path}/login-browser');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir.path;
+  }
+
+  Future<void> _openBrowser() async {
+    setState(() {
+      _opening = true;
+      _error = null;
+      _status = 'Apertura del browser per il login…';
+    });
+    try {
+      final profile = await _profileDir();
+      final candidates = [
+        r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
+        r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+      ];
+      final exe = candidates.firstWhere(
+        (p) => File(p).existsSync(),
+        orElse: () => '',
+      );
+      if (exe.isEmpty) throw Exception('Né Edge né Chrome sono installati');
+      await Process.start(exe, [
+        '--remote-debugging-port=$_port',
+        '--user-data-dir=$profile',
+        '--no-first-run',
+        '--no-default-browser-check',
+        'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com%2F',
+      ]);
+      _poll?.cancel();
+      _poll = Timer.periodic(const Duration(seconds: 3), (_) => _tryImport(fromPoll: true));
+      setState(() => _status =
+          'Accedi nel browser che si è aperto. Il rilevamento è automatico.');
+    } catch (e) {
+      setState(() {
+        _error = 'Impossibile aprire il browser: $e';
+        _status = null;
+      });
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>?> _cdpCookies() async {
+    try {
+      final tabs = await http
+          .get(Uri.parse('http://127.0.0.1:$_port/json/list'))
+          .timeout(const Duration(seconds: 3));
+      final list = jsonDecode(tabs.body) as List<dynamic>;
+      String? wsUrl;
+      for (final target in list) {
+        if (target is! Map) continue;
+        if (target['type'] != 'page') continue;
+        final url = (target['url'] as String? ?? '').toLowerCase();
+        if (allowedDomains.any((d) => url.contains(d))) {
+          wsUrl = target['webSocketDebuggerUrl'] as String?;
+          if (wsUrl != null) break;
+        }
+      }
+      if (wsUrl == null) return null;
+      final ws = await WebSocket.connect(wsUrl).timeout(const Duration(seconds: 5));
+      try {
+        ws.add(jsonEncode({'id': 1, 'method': 'Network.getAllCookies'}));
+        await for (final message in ws.timeout(const Duration(seconds: 5))) {
+          final decoded = jsonDecode(message as String) as Map<String, dynamic>;
+          if (decoded['id'] == 1) {
+            final cookies = decoded['result']?['cookies'] as List<dynamic>? ?? [];
+            return cookies
+                .whereType<Map<String, dynamic>>()
+                .map((c) => Map<String, dynamic>.from(c))
+                .toList();
+          }
+        }
+      } finally {
+        await ws.close();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _tryImport({bool fromPoll = false}) async {
+    if (_checking || !mounted) return;
+    _checking = true;
+    try {
+      final cookies = await _cdpCookies();
+      if (cookies == null) {
+        if (!fromPoll) {
+          setState(() => _error =
+              'Nessuna scheda di login trovata. Apri prima il browser.');
+        }
+        return;
+      }
+      final pairs = <String, String>{};
+      var hasAuth = false;
+      for (final c in cookies) {
+        final name = c['name'] as String? ?? '';
+        final value = c['value'] as String? ?? '';
+        final domain = (c['domain'] as String? ?? '').toLowerCase();
+        if (!allowedDomains.any((d) => domain == d || domain.endsWith('.$d'))) {
+          continue;
+        }
+        if (authCookies.contains(name)) hasAuth = true;
+        if (name.isNotEmpty && value.isNotEmpty) pairs[name] = value;
+      }
+      if (!hasAuth || pairs.isEmpty) return;
+
+      await CookieStore.instance.importCookieHeader(
+        pairs.entries.map((e) => '${e.key}=${e.value}').join('; '),
+      );
+      final info = await GetIt.I<YTMusic>().getAccountInfo();
+      await CookieStore.instance.saveAccount(info ?? {'name': 'YouTube Music'});
+      _poll?.cancel();
+      if (mounted) {
+        setState(() => _status = 'Accesso effettuato.');
+        context.go('/');
+      }
+    } catch (e) {
+      if (!fromPoll && mounted) setState(() => _error = 'Import fallito: $e');
+    } finally {
+      _checking = false;
+    }
+  }
+
+  Future<void> _pasteCookies() async {
     final raw = _cookieController.text.trim();
     if (raw.isEmpty) {
       setState(() => _error = 'Incolla prima il cookie dal browser.');
       return;
     }
-    setState(() {
-      _importing = true;
-      _error = null;
-      _info = null;
-    });
     try {
       final count = await CookieStore.instance.importCookieHeader(raw);
-      if (count == 0) {
-        setState(() => _error = 'Nessun cookie valido trovato nel testo.');
-        return;
-      }
       final info = await GetIt.I<YTMusic>().getAccountInfo();
       await CookieStore.instance.saveAccount(info ?? {'name': 'YouTube Music'});
       if (!mounted) return;
-      setState(() => _info = 'Importati $count cookie. Accesso verificato.');
+      setState(() => _status = 'Importati $count cookie.');
       context.go('/');
     } catch (e) {
       if (mounted) setState(() => _error = 'Import cookie fallito: $e');
-    } finally {
-      if (mounted) setState(() => _importing = false);
     }
-  }
-
-  Future<void> _login() async {
-    if (!Platform.isWindows) {
-      setState(() => _error = 'Google sign-in is only available on Windows.');
-      return;
-    }
-    try {
-      final version = await WebviewController.getWebViewVersion();
-      if (version == null) {
-        setState(() => _error =
-            'WebView2 Runtime is not installed. Install Microsoft Edge WebView2 Runtime and restart the app.');
-        return;
-      }
-      await controller.initialize();
-      await controller.setUserAgent(_userAgent);
-      _urlSub = controller.url.listen((url) {
-        unawaited(_onUrlChanged(url));
-      });
-      await controller.loadUrl('https://music.youtube.com/login');
-    } catch (e) {
-      if (mounted) setState(() => _error = 'Could not open the login page: $e');
-    }
-  }
-
-  static const _authCookies = {
-    'SID',
-    'HSID',
-    'SSID',
-    'APISID',
-    'SAPISID',
-    '__Secure-3PAPISID',
-    '__Secure-1PAPISID',
-    '__Secure-3PSID',
-    'LOGIN_INFO',
-  };
-
-  Future<void> _onUrlChanged(String url) async {
-    if (_loggingIn) return;
-    final uri = Uri.tryParse(url);
-    if (uri == null || !shouldAutoCompleteLogin(uri)) return;
-    final cookies = await controller.getCookies('https://music.youtube.com/');
-    if (!cookies.any((c) => _authCookies.contains(c.name))) return;
-    await _completeLogin();
-  }
-
-  Future<void> _completeLogin() async {
-    if (_loggingIn || !mounted) return;
-    setState(() => _loggingIn = true);
-    await CookieStore.instance.captureFromWebView(controller);
-    final info = await GetIt.I<YTMusic>().getAccountInfo();
-    await CookieStore.instance.saveAccount(info ?? {'name': 'YouTube Music'});
-    if (!mounted) return;
-    setState(() => _info = 'Accesso effettuato');
-    context.go('/');
   }
 
   @override
@@ -167,76 +204,81 @@ class _LoginBodyState extends State<_LoginBody> {
         title: const Text('Sign in to YouTube Music'),
         actions: [
           TextButton(
-            onPressed: _completeLogin,
-            child: const Text('Verifica login'),
-          ),
-          TextButton(
             onPressed: () => context.go('/'),
             child: const Text('Done'),
           ),
         ],
       ),
-      body: _error != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              const Text(
+                'Accedi con Google',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Si aprirà una finestra del browser dedicata. Dopo il login '
+                "l'app rileverà automaticamente la sessione e tornerà alla home.",
+              ),
+              const SizedBox(height: 24),
+              if (_opening)
+                const LinearProgressIndicator()
+              else
+                FilledButton.icon(
+                  onPressed: _openBrowser,
+                  icon: const Icon(Icons.open_in_browser),
+                  label: const Text('Apri il browser e accedi'),
+                ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _checking ? null : () => _tryImport(),
+                icon: const Icon(Icons.verified_user),
+                label: const Text('Ho già effettuato il login — verifica'),
+              ),
+              if (_status != null) ...[
+                const SizedBox(height: 16),
+                Text(_status!, style: const TextStyle(color: Colors.green)),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+              ],
+              const SizedBox(height: 40),
+              const Divider(),
+              const SizedBox(height: 16),
+              const Text(
+                'Fallback — incolla qui l\'header Cookie copiato da DevTools',
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _cookieController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Cookie incollato dal browser',
+                  border: OutlineInputBorder(),
                 ),
               ),
-            )
-          : Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('Sign in with Google, then press Done.'),
-                ),
-                 Expanded(child: Webview(controller)),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Text(
-                    'Oppure: accedi a music.youtube.com nel browser, poi copia '
-                    'l\'header Cookie da DevTools → Network → richiesta a '
-                    'music.youtube.com → Headers e incollalo qui.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: TextField(
-                    controller: _cookieController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Cookie incollato dal browser',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _importing
-                      ? const LinearProgressIndicator()
-                      : FilledButton.icon(
-                          onPressed: _importCookies,
-                          icon: const Icon(Icons.login),
-                          label: const Text('Importa cookie del browser'),
-                        ),
-                ),
-                if (_info != null)
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Text(_info!, style: const TextStyle(color: Colors.green)),
-                  ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Text(_error!, style: const TextStyle(color: Colors.red)),
-                  ),
-                const SizedBox(height: 12),
-              ],
-            ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: _pasteCookies,
+                child: const Text('Importa cookie del browser'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
+}
+
+Future<Directory> getSupportDir() async {
+  // Kept in a helper so the UI file does not import path_provider directly.
+  final dir = Directory('${Platform.environment['LOCALAPPDATA']}\\com.echo\\Echo Music');
+  if (!await dir.exists()) await dir.create(recursive: true);
+  return dir;
 }

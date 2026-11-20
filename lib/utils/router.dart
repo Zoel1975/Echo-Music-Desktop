@@ -33,7 +33,7 @@ import 'package:Echo/screens/login/login_page.dart';
 import 'package:Echo/screens/shell/app_shell.dart';
 
 GoRouter router = GoRouter(
-  initialLocation: '/',
+  initialLocation: Platform.environment['ECHO_START_ROUTE'] ?? '/',
   routes: [
     ShellRoute(
       builder: (context, state, child) => child,
