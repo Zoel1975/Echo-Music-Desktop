@@ -16,6 +16,22 @@ import 'package:Echo/ytmusic/ytmusic.dart';
 /// `YTClient` request. This widget embeds the native `Webview` view — without
 /// it the controller would load the page off-screen and the user would see
 /// nothing.
+/// Whether a WebView navigation means the user is done signing in.
+/// Login/consent/sign-in pages never count, even on youtube.com hosts.
+bool shouldAutoCompleteLogin(Uri uri) {
+  final host = uri.host.toLowerCase();
+  final path = uri.path.toLowerCase();
+  if (host.contains('google.com') ||
+      path.contains('/login') ||
+      path.contains('signin') ||
+      path.contains('consent')) {
+    return false;
+  }
+  return host == 'music.youtube.com' ||
+      host == 'www.youtube.com' ||
+      host == 'youtube.com';
+}
+
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
@@ -104,15 +120,7 @@ class _LoginBodyState extends State<_LoginBody> {
       await controller.initialize();
       await controller.setUserAgent(_userAgent);
       _urlSub = controller.url.listen((url) {
-        if (_loggingIn) return;
-        final host = Uri.tryParse(url)?.host ?? '';
-        final isYtHost =
-            host == 'music.youtube.com' || host.endsWith('.music.youtube.com');
-        final isGoogle = host == 'youtube.com' ||
-            host.endsWith('.youtube.com') ||
-            host == 'g.co' ||
-            host == 'accounts.google.com';
-        if (isYtHost || isGoogle) _onAuthenticated();
+        unawaited(_onUrlChanged(url));
       });
       await controller.loadUrl('https://music.youtube.com/login');
     } catch (e) {
@@ -120,17 +128,36 @@ class _LoginBodyState extends State<_LoginBody> {
     }
   }
 
-  Future<void> _onAuthenticated() async {
+  static const _authCookies = {
+    'SID',
+    'HSID',
+    'SSID',
+    'APISID',
+    'SAPISID',
+    '__Secure-3PAPISID',
+    '__Secure-1PAPISID',
+    '__Secure-3PSID',
+    'LOGIN_INFO',
+  };
+
+  Future<void> _onUrlChanged(String url) async {
+    if (_loggingIn) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !shouldAutoCompleteLogin(uri)) return;
+    final cookies = await controller.getCookies('https://music.youtube.com/');
+    if (!cookies.any((c) => _authCookies.contains(c.name))) return;
+    await _completeLogin();
+  }
+
+  Future<void> _completeLogin() async {
     if (_loggingIn || !mounted) return;
-    _loggingIn = true;
+    setState(() => _loggingIn = true);
     await CookieStore.instance.captureFromWebView(controller);
-    if (CookieStore.instance.cookieHeader == null) {
-      _loggingIn = false;
-      return;
-    }
     final info = await GetIt.I<YTMusic>().getAccountInfo();
     await CookieStore.instance.saveAccount(info ?? {'name': 'YouTube Music'});
-    if (mounted) context.go('/');
+    if (!mounted) return;
+    setState(() => _info = 'Accesso effettuato');
+    context.go('/');
   }
 
   @override
@@ -139,6 +166,10 @@ class _LoginBodyState extends State<_LoginBody> {
       appBar: AppBar(
         title: const Text('Sign in to YouTube Music'),
         actions: [
+          TextButton(
+            onPressed: _completeLogin,
+            child: const Text('Verifica login'),
+          ),
           TextButton(
             onPressed: () => context.go('/'),
             child: const Text('Done'),
