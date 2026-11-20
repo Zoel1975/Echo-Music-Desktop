@@ -4,8 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/core/utils/service_locator.dart';
+import 'package:Echo/services/settings_manager.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:Echo/utils/playlist_thumbnail.dart';
 
@@ -191,8 +193,13 @@ class _LibraryBody extends StatelessWidget {
       builder: (context, constraints) {
         return GridView.builder(
           padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 200,
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: switch (
+                GetIt.I<SettingsManager>().extra<String>('gridCellSize', 'Medium')) {
+              'Small' => 150.0,
+              'Large' => 260.0,
+              _ => 200.0,
+            },
             childAspectRatio: 0.8,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,

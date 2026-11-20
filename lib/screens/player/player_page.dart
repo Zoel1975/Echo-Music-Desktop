@@ -450,6 +450,20 @@ class _PlayerPageState extends State<PlayerPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (GetIt.I<SettingsManager>()
+                      .extra<bool>('showCodec', false))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        currentSong?.extras?['status']?.toString() == 'LOCAL'
+                            ? 'Local file'
+                            : 'AAC · ${GetIt.I<SettingsManager>().streamingQuality.name.toUpperCase()}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

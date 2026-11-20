@@ -257,6 +257,20 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
 | **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
 
+**Fine-grained appearance options (this session):** Android
+`AppearanceSettings.kt` / `GlassEffectSettings.kt` / `HapticsSettings.kt`
+individual options → real `AppearanceDetailsPage` (`/settings/appearance/details`)
+with persisted settings (`SettingsManager.extra<T>`) for theme variant, glass
+effect (vibrancy/blur/opacity/lens/chromatic/depth, glass player/mini/nav),
+player look (Apple-inspired, thumbnail radius, button colors, slider style,
+wavy play/pause, rotating thumbnail, show codec, swipe sensitivity), lyrics
+(animation style, blur, line spacing, click/swipe, thumbnail play/pause) and
+misc (grid cell size, display density, haptic intensity). Android-only/hardware
+items (App Icon/Font, status bar) show "Coming in a future update" placeholders.
+Runtime effect wired for `gridCellSize` (library grid extent), `showCodec`
+(player label) and `lyricsTextSize`/`lyricsLineSpacing` (LyricsBox styles).
+Regression guard: `test/appearance_details_parity_test.dart`.
+
 **Windows DSP (this session):** Genuine cross-platform DSP now wired to real
 playback behavior:
 - `DesktopDsp` computes replay-gain normalization from InnerTube `loudnessDb`

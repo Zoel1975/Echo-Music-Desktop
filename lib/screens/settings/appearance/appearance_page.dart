@@ -80,6 +80,13 @@ class AppearancePage extends StatelessWidget {
                       onChanged: cubit.setDynamicColors,
                     ),
 
+                    SettingTile(
+                      title: 'Fine-grained options',
+                      subtitle: 'Glass, player, lyrics & misc customization',
+                      leading: const Icon(Icons.tune),
+                      onTap: () => context.go('/settings/appearance/details'),
+                    ),
+
                     // Android-only visual / hardware screens.
                     const GroupTitle(title: 'Appearance extras'),
                     _soon(context, 'App Icon', 'Choose a custom launcher icon'),

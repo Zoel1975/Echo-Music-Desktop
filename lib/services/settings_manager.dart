@@ -148,6 +148,18 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool get showCachedPlaylist => _showCachedPlaylist;
   String get localMusicFolder => _localMusicFolder;
 
+  /// Generic persisted accessor for fine-grained appearance/player options
+  /// that follow the same boolean/enum/number pattern as Android preferences.
+  T extra<T>(String key, T fallback) {
+    final v = _box.get('EXTRA_$key');
+    return v is T ? v : fallback;
+  }
+
+  void setExtra<T>(String key, T value) {
+    _box.put('EXTRA_$key', value);
+    notifyListeners();
+  }
+
   Map get settings => _box.toMap();
   SettingsManager() {
     _init();

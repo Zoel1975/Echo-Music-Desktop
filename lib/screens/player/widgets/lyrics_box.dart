@@ -231,11 +231,11 @@ class PlainLyricsWidget extends StatelessWidget {
         child: SelectableText(
           "\n${lyrics.lyricsPlain}\n${translatedLines == null || translatedLines!.isEmpty ? '' : '\n${translatedLines!.join('\n')}'}",
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 34,
+          style: TextStyle(
+            fontSize: GetIt.I<SettingsManager>().lyricsTextSize + 16,
             fontWeight: FontWeight.w800,
             color: Colors.white,
-            height: 1.5,
+            height: 1.4 + GetIt.I<SettingsManager>().extra<double>('lyricsLineSpacing', 8) / 40,
             letterSpacing: 0.2,
           ),
         ),
@@ -425,13 +425,14 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
                         duration: const Duration(milliseconds: 400),
                         curve: Curves.easeOutCubic,
                         style: TextStyle(
-                          fontSize: isCurrent ? 38 : 28, // Large active, small inactive
+                          fontSize: (isCurrent ? 38 : 28) +
+                              (GetIt.I<SettingsManager>().lyricsTextSize - 18) / 2,
                           fontWeight:
                               isCurrent ? FontWeight.w900 : FontWeight.w600,
                           color: isCurrent
                               ? Colors.white
                               : Colors.white.withValues(alpha: 0.35), // Transparent inactive
-                          height: 1.4,
+                          height: 1.3 + GetIt.I<SettingsManager>().extra<double>('lyricsLineSpacing', 8) / 40,
                           letterSpacing: isCurrent ? 0.5 : -0.3,
                           shadows: isCurrent
                               ? [

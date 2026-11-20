@@ -24,6 +24,7 @@ import 'package:Echo/screens/search/local_search_page.dart';
 import 'package:Echo/screens/settings/about/about_page.dart';
 import 'package:Echo/screens/settings/ai/ai_hub_page.dart';
 import 'package:Echo/screens/settings/appearance/appearance_page.dart';
+import 'package:Echo/screens/settings/appearance/appearance_details_page.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
 
 import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
@@ -228,6 +229,12 @@ List<StatefulShellBranch> branches = [
             GoRoute(
             path: 'appearance',
             builder: (context, state) => const AppearancePage(),
+            routes: [
+              GoRoute(
+                path: 'details',
+                builder: (context, state) => const AppearanceDetailsPage(),
+              ),
+            ],
           ),
           GoRoute(
             path: 'ai',
