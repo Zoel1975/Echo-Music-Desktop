@@ -408,7 +408,9 @@ class _PlayerPageState extends State<PlayerPage> {
   Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
     if (currentSong == null) return const SizedBox();
     MediaPlayer mediaPlayer = context.watch<MediaPlayer>();
-    final showSeek = GetIt.I<SettingsManager>().showSeekButtons;
+    final playerSettings = GetIt.I<SettingsManager>();
+    final showSeek = playerSettings.showSeekButtons;
+    final progressive = playerSettings.progressiveSeek;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment:
@@ -561,8 +563,10 @@ class _PlayerPageState extends State<PlayerPage> {
             // Seek back 10s
             if (showSeek)
               AdaptiveIconButton(
-                onPressed: () => mediaPlayer.player
-                    .seek(mediaPlayer.player.position - const Duration(seconds: 10)),
+                onPressed: () => mediaPlayer.player.seek(
+                    mediaPlayer.player.position -
+                        mediaPlayer.seekStep(const Duration(seconds: 10),
+                            progressive: progressive)),
                 icon: Icon(
                   Icons.replay_10,
                   size: 28,
@@ -614,7 +618,9 @@ class _PlayerPageState extends State<PlayerPage> {
             if (showSeek)
               AdaptiveIconButton(
                 onPressed: () => mediaPlayer.player.seek(
-                    mediaPlayer.player.position + const Duration(seconds: 10)),
+                    mediaPlayer.player.position +
+                        mediaPlayer.seekStep(const Duration(seconds: 10),
+                            progressive: progressive)),
                 icon: Icon(
                   Icons.forward_10,
                   size: 28,

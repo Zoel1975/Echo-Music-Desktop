@@ -253,9 +253,16 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **3 — Discovery & detail** *(done — 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
 | **4 — Library & account** *(done — 8109e93)* | Cookie login via WebView2 (`lib/screens/login/login_page.dart` + `lib/services/cookie_store.dart` + `YTMusic.getAccountInfo()` port of `account/account_menu`); Account screen (`lib/screens/account/account_page.dart`); `YTClient` now merges the Cookie header into every request | WebView2 login flow validated via build + smoke run (actual Google login needs credentials + Edge + WebView2; not exercised) |
 | **5 — Lyrics suite** *(done — lyrics providers batch)* | LRCLIB (`lrcnet_api.dart`), Android registry ported to `lib/services/lyrics_registry.dart` + `LrcLibProvider`; tests | All 8 providers ported (lyrics_providers.dart + lyrics_providers_youtube.dart); TTML/word-timing; LyricsService fallback chain; translations (DeepL/Mistral/OpenRouter+ApiRoute + SSE streaming + caching) in lyrics_translation.dart; 50/50 tests; translation UI wired (lyrics_box.dart translate button + TranslationDialog + per-line translated display) |
-| **6 — Social & cloud** | Parked — out of scope (user request) |
-| **7 — Podcasts** | Parked — out of scope (user request) |
-| **8 — Mobile-only leftovers** | Parked — out of scope (user request) |
+| **6 — Social & cloud** | PART — menu entries present; Discord/Last.fm/ListenBrainz/Jellyfin/Navidrome/Listen Together show a "Coming in a future update" placeholder (`ComingSoonPage`); no desktop protocol implementation |
+| **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
+| **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, app icon) show "Coming in a future update" placeholders; feasible items ported |
+
+### Settings parity (features ported as REAL, not placeholders)
+Mirrors Android `SettingsScreen.kt` 15 top-level entries:
+- **Real pages**: Account, AI Hub (`AiSettings.kt` — provider/API key/base URL/model/mode/language/streaming), Appearance (wired — theme/accent/AMOLED/dynamic), Player and audio (full Queue/Misc/DSP groups), Content (`ContentSettings.kt` — filters/region/lyrics + Blocked Artists / Disliked Songs), Privacy, Storage (`StorageSettings.kt` — real cache clearing), Backup and restore, Youtube Music, System update, About.
+- **Real data pages**: Listening Summary + Echo Wrapped (aggregated from `SONG_HISTORY`).
+- **ComingSoonPage placeholders** (honest "Planned for a future update"): Discord Rich Presence, Last.fm/ListenBrainz, Jellyfin/Navidrome, Listen Together, Supported Links.
+- Regression guard: `test/settings_parity_test.dart` asserts every entry renders; `ai_hub_test`, `storage_service_test`, `content_filter_test`, `content_settings_test` cover the new services.
 
 Notes for later phases:
 - **Explore / MusicFlow** (Android `ui/screens/musicflow/*`, 9 files): Resso-style

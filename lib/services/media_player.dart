@@ -705,6 +705,23 @@ class MediaPlayer extends ChangeNotifier {
     sleepTimer.clear();
     notifyListeners();
   }
+
+  /// Android `varispeed`: link pitch to playback speed (tape-style effects)
+  /// or keep pitch constant. Backed by just_audio's cross-platform DSP.
+  Future<void> setPlaybackSpeed(double speed, {bool preservePitch = true}) async {
+    final s = speed.clamp(0.5, 2.0);
+    await _player.setSpeed(s);
+    try {
+      await _player.setPitch(preservePitch ? 1.0 : s);
+    } catch (_) {
+      // Pitch shifting is not supported on every platform.
+    }
+  }
+
+  /// Android `seek_seconds_addup`: each skip adds 5 extra seconds
+  /// incrementally (only when the setting is enabled).
+  Duration seekStep(Duration base, {required bool progressive}) =>
+      progressive ? base + const Duration(seconds: 5) : base;
 }
 
 class _JustAudioSleepTarget implements SleepTimerTarget {
