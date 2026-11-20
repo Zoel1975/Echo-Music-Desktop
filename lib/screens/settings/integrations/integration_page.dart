@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
+import '../../../services/cloud_service.dart';
+import '../../../services/song_dna_service.dart';
 import '../widgets/setting_item.dart';
 import 'integration_catalog.dart';
 
@@ -38,9 +41,73 @@ class IntegrationPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
+          if (screen.route == 'jellyfin') _cloudTest(context, settings),
+          if (screen.route == 'song_dna') _dnaTest(context, settings),
           ...screen.fields.map((f) => _field(context, settings, f)),
           const SizedBox(height: 100),
         ],
+      ),
+    );
+  }
+
+  Widget _cloudTest(BuildContext context, SettingsManager s) {
+    return SettingTile(
+      title: 'Test connection',
+      subtitle: 'Verify the entered server credentials',
+      leading: const Icon(Icons.cloud_sync),
+      trailing: FilledButton(
+        onPressed: () async {
+          final cloud = GetIt.I<CloudService>();
+          final type = s.extra<String>('cloudType', 'Jellyfin');
+          final url = type == 'Jellyfin'
+              ? s.extra<String>('jellyfinUrl', '')
+              : s.extra<String>('navidromeUrl', '');
+          final ok = type == 'Jellyfin'
+              ? await cloud.checkJellyfin(
+                  url: url,
+                  user: s.extra<String>('jellyfinUser', ''),
+                  password: s.extra<String>('jellyfinPass', ''),
+                )
+              : await cloud.checkNavidrome(
+                  url: url,
+                  user: s.extra<String>('jellyfinUser', ''),
+                  password: s.extra<String>('jellyfinPass', ''),
+                );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(ok ? 'Connection successful' : 'Connection failed'),
+            ));
+          }
+        },
+        child: const Text('Test'),
+      ),
+    );
+  }
+
+  Widget _dnaTest(BuildContext context, SettingsManager s) {
+    return SettingTile(
+      title: 'Fetch song background',
+      subtitle: 'Look up a track on Genius / Wikipedia',
+      leading: const Icon(Icons.biotech),
+      trailing: FilledButton(
+        onPressed: () async {
+          final dna = GetIt.I<SongDnaService>();
+          final title = await dna.fetchGeniusTitle(
+            token: s.extra<String>('geniusToken', ''),
+            query: 'Echo Music',
+          );
+          final wiki = await dna.fetchWikipedia(
+            lang: s.extra<String>('wikipediaLang', 'en'),
+            title: title ?? 'Echo Music',
+          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  wiki ?? title ?? 'No metadata found (check token/network)'),
+            ));
+          }
+        },
+        child: const Text('Fetch'),
       ),
     );
   }

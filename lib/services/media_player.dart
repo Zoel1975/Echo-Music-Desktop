@@ -7,6 +7,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/crossfade_engine.dart';
 import 'package:Echo/services/desktop_dsp.dart';
 import 'package:Echo/services/playback_cutoff.dart';
+import 'package:Echo/services/scrobble_service.dart';
+import 'package:Echo/services/discord_rpc_service.dart';
 import 'package:Echo/services/queue_crossfade.dart';
 import 'package:Echo/services/sponsor_block_service.dart';
 import 'package:Echo/services/stream_resolver.dart';
@@ -229,6 +231,7 @@ class MediaPlayer extends ChangeNotifier {
         _buttonState.value =
             isPlaying ? ButtonState.playing : ButtonState.paused;
       } else if (processingState == ProcessingState.completed) {
+        unawaited(scrobbleCompleted());
         sleepTimer.onPlaybackCompleted();
         _player.seek(Duration.zero);
         _player.pause();
@@ -621,6 +624,7 @@ class MediaPlayer extends ChangeNotifier {
       // track fades in from silence over the configured duration (equal-power
       // curve), giving a smooth blend instead of an abrupt start.
       unawaited(_applyTrackFadeIn());
+      unawaited(reportIntegrationsNowPlaying());
     } catch (e) {
       if (_lastPlayRequestId == requestId) {
         print("Error playing song: $e");
@@ -832,6 +836,100 @@ class MediaPlayer extends ChangeNotifier {
 
     await _addSongListToQueue(songs);
     await _player.play();
+  }
+
+  /// Report the current track to configured integrations (Last.fm /
+  /// ListenBrainz "now playing" and Discord RPC) using in-app entered tokens.
+  Future<void> reportIntegrationsNowPlaying() async {
+    final settings = GetIt.I<SettingsManager>();
+    final tag = _currentSongNotifier.value;
+    if (tag == null) return;
+    final artist = tag.artist ?? '';
+    final track = tag.title ?? '';
+    final album = tag.album ?? '';
+
+    // Last.fm now playing (requires user session key stored as apiKey field).
+    if (settings.extra<bool>('lastfmNowPlaying', false)) {
+      final apiKey = settings.extra<String>('lastfmApiKey', '');
+      final session = settings.extra<String>('lastfmUsername', '');
+      if (apiKey.isNotEmpty && session.isNotEmpty) {
+        unawaited(GetIt.I<ScrobbleService>().sendNowPlaying(
+          apiKey: apiKey,
+          sessionKey: session,
+          secret: '',
+          artist: artist,
+          track: track,
+          album: album,
+        ));
+      }
+    }
+    // ListenBrainz playing-now.
+    if (settings.extra<bool>('listenbrainzScrobble', false)) {
+      final token = settings.extra<String>('listenbrainzToken', '');
+      if (token.isNotEmpty) {
+        unawaited(GetIt.I<ScrobbleService>().submitListenBrainz(
+          token: token,
+          artist: artist,
+          track: track,
+          album: album,
+          timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          singleRelease: false,
+        ));
+      }
+    }
+    // Discord RPC.
+    if (settings.extra<bool>('discordEnabled', false)) {
+      final token = settings.extra<String>('discordToken', '');
+      final rpc = GetIt.I<DiscordRpcService>();
+      if (token.isNotEmpty && !rpc.isConnected) await rpc.connect(token);
+      await rpc.setActivity(
+        name: settings.extra<String>('discordActivityName', 'Echo Music'),
+        details: track,
+        state: artist,
+        activityType: settings.extra<String>('discordActivityType', 'Listening'),
+        showWhenPaused:
+            settings.extra<bool>('discordShowPaused', false),
+      );
+    }
+  }
+
+  /// Scrobble a completed track to Last.fm / ListenBrainz.
+  Future<void> scrobbleCompleted() async {
+    final settings = GetIt.I<SettingsManager>();
+    final tag = _currentSongNotifier.value;
+    if (tag == null) return;
+    final artist = tag.artist ?? '';
+    final track = tag.title ?? '';
+    final album = tag.album ?? '';
+    final ts = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (settings.extra<bool>('lastfmScrobble', false)) {
+      final apiKey = settings.extra<String>('lastfmApiKey', '');
+      final session = settings.extra<String>('lastfmUsername', '');
+      if (apiKey.isNotEmpty && session.isNotEmpty) {
+        unawaited(GetIt.I<ScrobbleService>().scrobbleLastfm(
+          apiKey: apiKey,
+          sessionKey: session,
+          secret: '',
+          artist: artist,
+          track: track,
+          timestamp: ts,
+          album: album,
+        ));
+      }
+    }
+    if (settings.extra<bool>('listenbrainzScrobble', false)) {
+      final token = settings.extra<String>('listenbrainzToken', '');
+      if (token.isNotEmpty) {
+        unawaited(GetIt.I<ScrobbleService>().submitListenBrainz(
+          token: token,
+          artist: artist,
+          track: track,
+          album: album,
+          timestamp: ts,
+          singleRelease: true,
+        ));
+      }
+    }
   }
 
   /// Current track's normalization-adjusted playback gain (Windows-relevant:

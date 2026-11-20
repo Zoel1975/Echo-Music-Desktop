@@ -20,6 +20,10 @@ import 'services/storage_service.dart';
 import 'services/content_filter_service.dart';
 import 'services/silence_filter.dart';
 import 'services/export_task_queue.dart';
+import 'services/scrobble_service.dart';
+import 'services/song_dna_service.dart';
+import 'services/cloud_service.dart';
+import 'services/discord_rpc_service.dart';
 import 'services/audio_device_service.dart';
 import 'services/remote_control_service.dart';
 import 'services/library.dart';
@@ -97,6 +101,10 @@ void main() async {
   GetIt.I.registerSingleton<ContentFilterService>(ContentFilterService());
   GetIt.I.registerSingleton<ExportTaskQueue>(ExportTaskQueue());
   GetIt.I.registerSingleton<AudioDeviceService>(AudioDeviceService());
+  GetIt.I.registerSingleton<ScrobbleService>(ScrobbleService());
+  GetIt.I.registerSingleton<SongDnaService>(SongDnaService());
+  GetIt.I.registerSingleton<CloudService>(CloudService());
+  GetIt.I.registerSingleton<DiscordRpcService>(DiscordRpcService());
   final remoteControl = RemoteControlService();
   GetIt.I.registerSingleton<RemoteControlService>(remoteControl);
   // Cast and LAN-remote both expose the real playback endpoint; restore either
