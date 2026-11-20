@@ -58,6 +58,16 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool _preloadNext = true;
   double _preloadLimit = 10.0;
 
+  // Android ContentSettings.kt — General group.
+  bool _hideExplicit = false;
+  bool _hideVideoSongs = false;
+  bool _hideYouTubeShorts = false;
+  bool _sponsorBlock = false;
+  bool _lyricsRomanization = false;
+  bool _romanizeAsMain = false;
+  String _contentLanguage = 'en';
+  String _contentCountry = 'US';
+
   ThemeMode get themeMode => _themeMode;
   List<ThemeMode> get themeModes => _themeModes;
   Map<String, String> get location => _location;
@@ -99,6 +109,15 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   String get loudnessPreset => _loudnessPreset;
   bool get preloadNext => _preloadNext;
   double get preloadLimit => _preloadLimit;
+
+  bool get hideExplicit => _hideExplicit;
+  bool get hideVideoSongs => _hideVideoSongs;
+  bool get hideYouTubeShorts => _hideYouTubeShorts;
+  bool get sponsorBlock => _sponsorBlock;
+  bool get lyricsRomanization => _lyricsRomanization;
+  bool get romanizeAsMain => _romanizeAsMain;
+  String get contentLanguage => _contentLanguage;
+  String get contentCountry => _contentCountry;
 
   Map get settings => _box.toMap();
   SettingsManager() {
@@ -156,6 +175,15 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _preloadNext = _box.get('PRELOAD_NEXT', defaultValue: true);
     _preloadLimit =
         (_box.get('PRELOAD_LIMIT', defaultValue: 10.0) as num).toDouble();
+
+    _hideExplicit = _box.get('HIDE_EXPLICIT', defaultValue: false);
+    _hideVideoSongs = _box.get('HIDE_VIDEO_SONGS', defaultValue: false);
+    _hideYouTubeShorts = _box.get('HIDE_YT_SHORTS', defaultValue: false);
+    _sponsorBlock = _box.get('SPONSOR_BLOCK', defaultValue: false);
+    _lyricsRomanization = _box.get('LYRICS_ROMANIZATION', defaultValue: false);
+    _romanizeAsMain = _box.get('ROMANIZE_AS_MAIN', defaultValue: false);
+    _contentLanguage = _box.get('CONTENT_LANGUAGE', defaultValue: 'en');
+    _contentCountry = _box.get('CONTENT_COUNTRY', defaultValue: 'US');
   }
 
   // -------------------------------------------------- lyrics translation --
@@ -421,6 +449,54 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   set preloadLimit(double v) {
     _box.put('PRELOAD_LIMIT', v);
     _preloadLimit = v;
+    notifyListeners();
+  }
+
+  set hideExplicit(bool v) {
+    _box.put('HIDE_EXPLICIT', v);
+    _hideExplicit = v;
+    notifyListeners();
+  }
+
+  set hideVideoSongs(bool v) {
+    _box.put('HIDE_VIDEO_SONGS', v);
+    _hideVideoSongs = v;
+    notifyListeners();
+  }
+
+  set hideYouTubeShorts(bool v) {
+    _box.put('HIDE_YT_SHORTS', v);
+    _hideYouTubeShorts = v;
+    notifyListeners();
+  }
+
+  set sponsorBlock(bool v) {
+    _box.put('SPONSOR_BLOCK', v);
+    _sponsorBlock = v;
+    notifyListeners();
+  }
+
+  set lyricsRomanization(bool v) {
+    _box.put('LYRICS_ROMANIZATION', v);
+    _lyricsRomanization = v;
+    notifyListeners();
+  }
+
+  set romanizeAsMain(bool v) {
+    _box.put('ROMANIZE_AS_MAIN', v);
+    _romanizeAsMain = v;
+    notifyListeners();
+  }
+
+  set contentLanguage(String v) {
+    _box.put('CONTENT_LANGUAGE', v);
+    _contentLanguage = v;
+    notifyListeners();
+  }
+
+  set contentCountry(String v) {
+    _box.put('CONTENT_COUNTRY', v);
+    _contentCountry = v;
     notifyListeners();
   }
 

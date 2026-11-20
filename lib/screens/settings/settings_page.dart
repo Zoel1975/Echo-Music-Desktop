@@ -111,11 +111,11 @@ class SettingsPage extends StatelessWidget {
                       onTap: () => context.go('/explore'),
                     ),
                     SettingTile(
-                      title: S.of(context).Language,
+                      title: 'Content',
                       subtitle: 'Language, region, and providers',
                       leading: const Icon(Icons.language),
                       isLast: true,
-                      onTap: () => context.go('/settings/services/ytmusic'),
+                      onTap: () => context.go('/settings/content'),
                     ),
 
                     GroupTitle(title: "Social & privacy"),

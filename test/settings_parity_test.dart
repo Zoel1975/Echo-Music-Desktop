@@ -50,6 +50,7 @@ void main() {
       'Appearence',
       'Player and audio',
       'Music Flow',
+      'Content',
       'Privacy',
       'Storage',
       'Backup and restore',

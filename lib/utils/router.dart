@@ -22,6 +22,7 @@ import 'package:Echo/screens/settings/appearance/appearance_page.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
 
 import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
+import 'package:Echo/screens/settings/content/content_page.dart';
 import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
 import 'package:Echo/screens/settings/player/player_settings_page.dart';
 import 'package:Echo/screens/settings/privacy/privacy_page.dart';
@@ -227,6 +228,10 @@ List<StatefulShellBranch> branches = [
           GoRoute(
             path: 'storage',
             builder: (context, state) => const StoragePage(),
+          ),
+          GoRoute(
+            path: 'content',
+            builder: (context, state) => const ContentPage(),
           ),
           GoRoute(
             path: 'about',
