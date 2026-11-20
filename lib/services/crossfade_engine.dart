@@ -2,14 +2,34 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:just_audio/just_audio.dart';
 
-/// Minimal surface of an audio player the crossfade engine needs. `AudioPlayer`
-/// from just_audio satisfies it; tests supply a fake.
+/// Minimal surface of an audio player the crossfade engine needs. Tests supply
+/// a fake; [AudioPlayerAdapter] wraps a real just_audio player.
 abstract class FadeablePlayer {
   Future<void> setVolume(double volume);
   Future<void> play();
   Future<void> pause();
   Future<void> seek(Duration position);
+}
+
+/// Adapts a just_audio [AudioPlayer] to [FadeablePlayer] so the crossfade
+/// engine can drive it during a real two-player handoff.
+class AudioPlayerAdapter implements FadeablePlayer {
+  const AudioPlayerAdapter(this.player);
+  final AudioPlayer player;
+
+  @override
+  Future<void> setVolume(double volume) => player.setVolume(volume.clamp(0.0, 1.0));
+
+  @override
+  Future<void> play() => player.play();
+
+  @override
+  Future<void> pause() => player.pause();
+
+  @override
+  Future<void> seek(Duration position) => player.seek(position);
 }
 
 /// Equal-power (constant-perceived-loudness) crossfade between two players.

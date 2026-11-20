@@ -1,4 +1,5 @@
 ﻿import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 
@@ -12,6 +13,7 @@ class ResolvedStream {
     required this.bitrate,
     required this.client,
     this.headers = const {},
+    this.loudnessDb,
   });
 
   final String url;
@@ -20,6 +22,23 @@ class ResolvedStream {
   final int bitrate;
   final String client;
   final Map<String, String> headers;
+
+  /// Track loudness from InnerTube (`loudnessDb` / `trackAbsoluteLoudnessLkfs`),
+  /// used by desktop normalization to compute a replay-gain volume.
+  final double? loudnessDb;
+
+  /// Linear replay-gain for a target integrated loudness (LUFS), clamped to a
+  /// safe range so normalization never distorts or inaudibly quietens a track.
+  double normalizationGain({double targetLufs = -14.0}) {
+    if (loudnessDb == null) return 1.0;
+    final db = (targetLufs - loudnessDb!).clamp(-6.0, 6.0);
+    return _dbToGain(db);
+  }
+
+  static double _dbToGain(double db) {
+    final g = math.pow(10, db / 20).toDouble();
+    return g.clamp(0.25, 4.0);
+  }
 
   bool get isM4a =>
       mimeType.contains('audio/mp4') || mimeType.contains('audio/m4a');
@@ -220,12 +239,15 @@ class StreamResolver {
     final pool = mp4.isNotEmpty ? mp4 : usable;
     pool.sort((a, b) => _asNum(a['bitrate']).compareTo(_asNum(b['bitrate'])));
     final chosen = quality == 'low' ? pool.first : pool.last;
+    // Prefer the absolute-loudness field (LUFS) and fall back to loudnessDb.
+    final loudness = chosen['trackAbsoluteLoudnessLkfs'] ?? chosen['loudnessDb'];
     return ResolvedStream(
       url: chosen['url'] as String,
       mimeType: chosen['mimeType'] as String? ?? 'audio/mp4',
       contentLength: _asNum(chosen['contentLength']).toInt(),
       bitrate: _asNum(chosen['bitrate']).toInt(),
       client: client,
+      loudnessDb: loudness == null ? null : _asNum(loudness).toDouble(),
     );
   }
 
