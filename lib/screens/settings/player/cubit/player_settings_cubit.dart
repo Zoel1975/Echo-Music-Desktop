@@ -6,6 +6,7 @@ import '../../../../../../services/audio_device_service.dart';
 import '../../../../../../services/media_player.dart';
 import '../../../../../../services/remote_control_service.dart';
 import '../../../../../../services/settings_manager.dart';
+import '../../../../../../services/silence_filter.dart';
 
 part 'player_settings_state.dart';
 
@@ -101,6 +102,10 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
 
   Future<void> setSkipSilence(bool value) async {
     await _player.skipSilence(value);
+    // Desktop: update the mpv filter chain. mpv snapshots `af` at player
+    // creation, so apply it and reload the current source to take effect.
+    SilenceFilter.apply(enabled: value);
+    await _player.reloadCurrentSource();
   }
 
   void setShowSeekButtons(bool value) => _settings.showSeekButtons = value;

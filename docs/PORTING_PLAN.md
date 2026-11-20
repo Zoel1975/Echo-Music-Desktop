@@ -266,8 +266,12 @@ playback behavior:
   position listener overlaps the current and next queued tracks via a
   dedicated outgoing player + equal-power ramp (`QueueCrossfadeController`).
 - `autoSkipOnError` now seeks to the next track on playback errors.
-- Skip-silence calls `setSkipSilenceEnabled` on all platforms (native processor
-  where available; a no-op elsewhere, subtitled honestly).
+- Skip-silence is now genuine on desktop: a local patched
+  `packages/just_audio_media_kit` (via `dependency_overrides`) adds a static
+  `JustAudioMediaKit.audioFilter`; `SilenceFilter` sets mpv's
+  `af=lavfi=[silenceremove=...]` before players are created, and the cubit
+  re-applies it + reloads the current source on toggle. Runtime log confirmed
+  mpv accepted the filter with no `af` error. `silence_filter_test.dart`.
 Pure helpers unit-tested in `desktop_dsp_test.dart` (6 cases).
 
 **Crossfade + discovery + placeholders (this session):** Real two-player

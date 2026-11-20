@@ -98,3 +98,10 @@ flutter:
     - icons/
 flutter_intl:
   enabled: true
+
+# Local patched bridge: adds JustAudioMediaKit.audioFilter so mpv can apply
+# a `silenceremove` lavfi filter for genuine desktop skip-silence. The patch
+# is upstream-compatible; remove this override when upstream supports it.
+dependency_overrides:
+  just_audio_media_kit:
+    path: packages/just_audio_media_kit

@@ -667,6 +667,28 @@ class MediaPlayer extends ChangeNotifier {
     );
   }
 
+  /// Re-attach the current audio source so a newly-applied mpv filter (e.g.
+  /// silenceremove) takes effect on desktop. Restores playback position.
+  Future<void> reloadCurrentSource() async {
+    if (Platform.isAndroid || Platform.isIOS) return;
+    final idx = _player.currentIndex;
+    final song = _currentSongNotifier.value?.extras;
+    if (idx == null || song == null) return;
+    final position = _player.position;
+    final wasPlaying = _player.playing;
+    try {
+      final source = await _getAudioSource(Map<String, dynamic>.from(song as Map));
+      await _player.pause();
+      await _player.stop();
+      await _player.clearAudioSources();
+      await _player.setAudioSource(source);
+      await _player.seek(position);
+      if (wasPlaying) await _player.play();
+    } catch (e) {
+      debugPrint('reloadCurrentSource failed: $e');
+    }
+  }
+
   Future<void> playNext(Map<String, dynamic> mediaItem) async {
     // Case 1: A single video/song
     if (mediaItem['videoId'] != null) {

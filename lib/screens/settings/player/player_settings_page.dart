@@ -101,7 +101,7 @@ class PlayerSettingsPage extends StatelessWidget {
                     if (s.audioNormalization)
                       SettingSwitchTile(
                         title: 'Skip silence',
-                        subtitle: 'Native processor where available',
+                        subtitle: 'Trim silent parts (mpv silenceremove on desktop)',
                         leading: const Icon(Icons.fast_forward),
                         value: s.skipSilence,
                         onChanged: cubit.setSkipSilence,
