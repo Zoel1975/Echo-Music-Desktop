@@ -81,6 +81,7 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool _showTopPlaylist = true;
   bool _showBottomPlaylist = false;
   bool _showCachedPlaylist = false;
+  String _localMusicFolder = '';
 
   ThemeMode get themeMode => _themeMode;
   List<ThemeMode> get themeModes => _themeModes;
@@ -145,6 +146,7 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool get showTopPlaylist => _showTopPlaylist;
   bool get showBottomPlaylist => _showBottomPlaylist;
   bool get showCachedPlaylist => _showCachedPlaylist;
+  String get localMusicFolder => _localMusicFolder;
 
   Map get settings => _box.toMap();
   SettingsManager() {
@@ -229,6 +231,7 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _showTopPlaylist = _box.get('SHOW_TOP_PLAYLIST', defaultValue: true);
     _showBottomPlaylist = _box.get('SHOW_BOTTOM_PLAYLIST', defaultValue: false);
     _showCachedPlaylist = _box.get('SHOW_CACHED_PLAYLIST', defaultValue: false);
+    _localMusicFolder = _box.get('LOCAL_MUSIC_FOLDER', defaultValue: '');
   }
 
   // -------------------------------------------------- lyrics translation --
@@ -614,6 +617,12 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   set showCachedPlaylist(bool v) {
     _box.put('SHOW_CACHED_PLAYLIST', v);
     _showCachedPlaylist = v;
+    notifyListeners();
+  }
+
+  set localMusicFolder(String v) {
+    _box.put('LOCAL_MUSIC_FOLDER', v);
+    _localMusicFolder = v;
     notifyListeners();
   }
 

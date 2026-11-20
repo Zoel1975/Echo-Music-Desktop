@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../generated/l10n.dart';
 import '../../../services/audio_device_service.dart';
@@ -277,6 +278,28 @@ class PlayerSettingsPage extends StatelessWidget {
                       value: s.remoteControlEnabled,
                       onChanged: cubit.setRemoteControlEnabled,
                     ),
+
+                    // Infeasible Android internals — explicit future-update notes.
+                    const GroupTitle(title: 'Advanced playback'),
+                    _comingSoon(
+                      context,
+                      title: 'Playback cutoff guard',
+                      feature: 'Adaptive end-of-track pre-arming to avoid '
+                          'playback gaps.',
+                      isFirst: true,
+                    ),
+                    _comingSoon(
+                      context,
+                      title: 'Bit-perfect USB DAC output',
+                      feature: 'Direct UAC1/UAC2 driver bypass (Android audio '
+                          'HAL only).',
+                    ),
+                    _comingSoon(
+                      context,
+                      title: 'AXION / AutoEq engine',
+                      feature: 'Pro-grade DSP with headphone AutoEq profiles.',
+                      isLast: true,
+                    ),
                     const SizedBox(height: 100), // extra padding for miniplayer
                   ],
                 );
@@ -284,6 +307,27 @@ class PlayerSettingsPage extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _comingSoon(
+    BuildContext context, {
+    required String title,
+    required String feature,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    return SettingTile(
+      title: title,
+      subtitle: 'Coming in a future update',
+      leading: const Icon(Icons.schedule),
+      isFirst: isFirst,
+      isLast: isLast,
+      trailing: const Icon(Icons.schedule, size: 18),
+      onTap: () => context.go(
+        '/settings/coming_soon',
+        extra: {'title': title, 'feature': feature},
       ),
     );
   }

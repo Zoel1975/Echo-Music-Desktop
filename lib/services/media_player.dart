@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/crossfade_engine.dart';
+import 'package:Echo/services/sponsor_block_service.dart';
 import 'package:Echo/services/yt_audio_stream.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -306,6 +307,8 @@ class MediaPlayer extends ChangeNotifier {
     }
   }
 
+  final SponsorBlockService _sponsorBlock = SponsorBlockService();
+
   void _listenToCurrentPosition() {
     _player.positionStream.listen((position) {
       final oldState = _progressBarState.value;
@@ -315,6 +318,24 @@ class MediaPlayer extends ChangeNotifier {
           buffered: oldState.buffered,
           total: oldState.total,
         );
+      }
+      _maybeSkipSponsor(position);
+    });
+  }
+
+  /// Android SponsorBlock auto-skip: when the enabled setting is on, fetch
+  /// segments for the current track and seek past a segment we just entered.
+  void _maybeSkipSponsor(Duration position) {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.sponsorBlock) return;
+    final song = _currentSongNotifier.value;
+    final videoId = song?.id;
+    if (videoId == null || videoId.startsWith('local://')) return;
+    final seconds = position.inMilliseconds / 1000.0;
+    _sponsorBlock.getSegments(videoId).then((segments) {
+      final seg = SponsorBlockService.segmentAt(segments, seconds);
+      if (seg != null && _player.playing) {
+        unawaited(_player.seek(Duration(milliseconds: (seg.end * 1000).toInt() + 50)));
       }
     });
   }
@@ -398,15 +419,17 @@ class MediaPlayer extends ChangeNotifier {
       id: song['videoId'],
       title: song['title'] ?? 'Title',
       album: song['album']?['name'],
-      artUri: Uri.parse(
-          song['thumbnails']?.first['url'].replaceAll('w60-h60', 'w225-h225')),
+      artUri: (song['thumbnails'] is List && song['thumbnails'].isNotEmpty)
+          ? Uri.tryParse(song['thumbnails'].first['url']?.toString() ?? '')
+          : null,
       artist: song['artists']?.map((artist) => artist['name']).join(','),
       extras: song,
     );
 
-    final bool isDownloaded = song['status'] == 'DOWNLOADED' &&
-        song['path'] != null &&
-        (await File(song['path']).exists());
+    final bool isDownloaded =
+        (song['status'] == 'DOWNLOADED' || song['status'] == 'LOCAL') &&
+            song['path'] != null &&
+            (await File(song['path']).exists());
 
     if (isDownloaded) {
       return AudioSource.file(song['path'], tag: tag);
@@ -431,6 +454,17 @@ class MediaPlayer extends ChangeNotifier {
 
   int _lastPlayRequestId = 0;
 
+  /// Play a local audio file (Android `LocalSongScreen` tap). Reuses the
+  /// local-file branch of [_getAudioSource] via `status: LOCAL` + `path`.
+  Future<void> playLocalFile(Map<String, dynamic> song) async {
+    final path = song['path']?.toString();
+    if (path == null || !File(path).existsSync()) return;
+    final localSong = Map<String, dynamic>.from(song)
+      ..['status'] = 'LOCAL'
+      ..['videoId'] = song['videoId'] ?? 'local://$path';
+    await playSong(localSong);
+  }
+
   Future<void> playSong(Map<String, dynamic> song) async {
     if (song['videoId'] == null) return;
 
@@ -443,8 +477,9 @@ class MediaPlayer extends ChangeNotifier {
       id: song['videoId'],
       title: song['title'] ?? 'Title',
       album: song['album']?['name'],
-      artUri: Uri.parse(
-          song['thumbnails']?.first['url'].replaceAll('w60-h60', 'w225-h225')),
+      artUri: (song['thumbnails'] is List && song['thumbnails'].isNotEmpty)
+          ? Uri.tryParse(song['thumbnails'].first['url']?.toString() ?? '')
+          : null,
       artist: song['artists']?.map((artist) => artist['name']).join(','),
       extras: song,
     );

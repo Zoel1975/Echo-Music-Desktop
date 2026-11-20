@@ -117,6 +117,12 @@ class _LibraryBody extends StatelessWidget {
 
     // Android LibrarySongs/Albums/Artists screens — aggregate local songs.
     gridItems.add({
+      'title': 'Local songs',
+      'subtitle': 'Scan and play your own audio files',
+      'icon': Icons.folder_special,
+      'onTap': () => context.push('/saved/local_songs'),
+    });
+    gridItems.add({
       'title': 'Songs',
       'subtitle': 'All songs in your library',
       'icon': Icons.music_note,

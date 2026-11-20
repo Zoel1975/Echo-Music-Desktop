@@ -257,6 +257,16 @@ Each phase ends with a runnable Windows build and documented parity gain.
 | **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
 | **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
 
+**Local audio + SponsorBlock (this session):** Android `LocalSongScreen` +
+`LocalSongScanner` → real `LocalSongsPage` (folder picker + recursive scan +
+filename metadata) + `MediaPlayer.playLocalFile` (local-file playback branch).
+Android `SponsorBlockRepository` → real `SponsorBlockService` (public
+skipSegments API + cache + `segmentAt`) wired into MediaPlayer's position
+stream to auto-skip sponsored parts. Pure helpers unit-tested in
+`local_scanner_sponsorblock_test.dart`. PlaybackCutoffGuard /
+AdaptivePreArmManager / AXION internals remain explicit "Coming in a future
+update" placeholders in Player settings.
+
 **Detailed listening history (this session):** Android
 `DetailedListeningHistoryScreen.kt` → `HistoryDetailPage` (history grouped by
 day with total replay counts) + pure `HistoryDetail` helper (unit-tested),
