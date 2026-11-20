@@ -18,6 +18,7 @@ import 'package:Echo/screens/library/collections/library_collections_page.dart';
 import 'package:Echo/screens/library/collections/library_song_list_page.dart';
 import 'package:Echo/screens/player/player_page.dart';
 import 'package:Echo/screens/search/search_page.dart';
+import 'package:Echo/screens/search/local_search_page.dart';
 import 'package:Echo/screens/settings/about/about_page.dart';
 import 'package:Echo/screens/settings/ai/ai_hub_page.dart';
 import 'package:Echo/screens/settings/appearance/appearance_page.dart';
@@ -140,6 +141,12 @@ List<StatefulShellBranch> branches = [
             isMore: args?['isMore'] as bool? ?? false,
           );
         },
+        routes: [
+          GoRoute(
+            path: 'local',
+            builder: (context, state) => const LocalSearchPage(),
+          ),
+        ],
       ),
     ],
   ),
