@@ -17,6 +17,7 @@ void main() {
         {'name': 'evil', 'value': 'x', 'domain': '.evil.com'},
       ]);
       expect(result.hasAuth, isTrue);
+      expect(result.youtubeAuth, isTrue);
       expect(result.pairs['SAPISID'], 'YOUTUBE-SAPISID');
       expect(result.pairs['SID'], 'YOUTUBE-SID');
       // Google-only cookies must NOT be sent to music.youtube.com when the
@@ -32,6 +33,19 @@ void main() {
       ]);
       expect(result.pairs.containsKey('PREF'), isTrue);
       expect(result.pairs.containsKey('SID'), isTrue);
+      // A google.com-only session is NOT a YouTube login: the sign-in poll must
+      // keep waiting for the redirect to music.youtube.com instead of saving a
+      // session without DATASYNC_ID.
+      expect(result.youtubeAuth, isFalse);
+    });
+
+    test('google.com auth alone is not a YouTube sign-in', () {
+      final result = GoogleLoginService.collect([
+        {'name': 'SAPISID', 'value': 'GOOGLE', 'domain': '.google.com'},
+        {'name': 'SID', 'value': 'GOOGLE', 'domain': '.google.com'},
+      ]);
+      expect(result.hasAuth, isTrue);
+      expect(result.youtubeAuth, isFalse);
     });
 
     test('domain helpers are exact', () {

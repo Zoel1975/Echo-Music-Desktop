@@ -37,6 +37,7 @@ void main() {
         },
       ]);
       expect(result.hasAuth, isTrue);
+      expect(result.youtubeAuth, isTrue);
       expect(result.pairs.containsKey('SAPISID'), isTrue);
       // Android reads only the music.youtube.com cookie jar: a google.com-only
       // cookie is not sent when YouTube already carries the session.
@@ -49,6 +50,7 @@ void main() {
         {'name': 'VISITOR_INFO1_LIVE', 'value': '1', 'domain': '.youtube.com'},
       ]);
       expect(result.hasAuth, isFalse);
+      expect(result.youtubeAuth, isFalse);
     });
   });
 

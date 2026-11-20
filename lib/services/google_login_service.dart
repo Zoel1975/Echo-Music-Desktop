@@ -76,7 +76,7 @@ class GoogleLoginService {
   /// different values, so a google.com `SAPISID` overwrote YouTube's one and
   /// the `SAPISIDHASH` built from it was rejected - login looked fine but the
   /// library came back empty.
-  static ({Map<String, String> pairs, bool hasAuth}) collect(
+  static ({Map<String, String> pairs, bool hasAuth, bool youtubeAuth}) collect(
     List<Map<String, dynamic>> cookies,
   ) {
     final youtube = <String, String>{};
@@ -103,7 +103,14 @@ class GoogleLoginService {
     final pairs = youtubeAuth
         ? youtube
         : <String, String>{...other, ...youtube};
-    return (pairs: pairs, hasAuth: youtubeAuth || otherAuth);
+    return (
+      pairs: pairs,
+      hasAuth: youtubeAuth || otherAuth,
+      // Only the youtube.com jar is what Android's
+      // `CookieManager.getCookie("https://music.youtube.com")` sees, so this is
+      // the only signal that proves the *YouTube* session exists.
+      youtubeAuth: youtubeAuth,
+    );
   }
 
   /// Launch a browser with remote debugging. `--remote-allow-origins=*` is
@@ -404,7 +411,10 @@ class GoogleLoginService {
   /// `window.yt.config_.VISITOR_DATA` and `window.yt.config_.DATASYNC_ID`
   /// read from the signed-in music.youtube.com page.
   Future<YtSession?> readSessionState() async {
-    final wsUrl = await _pageWebSocketUrl('music.youtube.com');
+    // Prefer the Music tab, but Google may redirect to www.youtube.com; both
+    // expose the same `window.yt.config_` values, so accept either.
+    final wsUrl = await _pageWebSocketUrl('music.youtube.com') ??
+        await _pageWebSocketUrl('youtube.com');
     if (wsUrl == null) return null;
     WebSocket? ws;
     try {
@@ -438,29 +448,44 @@ class GoogleLoginService {
     return null;
   }
 
-  /// Poll until a real sign-in cookie appears, then return the cookies plus the
-  /// account ids from the page. [verifySession] optionally confirms the session
-  /// with a real API call - useful if Google changes auth cookie names.
+  /// Poll until the **YouTube** session exists, then return the cookies plus the
+  /// account ids read from the page.
+  ///
+  /// Android's login finishes when its WebView is on `music.youtube.com`, so its
+  /// `CookieManager.getCookie("https://music.youtube.com")` is non-empty. The
+  /// desktop browser, however, writes `.google.com` cookies (`SID`, `SAPISID`,
+  /// ...) the moment the password is accepted - *before* any youtube.com cookie
+  /// exists. Returning at that point saved a session with no `DATASYNC_ID`,
+  /// which is exactly why "login worked" but the library stayed empty.
+  ///
+  /// So: only a youtube.com auth cookie (or a page that exposes
+  /// `DATASYNC_ID`) counts as signed in. [verifySession] optionally confirms the
+  /// session with a real API call, useful if Google changes auth cookie names.
   Future<LoginCapture?> waitForSignIn({
     required Duration timeout,
     required Future<bool> Function() cancelled,
     Future<bool> Function(Map<String, String> cookies)? verifySession,
   }) async {
     final end = DateTime.now().add(timeout);
+    LoginCapture? pending;
     while (DateTime.now().isBefore(end)) {
-      if (await cancelled()) return null;
+      if (await cancelled()) return pending;
       final cookies = await readCookies();
       if (cookies != null) {
         final collected = collect(cookies);
         if (collected.pairs.isNotEmpty) {
-          if (collected.hasAuth) {
-            return LoginCapture(
-              cookies: collected.pairs,
-              session: await readSessionState(),
-            );
-          }
-          // Auth cookie names may change: confirm with a real API call.
-          if (verifySession != null && await verifySession(collected.pairs)) {
+          if (collected.youtubeAuth) {
+            final session = await readSessionState();
+            final capture =
+                LoginCapture(cookies: collected.pairs, session: session);
+            // The page shell also exposes the account id: that is the same
+            // value Android keeps in `DataSyncIdKey`.
+            if (session?.dataSyncId != null) return capture;
+            // Signed in on YouTube but the app shell is not ready yet: keep
+            // polling, remembering what we have so nothing is lost on timeout.
+            pending = capture;
+          } else if (verifySession != null &&
+              await verifySession(collected.pairs)) {
             return LoginCapture(
               cookies: collected.pairs,
               session: await readSessionState(),
@@ -470,7 +495,7 @@ class GoogleLoginService {
       }
       await Future<void>.delayed(const Duration(seconds: 2));
     }
-    return null;
+    return pending;
   }
 
   /// Poll the page until it exposes `DATASYNC_ID`. After Google redirects to

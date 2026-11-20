@@ -76,4 +76,32 @@ void main() {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
   }, skip: true, timeout: Timeout(Duration(minutes: 3)));
+
+  test('reads session state from www.youtube.com too (Google redirect)', () async {
+    const ytPort = 9447;
+    final svc = GoogleLoginService(port: ytPort);
+    final profile =
+        Directory('${Directory.systemTemp.path}\\echo-login-www-$ytPort');
+    try {
+      final opened = await svc.openBrowser(
+        profileDir: profile.path,
+        url: 'https://www.youtube.com/',
+      );
+      expect(opened, isTrue);
+      await waitCdpUp(ytPort);
+      var resolved = await svc.readSessionState();
+      for (var i = 0; i < 15 && resolved?.visitorData == null; i++) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        resolved = await svc.readSessionState();
+      }
+      // ignore: avoid_print
+      print('WWW SESSION: visitor=${resolved?.visitorData != null} '
+          'signedIn=${resolved?.signedIn}');
+      expect(resolved?.visitorData, isNotNull,
+          reason: 'www.youtube.com must expose window.yt.config_ too');
+    } finally {
+      svc.closeBrowser();
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+  }, skip: true, timeout: Timeout(Duration(minutes: 3)));
 }
