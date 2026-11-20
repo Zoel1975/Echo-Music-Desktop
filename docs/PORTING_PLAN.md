@@ -166,7 +166,7 @@ Legend — **DONE** exists on desktop · **PART** partial · **TODO** missing ·
 | `DiscordPresenceManager` | `discord_rpc_service.dart` (local RPC SET_ACTIVITY) + `/discord` config, wired to playback | DONE | 8 |
 | `LastFMSettings`, `ListenBrainzManager` | `scrobble_service.dart` (real now-playing/scrobble HTTP) + `/lastfm`, wired to playback | DONE | 8 |
 | `cloud/Jellyfin*`, `cloud/Navidrome*` | `cloud_service.dart` (real connection checks) + `/jellyfin` with in-app Test button | DONE | 8 |
-| `spotify/*`, `SpotifyImportScreen` | `spotify.dart`, `import_service.dart` | PART | 4 |
+| `spotify/*`, `SpotifyImportScreen` | `spotify.dart`, `import_service.dart` + real `spotify_import_page.dart` (`/settings/services/spotify_import`, URL import + progress) | DONE | 4 |
 | `ExtensionManager` (320 kbps / lossless servers) | Real `IntegrationPage` `/extensions` (persisted config) | PART | 9 |
 | `recognition/*` (Shazam-style Echo Find) | placeholder 'Song recognition (Echo Find)' — native audio fingerprinting infeasible | PART | 9 |
 | `EchoBrain`/`ai/*` (AI playlists, recommendations) | real `echo_brain_page.dart` + `echo_brain_service.dart` (OpenRouter playlist generation, play via search) | DONE | 9 |
