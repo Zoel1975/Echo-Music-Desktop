@@ -46,69 +46,158 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     if (Platform.isAndroid && batteryDisabled != true)
                       _BatteryWarningTile(),
+
+                    // Mirrors Android SettingsScreen.kt (15 entries). Real
+                    // routes where a desktop implementation exists; explicit
+                    // "coming in a future update" placeholders otherwise.
                     GroupTitle(title: "Account"),
                     SettingTile(
-                      title: 'Google account',
+                      title: 'Account',
                       subtitle: () {
                         final account = CookieStore.instance.account;
                         final name = account['name']?.toString();
                         final signedIn = name != null &&
                             name.isNotEmpty &&
                             CookieStore.instance.cookieHeader != null;
-                        return signedIn ? name : 'Not signed in — tap to sign in';
+                        return signedIn ? name : 'Manage login and integrations';
                       }(),
                       leading: const Icon(Icons.account_circle_outlined),
                       isFirst: true,
                       isLast: true,
                       onTap: () => context.go('/account'),
                     ),
-                    GroupTitle(title: "General"),
 
-                    SettingTile(
-                      title: "Player",
-                      leading: const Icon(Icons.play_arrow_rounded),
-                      isFirst: true,
+                    GroupTitle(title: "Smart features"),
+                    _comingSoonTile(
+                      context,
+                      title: 'AI Hub',
+                      icon: Icons.auto_awesome,
+                      feature: 'AI-powered lyrics, translations and '
+                          'recommendations.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Listening Summary',
+                      icon: Icons.bar_chart,
+                      feature: 'View your music listening statistics.',
                       isLast: true,
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Echo Wrapped',
+                      icon: Icons.auto_stories,
+                      feature: 'Your year in sound & personal music recap.',
+                      isLast: true,
+                    ),
+
+                    GroupTitle(title: "Appearance & player"),
+                    SettingTile(
+                      title: S.of(context).Appearence,
+                      subtitle: 'Themes, colors, and UI layout',
+                      leading: const Icon(Icons.palette_outlined),
+                      isFirst: true,
+                      onTap: () => context.go('/settings/appearance'),
+                    ),
+                    SettingTile(
+                      title: 'Player and audio',
+                      subtitle: 'Playback, quality, and equalizer',
+                      leading: const Icon(Icons.play_arrow_rounded),
                       onTap: () => context.go('/settings/player'),
                     ),
-                    GroupTitle(title: "Services"),
                     SettingTile(
-                      title: "Youtube Music",
-                      leading: const Icon(Icons.play_circle_fill),
-                      isFirst: true,
+                      title: 'Music Flow',
+                      subtitle: 'Resso-style vertical swipe discovery',
+                      leading: const Icon(Icons.auto_awesome_mosaic),
+                      onTap: () => context.go('/explore'),
+                    ),
+                    SettingTile(
+                      title: S.of(context).Language,
+                      subtitle: 'Language, region, and providers',
+                      leading: const Icon(Icons.language),
                       isLast: true,
                       onTap: () => context.go('/settings/services/ytmusic'),
                     ),
-                    GroupTitle(title: "Storage & Privacy"),
-                    SettingTile(
-                      title: "Backup and storage",
-                      leading: const Icon(
-                        Icons.cloud_upload_rounded,
-                      ),
-                      isFirst: true,
-                      onTap: () => context.go(
-                        '/settings/backup_storage',
-                      ),
+
+                    GroupTitle(title: "Social & privacy"),
+                    _comingSoonTile(
+                      context,
+                      title: 'Listen Together',
+                      icon: Icons.groups_outlined,
+                      feature: 'Sync playback with friends over the network.',
                     ),
                     SettingTile(
                       title: "Privacy",
+                      subtitle: 'History and tracking',
                       leading: const Icon(Icons.privacy_tip),
                       isLast: true,
                       onTap: () => context.go('/settings/privacy'),
                     ),
+
+                    GroupTitle(title: "Storage & services"),
+                    SettingTile(
+                      title: "Storage",
+                      subtitle: 'Cache and downloads',
+                      leading: const Icon(Icons.storage_rounded),
+                      isFirst: true,
+                      onTap: () => context.go('/settings/backup_storage'),
+                    ),
+                    SettingTile(
+                      title: "Backup and restore",
+                      subtitle: 'Export and import data',
+                      leading: const Icon(Icons.cloud_upload_rounded),
+                      onTap: () => context.go('/settings/backup_storage'),
+                    ),
+                    SettingTile(
+                      title: "Youtube Music",
+                      subtitle: 'Streaming service configuration',
+                      leading: const Icon(Icons.play_circle_fill),
+                      isLast: true,
+                      onTap: () => context.go('/settings/services/ytmusic'),
+                    ),
+
+                    GroupTitle(title: "Integrations"),
+                    _comingSoonTile(
+                      context,
+                      title: 'Discord Rich Presence',
+                      icon: Icons.discord,
+                      feature: 'Show what you are listening to in Discord.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Last.fm / ListenBrainz',
+                      icon: Icons.audiotrack,
+                      feature: 'Scrobble your listening history.',
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Jellyfin / Navidrome',
+                      icon: Icons.cloud_outlined,
+                      feature: 'Connect to your self-hosted music server.',
+                      isLast: true,
+                    ),
+
                     GroupTitle(title: "Updates & About"),
                     SettingTile(
                       title: S.of(context).About,
+                      subtitle: 'App info and licenses',
                       leading: const Icon(Icons.info_rounded),
                       isFirst: true,
                       onTap: () => context.go('/settings/about'),
                     ),
                     SettingTile(
-                      title: S.of(context).Check_For_Update,
+                      title: 'System update',
+                      subtitle: S.of(context).Check_For_Update,
                       leading: const Icon(Icons.update_rounded),
                       onTap: () async {
                         await UpdateService.manualCheck(context);
                       },
+                    ),
+                    _comingSoonTile(
+                      context,
+                      title: 'Supported Links',
+                      icon: Icons.link,
+                      feature: 'Android app-link settings (not applicable on '
+                          'desktop).',
                     ),
                     SettingTile(
                       title: "Support",
@@ -128,6 +217,30 @@ class SettingsPage extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+extension _SettingsPageHelpers on SettingsPage {
+  Widget _comingSoonTile(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required String feature,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    return SettingTile(
+      title: title,
+      subtitle: 'Coming in a future update',
+      leading: Icon(icon),
+      isFirst: isFirst,
+      isLast: isLast,
+      trailing: const Icon(Icons.schedule, size: 18),
+      onTap: () => context.go(
+        '/settings/coming_soon',
+        extra: {'title': title, 'feature': feature},
       ),
     );
   }

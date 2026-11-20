@@ -17,6 +17,8 @@ import 'package:Echo/screens/library/playlist/playlist_details_page.dart';
 import 'package:Echo/screens/player/player_page.dart';
 import 'package:Echo/screens/search/search_page.dart';
 import 'package:Echo/screens/settings/about/about_page.dart';
+import 'package:Echo/screens/settings/appearance/appearance_page.dart';
+import 'package:Echo/screens/coming_soon/coming_soon_page.dart';
 
 import 'package:Echo/screens/settings/backup_storage/backup_storage_page.dart';
 import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
@@ -183,6 +185,18 @@ List<StatefulShellBranch> branches = [
         builder: (context, state) => const SettingsPage(),
         routes: [
 
+            GoRoute(
+            path: 'appearance',
+            builder: (context, state) => const AppearancePage(),
+          ),
+          GoRoute(
+            path: 'coming_soon',
+            builder: (context, state) => ComingSoonPage(
+              title: (state.extra as Map<String, dynamic>?)?['title'] as String? ??
+                  'Coming soon',
+              feature: (state.extra as Map<String, dynamic>?)?['feature'] as String?,
+            ),
+          ),
           GoRoute(
               path: 'player',
               builder: (context, state) => const PlayerSettingsPage(),
