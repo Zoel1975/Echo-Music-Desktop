@@ -192,12 +192,6 @@ class SettingsPage extends StatelessWidget {
                     GroupTitle(title: "More from mobile"),
                     _integrationTile(
                       context,
-                      title: 'Podcasts',
-                      icon: Icons.podcasts,
-                      route: '/podcasts',
-                    ),
-                    _integrationTile(
-                      context,
                       title: 'Music Flow (full)',
                       icon: Icons.swipe,
                       route: '/music_flow_full',
@@ -310,7 +304,9 @@ extension _SettingsPageHelpers on SettingsPage {
       isFirst: isFirst,
       isLast: isLast,
       trailing: const Icon(Icons.chevron_right, size: 18),
-      onTap: () => context.go(route),
+      // push keeps Settings underneath so Back returns here instead of
+      // leaving a black screen (go() replaces the whole stack).
+      onTap: () => context.push(route),
     );
   }
 

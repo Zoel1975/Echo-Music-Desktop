@@ -10,6 +10,7 @@ import 'audio_fallback.dart';
 import 'cast/cast_device.dart';
 import 'cast/cast_service.dart';
 import 'media_player.dart';
+import 'stream_resolver.dart';
 import 'cookie_store.dart';
 import 'session_service.dart';
 import '../utils/router.dart' as app_router;
@@ -88,6 +89,34 @@ class RuntimeProbeService {
       }
       notifyAccountChanged();
       _json(request.response, 200, {'after': state()});
+      return;
+    }
+    if (path == '/current' && request.method == 'GET') {
+      final song = GetIt.I<MediaPlayer>().currentSongNotifier.value;
+      _json(request.response, 200, {
+        'videoId': song?.id,
+        'title': song?.title,
+        'artist': song?.artist,
+      });
+      return;
+    }
+    if (path == '/resolve' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ??
+          GetIt.I<MediaPlayer>().currentSongNotifier.value?.id ??
+          '';
+      try {
+        final stream = await StreamResolver.instance.resolve(id);
+        _json(request.response, 200, {
+          'videoId': id,
+          'client': stream.client,
+          'mimeType': stream.mimeType,
+          'bitrate': stream.bitrate,
+          'contentLength': stream.contentLength,
+          'url': stream.url.substring(0, stream.url.length.clamp(0, 80)),
+        });
+      } catch (e) {
+        _json(request.response, 200, {'videoId': id, 'error': e.toString()});
+      }
       return;
     }
     if (path == '/play' && request.method == 'POST') {
@@ -173,6 +202,19 @@ class RuntimeProbeService {
       final route = request.uri.queryParameters['path'] ?? '/';
       app_router.router.go(route);
       _json(request.response, 200, {'route': route});
+      return;
+    }
+    if (path == '/push' && request.method == 'POST') {
+      // Same navigation the Settings tiles use, so Back can be verified.
+      final route = request.uri.queryParameters['path'] ?? '/';
+      app_router.router.push(route);
+      _json(request.response, 200, {'pushed': route});
+      return;
+    }
+    if (path == '/back' && request.method == 'POST') {
+      final popped = app_router.router.canPop();
+      if (popped) app_router.router.pop();
+      _json(request.response, 200, {'popped': popped});
       return;
     }
     if (path == '/library' && request.method == 'GET') {

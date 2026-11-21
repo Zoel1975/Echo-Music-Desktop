@@ -65,11 +65,15 @@ class CookieStore {
   /// Android's `InnerTube.ytClient` adds this for every authenticated request.
   /// Music YouTube ignores an authenticated cookie without it for account
   /// endpoints, which is why the library stayed empty after login.
-  String? get authorizationHeader {
+  String? get authorizationHeader => authorizationHeaderFor('https://music.youtube.com');
+
+  /// SAPISIDHASH is origin-bound: the player API lives on www.youtube.com,
+  /// browse/search on music.youtube.com. Using the wrong origin yields HTTP 401.
+  String? authorizationHeaderFor(String origin) {
     if (!_cookiesBoxOpen) return null;
     final sapisid = _box.get('SAPISID')?.toString() ?? '';
     if (sapisid.isEmpty) return null;
-    return buildSapisidHash(sapisid);
+    return buildSapisidHash(sapisid, origin: origin);
   }
 
   /// Pure: builds the SAPISIDHASH value. [now] is injectable for tests.

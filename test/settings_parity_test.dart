@@ -71,7 +71,7 @@ void main() {
       'Last.fm / ListenBrainz',
       'Jellyfin / Navidrome',
       'Supported Links',
-      'Podcasts',
+      // Podcasts removed from "More from mobile" (user request).
       'Music Flow (full)',
       'Canvas & Ambient mode',
       'Extensions & high-quality servers',

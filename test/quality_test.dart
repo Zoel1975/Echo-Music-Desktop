@@ -73,5 +73,24 @@ void main() {
     final remote =
         File('lib/services/remote_control_service.dart').readAsStringSync();
     expect(remote, contains('Future<String> _lanIp() => lanIp()'));
+
+    final settings =
+        File('lib/screens/settings/settings_page.dart').readAsStringSync();
+    expect(settings, contains('onTap: () => context.push(route)'),
+        reason: 'Settings tiles must keep the previous route for Back');
+    expect(settings, isNot(contains("title: 'Podcasts'")),
+        reason: 'Podcasts removed from More from mobile');
+
+    final flow = File(
+      'lib/screens/explore/music_flow_feed_page.dart',
+    ).readAsStringSync();
+    expect(flow, contains('context.pop()'));
+    expect(flow, contains('AnimatedContainer'));
+    expect(flow, contains('TweenAnimationBuilder'));
+
+    final thumb = File('lib/utils/song_thumbnail.dart').readAsStringSync();
+    expect(thumb, contains("thumbnails.first['url']"),
+        reason: 'artwork is still used when present');
+    expect(thumb, contains('baseUrl.isEmpty'));
   });
 }

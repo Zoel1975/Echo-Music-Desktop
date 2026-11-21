@@ -48,12 +48,18 @@ class LyricsProviderRegistry {
     'Kugou': 'KuGOU',
     'YouTubeSubtitle': 'YouTube Subtitle',
     'YouTubeMusic': 'YouTube Music',
+    'Netease': 'Netease Cloud Music',
+    'AZLyrics': 'AZLyrics',
+    'LocalLRC': 'File .lrc locali',
   };
 
   /// Provider order: the Android default order, with the desktop-implemented
   /// LRC first. See `lib/services/lyrics.dart`.
   static const List<String> defaultOrder = [
     'LrcLib',
+    'Netease',
+    'AZLyrics',
+    'LocalLRC',
     'YouLyPlus',
     'Paxsenix',
     'Unison',
@@ -65,6 +71,9 @@ class LyricsProviderRegistry {
   ];
 
   static const List<String> providerNames = [
+    'Netease',
+    'AZLyrics',
+    'LocalLRC',
     'YouLyPlus',
     'Paxsenix',
     'BetterLyrics',

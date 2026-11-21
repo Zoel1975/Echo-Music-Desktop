@@ -2,6 +2,9 @@
 import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
+import 'package:hive/hive.dart';
+
+import 'cookie_store.dart';
 
 /// Resolved, playable audio stream, with the identity (headers) its media
 /// fetch must wear. Port of Android `playback/ResolvedStream.kt`.
@@ -61,14 +64,14 @@ class YtPlayerClient {
     required this.version,
     required this.id,
     required this.userAgent,
-    this.extra = const {},
+    this.extra = const <String, dynamic>{},
   });
 
   final String name;
   final String version;
   final String id;
   final String userAgent;
-  final Map<String, String> extra;
+  final Map<String, dynamic> extra;
 
   static const visionOs = YtPlayerClient(
     name: 'VISIONOS',
@@ -107,12 +110,44 @@ class YtPlayerClient {
         'Mozilla/5.0(SMART-TV; Linux; Tizen 4.0.0.2) AppleWebkit/605.1.15 (KHTML, like Gecko) SamsungBrowser/9.2 TV Safari/605.1.15',
   );
 
+  /// Used by yt-dlp for age-gated videos: with a signature timestamp it can
+  /// serve tracks the regular ANDROID client refuses.
+  static const androidTestsuite = YtPlayerClient(
+    name: 'ANDROID_TESTSUITE',
+    version: '19.09.37',
+    id: '30',
+    userAgent:
+        'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+    extra: {
+      'osName': 'Android',
+      'osVersion': '11',
+      'androidSdkVersion': '30',
+      'deviceMake': 'Google',
+      'deviceModel': 'Pixel 4',
+    },
+  );
+
   static const webRemix = YtPlayerClient(
     name: 'WEB_REMIX',
     version: '1.20260213.01.00',
     id: '67',
     userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
+  );
+
+  /// The embedded player used by the Music web app. With the signed-in
+  /// context it is the client that answers age-gated tracks instead of
+  /// "Sign in to confirm your age".
+  static const webEmbedded = YtPlayerClient(
+    name: 'WEB_EMBEDDED_PLAYER',
+    version: '1.20260213.01.00',
+    id: '56',
+    userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    extra: {
+      'clientScreen': 'EMBED',
+      'thirdParty': {'embedUrl': 'https://www.youtube.com/'},
+    },
   );
 
   /// Plain ANDROID still answers `status=OK` without a login when other
@@ -135,6 +170,8 @@ class YtPlayerClient {
   /// Ordered by measured ability to serve a complete audio file.
   static const fallbackOrder = [
     visionOs,
+    androidTestsuite,
+    webEmbedded,
     android,
     androidVr165,
     tvHtml5,
@@ -152,6 +189,10 @@ class StreamResolver {
   static const _key = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
   static const _playerUrl =
       'https://www.youtube.com/youtubei/v1/player?alt=json&key=$_key';
+  /// YouTube Music's own player endpoint: age-gated Music tracks are only
+  /// unlocked by the signed-in WEB_REMIX context Android uses here.
+  static const _musicPlayerUrl =
+      'https://music.youtube.com/youtubei/v1/player?alt=json&key=$_key';
 
   final http.Client _client = http.Client();
 
@@ -219,12 +260,22 @@ class StreamResolver {
   /// Selects the best audio format. Prefers m4a/mp4 (media_kit on Windows),
   /// then highest bitrate. Pure helper, unit-testable.
   static List<Map<String, dynamic>> audioFormats(Map<String, dynamic> response) {
-    final formats = response['streamingData']?['adaptiveFormats'];
-    if (formats is! List) return const [];
-    return formats
+    final streaming = response['streamingData'];
+    if (streaming is! Map) return const [];
+    // Some age-gated / purchased tracks only expose a muxed audio stream in
+    // `formats`, not in `adaptiveFormats`. Consider both.
+    final raw = <dynamic>[
+      ...(streaming['adaptiveFormats'] is List
+          ? streaming['adaptiveFormats'] as List
+          : const []),
+      ...(streaming['formats'] is List ? streaming['formats'] as List : const []),
+    ];
+    final seen = <dynamic>{};
+    return raw
         .whereType<Map>()
         .map((f) => Map<String, dynamic>.from(f))
         .where((f) => (f['mimeType'] as String? ?? '').startsWith('audio/'))
+        .where((f) => seen.add(f['itag'] ?? f['url']))
         .toList();
   }
 
@@ -263,24 +314,65 @@ class StreamResolver {
   bool _statusOk(Map<String, dynamic> response) =>
       response['playabilityStatus']?['status'] == 'OK';
 
-  Map<String, String> _headers(YtPlayerClient client) {
+  /// Account-bound visitor id, saved by the YouTube Music login flow.
+  static String? get _signedInVisitor {
+    try {
+      if (!Hive.isBoxOpen('SETTINGS')) return null;
+      return Hive.box('SETTINGS').get('VISITOR_ID')?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, String> _headers(YtPlayerClient client, {bool music = false}) {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'User-Agent': client.userAgent,
       'X-Youtube-Client-Name': client.id,
       'X-Youtube-Client-Version': client.version,
-      'Origin': 'https://www.youtube.com',
+      'Origin': music ? 'https://music.youtube.com' : 'https://www.youtube.com',
+      if (music) 'Referer': 'https://music.youtube.com/',
     };
     final cookie = cookieHeaderProvider?.call();
     if (cookie != null) headers['Cookie'] = cookie;
+    // Only web-style clients accept a SAPISIDHASH on /player. VISIONOS and
+    // ANDROID were the clients that served complete files before; adding the
+    // web auth header to them made YouTube answer HTTP 400 for every track.
+    final webClient = client.name == 'WEB_REMIX' ||
+        client.name == 'WEB_EMBEDDED_PLAYER';
+    if (webClient) {
+      final auth = CookieStore.instance.authorizationHeaderFor(
+        music ? 'https://music.youtube.com' : 'https://www.youtube.com',
+      );
+      if (auth != null) {
+        headers['Authorization'] = auth;
+        headers['X-Goog-AuthUser'] = '0';
+      }
+      final visitor = music ? _signedInVisitor : (_visitorData ?? _signedInVisitor);
+      if (visitor != null && visitor.isNotEmpty) {
+        headers['X-Goog-Visitor-Id'] = visitor;
+      }
+    }
     return headers;
   }
+
+  /// Testable wrappers for the request builders.
+  Map<String, String> buildHeaders(YtPlayerClient client) => _headers(client);
+
+  Map<String, dynamic> buildBody(
+    YtPlayerClient client,
+    String videoId, {
+    String? visitorData,
+  }) =>
+      _body(client, videoId, visitorData: visitorData);
 
   Map<String, dynamic> _body(
     YtPlayerClient client,
     String videoId, {
     String? visitorData,
   }) {
+    final signedVisitor = _signedInVisitor;
+    final dataSyncId = CookieStore.instance.dataSyncId;
     return {
       'context': {
         'client': <String, dynamic>{
@@ -289,12 +381,26 @@ class StreamResolver {
           'hl': 'en',
           'gl': 'US',
           ...client.extra,
-          if (visitorData != null) 'visitorData': visitorData,
+          if (visitorData != null && visitorData.isNotEmpty)
+            'visitorData': visitorData
+          else if (signedVisitor != null && signedVisitor.isNotEmpty)
+            'visitorData': signedVisitor,
         },
+        if (dataSyncId != null &&
+            dataSyncId.isNotEmpty &&
+            (client.name == 'WEB_REMIX' ||
+                client.name == 'WEB_EMBEDDED_PLAYER'))
+          'user': {'onBehalfOfUser': dataSyncId},
       },
       'videoId': videoId,
       'contentCheckOk': true,
       'racyCheckOk': true,
+      'playbackContext': {
+        'contentPlaybackContext': {
+          'signatureTimestamp':
+              DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(0)).inDays - 1,
+        },
+      },
     };
   }
 
@@ -342,11 +448,16 @@ class StreamResolver {
     final errors = <String>[];
     for (final client in YtPlayerClient.fallbackOrder) {
       try {
+        final music = client.name == 'WEB_REMIX';
         final response = await _client
             .post(
-              Uri.parse(_playerUrl),
-              headers: _headers(client),
-              body: jsonEncode(_body(client, videoId, visitorData: visitorData)),
+              Uri.parse(music ? _musicPlayerUrl : _playerUrl),
+              headers: _headers(client, music: music),
+              body: jsonEncode(_body(
+                client,
+                videoId,
+                visitorData: music ? _signedInVisitor : visitorData,
+              )),
             )
             .timeout(const Duration(seconds: 20));
         if (response.statusCode != 200) {

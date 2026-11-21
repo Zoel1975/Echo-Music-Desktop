@@ -3,6 +3,7 @@ import 'lrcnet_api.dart';
 import 'lyrics_provider_lrc.dart';
 import 'lyrics_providers.dart';
 import 'lyrics_providers_youtube.dart';
+import 'lyrics_providers_more.dart';
 import 'lyrics_registry.dart';
 import 'lyrics_translation.dart' as translation;
 
@@ -11,6 +12,9 @@ class LyricsService {
   /// desktop-implemented LRC first.
   static final List<LyricsProvider> providers = [
     LrcLibProvider(),
+    NeteaseProvider(),
+    AzLyricsProvider(),
+    LocalLrcProvider(),
     YouLyPlusProvider(),
     PaxsenixProvider(),
     UnisonProvider(),

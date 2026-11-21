@@ -9,6 +9,9 @@ void main() {
         LyricsProviderRegistry.defaultOrder,
         [
           'LrcLib',
+          'Netease',
+          'AZLyrics',
+          'LocalLRC',
           'YouLyPlus',
           'Paxsenix',
           'Unison',
