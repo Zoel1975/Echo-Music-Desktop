@@ -137,6 +137,30 @@ void main() {
     expect(mainSrc, contains('ErrorWidget.builder'));
     expect(mainSrc, contains('PlatformDispatcher.instance.onError'));
 
+    final audit = File('docs/UI_PARITY_AUDIT.md').readAsStringSync();
+    for (final area in [
+      'HomeScreen.kt',
+      'PlayerScreen.kt',
+      'LibraryScreen.kt',
+      'OnlinePlaylistScreen.kt',
+      'SearchScreen.kt',
+      'CastButton.kt',
+    ]) {
+      expect(audit, contains(area), reason: 'UI audit missing $area');
+    }
+    expect(
+        File('docs/ui_parity_contact_sheet.png').existsSync(),
+        isTrue,
+        reason: 'runtime screenshots for the audited interfaces are required');
+    final settingsSrc =
+        File('lib/screens/settings/settings_page.dart').readAsStringSync();
+    expect(settingsSrc, contains("title: 'AI lyrics & translation'"));
+    final player =
+        File('lib/screens/player/player_page.dart').readAsStringSync();
+    expect(player, contains('TextScrollMode.bouncing'));
+    expect(player, contains('height: 38'),
+        reason: 'marquee must not overlap artwork/lyrics');
+
     final thumb = File('lib/utils/song_thumbnail.dart').readAsStringSync();
     expect(thumb, contains("thumbnails.first['url']"),
         reason: 'artwork is still used when present');

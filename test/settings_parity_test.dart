@@ -71,7 +71,7 @@ void main() {
     for (final label in [
       'Account',
       'Linked devices',
-      'AI Hub',
+      'AI lyrics & translation',
       'Listening Summary',
       'Echo Wrapped',
       'Appearence',

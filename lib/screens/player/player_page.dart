@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -454,13 +455,19 @@ class _PlayerPageState extends State<PlayerPage> {
                     ? CrossAxisAlignment.center
                     : CrossAxisAlignment.start,
                 children: [
-                  TextScroll(
-                    currentSong?.title ?? 'Title',
-                    style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                    mode: TextScrollMode.endless,
+                  // Constrain the marquee: endless TextScroll otherwise grows
+                  // past the Row and paints over the artwork/lyrics.
+                  SizedBox(
+                    height: 38,
+                    child: TextScroll(
+                      currentSong?.title ?? 'Title',
+                      style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                      mode: TextScrollMode.bouncing,
+                      velocity: const Velocity(pixelsPerSecond: Offset(28, 0)),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(

@@ -74,7 +74,7 @@ class SettingsPage extends StatelessWidget {
 
                     GroupTitle(title: "Smart features"),
                     SettingTile(
-                      title: 'AI Hub',
+                      title: 'AI lyrics & translation',
                       subtitle: 'AI-powered lyrics and translations',
                       leading: const Icon(Icons.auto_awesome),
                       isFirst: true,
