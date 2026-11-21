@@ -9,6 +9,7 @@ import 'cookie_store.dart';
 import 'device_link_announcement.dart';
 import 'media_player.dart';
 import 'settings_manager.dart';
+import 'yt_audio_stream.dart';
 
 /// A small LAN HTTP "remote control" for Echo — the desktop counterpart of
 /// Android's Cast/remote-control features. Another device on the same Wi-Fi can
@@ -196,20 +197,9 @@ class RemoteControlService {
     }
   }
 
-  Future<String> _lanIp() async {
-    try {
-      final interfaces = await NetworkInterface.list(
-        includeLoopback: false,
-        type: InternetAddressType.IPv4,
-      );
-      for (final nic in interfaces) {
-        for (final addr in nic.addresses) {
-          if (!addr.isLoopback) return addr.address;
-        }
-      }
-    } catch (_) {}
-    return '127.0.0.1';
-  }
+  /// Use the same LAN address selection as Cast, so the remote URL is
+  /// reachable from the phone instead of pointing at a WSL virtual adapter.
+  Future<String> _lanIp() => lanIp();
 
   Future<void> stop() async {
     _announceTimer?.cancel();

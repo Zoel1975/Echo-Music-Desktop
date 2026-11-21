@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
+import '../theme/motion_tokens.dart';
 import '../theme/tokens.dart';
 
 /// A destination on the desktop floating bottom bar.
@@ -66,8 +67,8 @@ class EchoFloatingNavBar extends StatelessWidget {
               final isSelected = i == selected;
               final color = isSelected ? scheme.primary : scheme.onSurface;
               return AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
+                duration: MotionTokens.micro,
+                curve: MotionTokens.standard,
                 decoration: BoxDecoration(
                   color: isSelected
                       ? scheme.primary.withValues(alpha: 0.16)
@@ -78,9 +79,18 @@ class EchoFloatingNavBar extends StatelessWidget {
                   tooltip: d.label,
                   icon: AnimatedScale(
                     scale: isSelected ? 1.12 : 1.0,
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOutBack,
-                    child: Icon(d.icon, size: 20, color: color),
+                    duration: MotionTokens.micro,
+                    curve: MotionTokens.emphasized,
+                    child: AnimatedSwitcher(
+                      duration: MotionTokens.micro,
+                      switchInCurve: MotionTokens.standard,
+                      child: Icon(
+                        isSelected ? (d.selectedIcon ?? d.icon) : d.icon,
+                        key: ValueKey<bool>(isSelected),
+                        size: 20,
+                        color: color,
+                      ),
+                    ),
                   ),
                   onPressed: d.onTap,
                 ),

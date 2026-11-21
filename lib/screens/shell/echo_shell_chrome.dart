@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:Echo/core/theme/motion_tokens.dart';
 import 'package:Echo/core/widgets/floating_nav.dart';
 
 /// The desktop shell chrome: exactly ONE options/navigation bar — the floating
@@ -43,7 +44,16 @@ class EchoShellChrome extends StatelessWidget {
             ),
           ),
         ),
-        Align(alignment: Alignment.bottomCenter, child: bottom),
+        Align(
+          alignment: Alignment.bottomCenter,
+          // The mini player slides into place instead of popping over the nav.
+          child: AnimatedSize(
+            duration: MotionTokens.micro,
+            curve: MotionTokens.standard,
+            alignment: Alignment.bottomCenter,
+            child: bottom,
+          ),
+        ),
       ],
     );
   }

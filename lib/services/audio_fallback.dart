@@ -45,3 +45,24 @@ Future<bool> prepareAudioFallback() async {
   });
   return enabled;
 }
+
+/// Leave silent mode for good: restart the app as a detached process without
+/// `ECHO_NO_AUDIO`, so a fresh mpv instance opens the real audio endpoint.
+/// Used by the home banner action - being stuck muted with no explanation was
+/// the worst part of the old fallback.
+Future<void> restartWithAudio() async {
+  try {
+    final environment = Map<String, String>.from(Platform.environment)
+      ..remove('ECHO_NO_AUDIO');
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await Process.start(
+      Platform.resolvedExecutable,
+      const [],
+      environment: environment,
+      mode: ProcessStartMode.detached,
+    );
+    exit(0);
+  } catch (_) {
+    // If the OS refuses the restart the user can still close and reopen.
+  }
+}

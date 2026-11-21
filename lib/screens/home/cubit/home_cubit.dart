@@ -17,7 +17,9 @@ class HomeCubit extends Cubit<HomeState> {
     accountEpoch.addListener(_onAccountChanged);
   }
 
-  void _onAccountChanged() => fetch();
+  // Keep the current content on screen while reloading: a full HomeLoading
+  // caused the home to flash empty and reset the scroll position.
+  void _onAccountChanged() => fetch(silent: true);
 
   @override
   Future<void> close() {
@@ -27,8 +29,8 @@ class HomeCubit extends Cubit<HomeState> {
 
   /// Build the home screen from the user's [HomeSectionsConfig] order.
   /// Disabled sections are not fetched at all (no needless network calls).
-  Future<void> fetch() async {
-    emit(const HomeLoading());
+  Future<void> fetch({bool silent = false}) async {
+    if (!silent || state is! HomeSuccess) emit(const HomeLoading());
     try {
       final config = HomeSectionsConfig.load();
       final enabled = config.order.toSet();
@@ -95,7 +97,9 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  Future<void> refresh() => fetch();
+  /// Pull-to-refresh and home-customization changes reload without wiping
+  /// the visible content (and therefore without jumping the scroll position).
+  Future<void> refresh() => fetch(silent: true);
 
   Future<void> fetchNext() async {
     final current = state;

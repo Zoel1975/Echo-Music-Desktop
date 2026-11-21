@@ -89,6 +89,13 @@ class _AppShellState extends State<AppShell> {
                         child: const Text('Chiudi',
                             style: TextStyle(color: Colors.white)),
                       ),
+                      TextButton.icon(
+                        onPressed: restartWithAudio,
+                        icon: const Icon(Icons.restart_alt,
+                            color: Colors.white, size: 18),
+                        label: const Text('Riavvia con audio',
+                            style: TextStyle(color: Colors.white)),
+                      ),
                     ],
                   )
                 : const SizedBox.shrink(),

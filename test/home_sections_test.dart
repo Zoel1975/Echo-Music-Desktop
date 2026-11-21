@@ -105,6 +105,25 @@ void main() {
     await cubit.close();
   });
 
+  test('refresh keeps the visible home content (no loading flash)', () async {
+    await HomeSectionsConfig.defaults.save();
+    final cubit = HomeCubit(_FakeYt());
+    await cubit.fetch();
+    expect(cubit.state, isA<HomeSuccess>());
+
+    final states = <Object>[];
+    final sub = cubit.stream.listen(states.add);
+    await cubit.refresh();
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(states, isNotEmpty);
+    expect(states.where((s) => s is HomeLoading), isEmpty,
+        reason: 'customization / pull-to-refresh must not wipe the page');
+    expect(cubit.state, isA<HomeSuccess>());
+    await cubit.close();
+  });
+
   test('charts can be removed from home entirely', () async {
     await HomeSectionsConfig([
       HomeSectionKind.feed,

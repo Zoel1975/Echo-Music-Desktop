@@ -53,10 +53,14 @@ import 'package:Echo/screens/detail/artist_page.dart';
 import 'package:Echo/screens/detail/playlist_page.dart';
 import 'package:Echo/screens/account/account_page.dart';
 import 'package:Echo/screens/account/device_link_page.dart';
+import 'package:Echo/utils/page_transitions.dart';
 import 'package:Echo/screens/connect/cast_page.dart';
 import 'package:Echo/screens/explore/explore_page.dart';
 import 'package:Echo/screens/login/login_page.dart';
 import 'package:Echo/screens/shell/app_shell.dart';
+
+EchoPage<dynamic> _softPage(GoRouterState state, Widget child) =>
+    EchoPage<dynamic>(key: state.pageKey, child: child);
 
 GoRouter router = GoRouter(
   initialLocation: Platform.environment['ECHO_START_ROUTE'] ?? '/',
@@ -105,14 +109,8 @@ GoRouter router = GoRouter(
       path: '/login',
       builder: (context, state) => const LoginPage(),
     ),
-    GoRoute(
-      path: '/device_link',
-      builder: (context, state) => const DeviceLinkPage(),
-    ),
-    GoRoute(
-      path: '/cast',
-      builder: (context, state) => const CastPage(),
-    ),
+    // Device/Cast pages live inside the Settings shell branch (see `branches`)
+    // so the navigation bar stays visible and highlights the right tab.
     // Real Podcasts home via YouTube Music's public podcasts browse endpoint.
     GoRoute(
       path: '/podcasts',
@@ -190,6 +188,43 @@ List<StatefulShellBranch> branches = [
             ),
 
           ]),
+      // Detail pages stay inside the Home branch: navigating to an album or
+      // artist must not switch the highlighted tab or rebuild another branch.
+      GoRoute(
+        path: '/album',
+        pageBuilder: (context, state) => _softPage(
+          state,
+          AlbumPage(
+            browseId:
+                (state.extra as Map<String, dynamic>)['browseId'] as String,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/artist',
+        pageBuilder: (context, state) => _softPage(
+          state,
+          ArtistPage(
+            browseId:
+                (state.extra as Map<String, dynamic>)['browseId'] as String,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/explore',
+        pageBuilder: (context, state) =>
+            _softPage(state, const ExplorePage()),
+      ),
+      GoRoute(
+        path: '/new_releases',
+        pageBuilder: (context, state) => _softPage(
+          state,
+          const ChipPage(
+            title: 'New releases',
+            endpoint: {'browseId': 'FEmusic_new_releases_albums'},
+          ),
+        ),
+      ),
     ],
   ),
   StatefulShellBranch(
@@ -281,6 +316,22 @@ List<StatefulShellBranch> branches = [
           },
         ),
       ],
+    ),
+    // Online library and playlists live under the Library tab.
+    GoRoute(
+      path: '/ytm_library',
+      pageBuilder: (context, state) =>
+          _softPage(state, const YtmLibraryPage()),
+    ),
+    GoRoute(
+      path: '/playlist',
+      pageBuilder: (context, state) => _softPage(
+        state,
+        OnlinePlaylistPage(
+          playlistId: (state.extra as Map<String, dynamic>)['playlistId']
+              as String,
+        ),
+      ),
     ),
   ]),
   StatefulShellBranch(routes: [
@@ -377,72 +428,23 @@ List<StatefulShellBranch> branches = [
             builder: (context, state) => const AboutPage(),
           ),
         ]),
+      // Account + device pages belong to the Settings tab: going back from
+      // them must return to Settings, not to an unrelated branch.
+      GoRoute(
+        path: '/account',
+        pageBuilder: (context, state) =>
+            _softPage(state, const AccountPage()),
+      ),
+      GoRoute(
+        path: '/device_link',
+        pageBuilder: (context, state) =>
+            _softPage(state, const DeviceLinkPage()),
+      ),
+      GoRoute(
+        path: '/cast',
+        pageBuilder: (context, state) => _softPage(state, const CastPage()),
+      ),
   ]),
-  // --- Phase 3 detail pages (Album / Artist / Online Playlist) ---
-  StatefulShellBranch(
-    routes: [
-      GoRoute(
-        path: '/album',
-        builder: (context, state) {
-          final browseId =
-              (state.extra as Map<String, dynamic>)['browseId'];
-          return AlbumPage(browseId: browseId as String);
-        },
-      ),
-    ],
-  ),
-  StatefulShellBranch(
-    routes: [
-      GoRoute(
-        path: '/artist',
-        builder: (context, state) {
-          final browseId =
-              (state.extra as Map<String, dynamic>)['browseId'];
-          return ArtistPage(browseId: browseId as String);
-        },
-      ),
-    ],
-  ),
-  StatefulShellBranch(
-    routes: [
-      GoRoute(
-        path: '/ytm_library',
-        builder: (context, state) => const YtmLibraryPage(),
-      ),
-      GoRoute(
-        path: '/playlist',
-        builder: (context, state) {
-          final playlistId =
-              (state.extra as Map<String, dynamic>)['playlistId'];
-          return OnlinePlaylistPage(playlistId: playlistId as String);
-        },
-      ),
-    ],
-  ),
-    StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: '/explore',
-          builder: (context, state) => const ExplorePage(),
-        ),
-        GoRoute(
-          path: '/new_releases',
-          builder: (context, state) => const ChipPage(
-            title: 'New releases',
-            endpoint: {'browseId': 'FEmusic_new_releases_albums'},
-          ),
-        ),
-      ],
-    ),
-    // --- Phase 4 - account pages ---
-    StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: '/account',
-          builder: (context, state) => const AccountPage(),
-        ),
-      ],
-    ),
   ];
 
 class MyPageView extends StatefulWidget {

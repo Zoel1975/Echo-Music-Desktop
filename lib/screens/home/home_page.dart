@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:Echo/core/utils/service_locator.dart';
 import 'package:Echo/screens/home/cubit/home_cubit.dart';
 import 'package:Echo/core/widgets/section_item.dart';
+import 'package:Echo/core/theme/motion_tokens.dart';
 import 'package:Echo/services/home_sections.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
@@ -145,6 +146,13 @@ class _HomePageState extends State<_HomePage> {
   /// e.g. liked songs / playlists instead of Billboard charts.
   Future<void> _customizeHome(BuildContext context) async {
     var config = HomeSectionsConfig.load();
+    // Show enabled sections first, in the exact saved order; disabled ones
+    // follow. The old dialog used enum order, so toggling/reordering felt
+    // inconsistent with what was actually rendered on Home.
+    final orderedKinds = <HomeSectionKind>[
+      ...config.order,
+      ...HomeSectionKind.values.where((k) => !config.isEnabled(k)),
+    ];
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -155,7 +163,7 @@ class _HomePageState extends State<_HomePage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (final kind in HomeSectionKind.values)
+                for (final kind in orderedKinds)
                   ListTile(
                     leading: Icon(kind.icon),
                     title: Text(kind.label),
@@ -202,7 +210,7 @@ class _HomePageState extends State<_HomePage> {
     );
     if (saved == true) {
       await config.save();
-      if (context.mounted) context.read<HomeCubit>().fetch();
+      if (context.mounted) context.read<HomeCubit>().refresh();
     }
   }
 
@@ -235,9 +243,7 @@ class _HomePageState extends State<_HomePage> {
             builder: (context, state) {
               switch (state) {
                 case HomeLoading():
-                  return Center(
-                    child: LoadingIndicatorM3E(),
-                  );
+                  return const _HomeSkeleton();
                 case HomeError():
                   return Center(
                     child: Text(state.message ?? ''),
@@ -253,8 +259,11 @@ class _HomePageState extends State<_HomePage> {
                         _horizontalChipsRow(state.chips),
                         Column(
                           children: [
-                            ...state.sections.map((section) {
-                              return SectionItem(section: section);
+                            ...state.sections.asMap().entries.map((entry) {
+                              return _AnimatedSection(
+                                index: entry.key,
+                                child: SectionItem(section: entry.value),
+                              );
                             }),
                             if (!state.loadingMore &&
                                 state.continuation != null)
@@ -271,6 +280,111 @@ class _HomePageState extends State<_HomePage> {
               }
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One-shot entrance for a home section. Staggered by [index] so sections
+/// arrive in reading order instead of all snapping in at once.
+class _AnimatedSection extends StatelessWidget {
+  const _AnimatedSection({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final delay = Duration(milliseconds: (index * 45).clamp(0, 270));
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: MotionTokens.section + delay,
+      curve: MotionTokens.standard,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, (1 - value) * 12),
+          child: child,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Skeleton instead of a spinner: the layout is visible immediately, so the
+/// feed feels like it is loading *into* the page rather than replacing it.
+class _HomeSkeleton extends StatefulWidget {
+  const _HomeSkeleton();
+
+  @override
+  State<_HomeSkeleton> createState() => _HomeSkeletonState();
+}
+
+class _HomeSkeletonState extends State<_HomeSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: MotionTokens.skeleton,
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final shift = _controller.value * 2 - 1;
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _shimmer(120, 32, shift, radius: 16),
+            const SizedBox(height: 28),
+            ...List.generate(2, (section) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _shimmer(180, 20, shift),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 170,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: 4,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (_, __) => _shimmer(130, 160, shift),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                  ],
+                )),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _shimmer(double width, double height, double shift, {double radius = 10}) {
+    return ShaderMask(
+      shaderCallback: (bounds) => LinearGradient(
+        begin: Alignment(shift, 0),
+        end: Alignment(shift + 0.8, 0),
+        colors: [
+          Colors.grey.withValues(alpha: 0.10),
+          Colors.grey.withValues(alpha: 0.22),
+          Colors.grey.withValues(alpha: 0.10),
+        ],
+      ).createShader(bounds),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(radius),
         ),
       ),
     );
