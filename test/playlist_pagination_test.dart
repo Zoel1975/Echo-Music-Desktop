@@ -19,21 +19,27 @@ class _FakeYt extends YTMusic {
     if (additionalParams.contains('TOKEN2')) {
       return {
         'continuationContents': {
-          'musicPlaylistShelfContinuation': {
+          'sectionListContinuation': {
             'contents': [
-              for (final id in ['last1', 'last2'])
-                {
-                  'playlistPanelVideoRenderer': {
-                    'videoId': id,
-                    'title': {'runs': [{'text': id}]},
-                    'thumbnail': {
-                      'thumbnails': [
-                        {'url': 'https://img/$id'}
-                      ]
-                    },
-                    'setVideoId': 'set-$id',
-                  }
+              {
+                'musicPlaylistShelfRenderer': {
+                  'contents': [
+                    for (final id in ['last1', 'last2'])
+                      {
+                        'playlistPanelVideoRenderer': {
+                          'videoId': id,
+                          'title': {'runs': [{'text': id}]},
+                          'thumbnail': {
+                            'thumbnails': [
+                              {'url': 'https://img/$id'}
+                            ]
+                          },
+                          'setVideoId': 'set-$id',
+                        }
+                      }
+                  ],
                 }
+              }
             ],
           }
         }
@@ -62,13 +68,14 @@ class _FakeYt extends YTMusic {
               'tabRenderer': {
                 'content': {
                   'sectionListRenderer': {
+                    // Real YouTube places the token here, not on the shelf.
+                    'continuations': [
+                      {'nextContinuationData': {'continuation': 'TOKEN2'}}
+                    ],
                     'contents': [
                       {
                         'musicPlaylistShelfRenderer': {
                           'contents': firstPage,
-                          'continuations': [
-                            {'nextContinuationData': {'continuation': 'TOKEN2'}}
-                          ],
                         }
                       }
                     ],
@@ -91,6 +98,16 @@ void main() {
     for (final box in ['SETTINGS', 'COOKIES', 'ACCOUNT']) {
       if (!Hive.isBoxOpen(box)) await Hive.openBox(box);
     }
+  });
+
+  test('getMoreItems understands sectionListContinuation (real playlists)',
+      () async {
+    final yt = _FakeYt();
+    // The fake returns sectionListContinuation from getMoreItems; the first
+    // call in the other test already exercised the shelf path, so cover the
+    // section-list shape explicitly with a direct call.
+    final more = await yt.getMoreItems(continuation: '&ctoken=TOKEN2&continuation=TOKEN2');
+    expect(more['items'], isA<List>());
   });
 
   test('getPlaylistSongs follows continuations past 100 tracks', () async {

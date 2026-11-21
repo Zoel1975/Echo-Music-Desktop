@@ -14,6 +14,9 @@ import 'media_player.dart';
 import '../screens/home/cubit/home_cubit.dart';
 import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
+import '../ytmusic/helpers.dart';
+import '../ytmusic/mixins/browsing.dart';
+import '../ytmusic/ytmusic.dart';
 import 'cookie_store.dart';
 import 'session_service.dart';
 import '../utils/router.dart' as app_router;
@@ -92,6 +95,142 @@ class RuntimeProbeService {
       }
       notifyAccountChanged();
       _json(request.response, 200, {'after': state()});
+      return;
+    }
+    if (path == '/library/playlists' && request.method == 'GET') {
+      final res = await GetIt.I<YTMusic>().getLibraryPlaylists();
+      final items = (res['contents'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map((p) => {
+                'id': p['playlistId'] ?? p['browseId'],
+                'title': p['title'],
+              })
+          .toList();
+      _json(request.response, 200, {'playlists': items});
+      return;
+    }
+    if (path == '/library/playlists/raw' && request.method == 'GET') {
+      final response = await GetIt.I<YTMusic>()
+          .sendRequest('browse', {'browseId': 'FEmusic_liked_playlists'});
+      final debug = BrowsingMixin.playlistDebugInfoFrom(response);
+      final grid = <dynamic>[
+        ...?nav(response, [
+          'contents',
+          'singleColumnBrowseResultsRenderer',
+          'tabs',
+          0,
+          'tabRenderer',
+          'content',
+          'sectionListRenderer',
+          'contents',
+          0,
+          'gridRenderer',
+          'items',
+        ]) as List?,
+      ];
+      debug['contentsPreview'] = jsonEncode(response['contents']).substring(
+          0, (jsonEncode(response['contents']).length).clamp(0, 3000));
+      debug['gridItems'] = grid
+          .map((e) => {
+                'playlistId': nav(e, [
+                      'musicTwoRowItemRenderer',
+                      'title',
+                      'runs',
+                      0,
+                      'navigationEndpoint',
+                      'browseEndpoint',
+                      'browseId'
+                    ]) ??
+                    nav(e, [
+                      'musicResponsiveListItemRenderer',
+                      'playlistItemData',
+                      'playlistId'
+                    ]),
+                'title': nav(e, [
+                      'musicTwoRowItemRenderer',
+                      'title',
+                      'runs',
+                      0,
+                      'text'
+                    ]) ??
+                    nav(e, [
+                      'musicResponsiveListItemRenderer',
+                      'flexColumns',
+                      0,
+                      'musicResponsiveListItemFlexColumnRenderer',
+                      'text',
+                      'runs',
+                      0,
+                      'text'
+                    ]),
+              })
+          .where((m) => m['playlistId'] != null)
+          .take(15)
+          .toList();
+      _json(request.response, 200, debug);
+      return;
+    }
+    if (path == '/playlist/debug' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final browseId = id.startsWith('VL') ? id : 'VL$id';
+      final response =
+          await GetIt.I<YTMusic>().sendRequest('browse', {'browseId': browseId});
+      final debug = BrowsingMixin.playlistDebugInfoFrom(response);
+      debug['id'] = browseId;
+      _json(request.response, 200, debug);
+      return;
+    }
+    if (path == '/playlist/continue' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final browseId = id.startsWith('VL') ? id : 'VL$id';
+      final yt = GetIt.I<YTMusic>();
+      final first = await yt.sendRequest('browse', {'browseId': browseId});
+      final token = nav(first, [
+            'contents',
+            'twoColumnBrowseResultsRenderer',
+            'secondaryContents',
+            'sectionListRenderer',
+            'continuations',
+            0,
+            'nextContinuationData',
+            'continuation',
+          ]) ??
+          nav(first, [
+            'contents',
+            'singleColumnBrowseResultsRenderer',
+            'tabs',
+            0,
+            'tabRenderer',
+            'content',
+            'sectionListRenderer',
+            'continuations',
+            0,
+            'nextContinuationData',
+            'continuation',
+          ]);
+      if (token == null) {
+        _json(request.response, 200, {'error': 'no token'});
+        return;
+      }
+      final cont = '&ctoken=$token&continuation=$token';
+      final more = await yt.getMoreItems(continuation: cont);
+      final raw = await yt.sendRequest('browse', {'browseId': 'FEmusic_home'},
+          additionalParams: cont);
+      _json(request.response, 200, {
+        'tokenLength': token.toString().length,
+        'items': (more['items'] as List?)?.length ?? 0,
+        'moreContinuation': more['continuation'],
+        'rawKeys': raw.keys.toList(),
+        'continuationKeys': raw['continuationContents'] is Map
+            ? (raw['continuationContents'] as Map).keys.toList()
+            : const [],
+      });
+      return;
+    }
+    if (path == '/playlist/count' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final songs = await GetIt.I<YTMusic>().getPlaylistSongs(id);
+      _json(request.response, 200, {'id': id, 'count': songs.length});
       return;
     }
     if (path == '/home/state' && request.method == 'GET') {

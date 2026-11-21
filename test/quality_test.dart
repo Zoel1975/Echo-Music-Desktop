@@ -88,6 +88,17 @@ void main() {
     expect(flow, contains('AnimatedContainer'));
     expect(flow, contains('TweenAnimationBuilder'));
 
+    final browsing = File('lib/ytmusic/mixins/browsing.dart').readAsStringSync();
+    expect(browsing, contains("containers['sectionListContinuation']"),
+        reason: 'real playlist continuations arrive as sectionListContinuation');
+    expect(browsing, contains('getContinuationString(rawNext)'),
+        reason: 'bare tokens are ignored by YouTube');
+
+    final mainSrc = File('lib/main.dart').readAsStringSync();
+    expect(mainSrc, contains('_installErrorHandlers'));
+    expect(mainSrc, contains('ErrorWidget.builder'));
+    expect(mainSrc, contains('PlatformDispatcher.instance.onError'));
+
     final thumb = File('lib/utils/song_thumbnail.dart').readAsStringSync();
     expect(thumb, contains("thumbnails.first['url']"),
         reason: 'artwork is still used when present');

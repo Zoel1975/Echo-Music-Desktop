@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,8 +44,51 @@ import 'services/yt_audio_stream.dart';
 /// Held for the whole process so no other instance can open the Hive boxes.
 RandomAccessFile? _instanceLock;
 
+/// Keep the app usable when a single widget/network callback throws: log the
+/// error and show a recoverable card instead of Flutter's red error screen.
+void _installErrorHandlers() {
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('[echo] Flutter error: ${details.exceptionAsString()}');
+  };
+  ui.PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[echo] Uncaught error: $error\n$stack');
+    return true;
+  };
+  ErrorWidget.builder = (details) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 40),
+                    const SizedBox(height: 12),
+                    const Text('Qualcosa non ha funzionato in questa schermata.'),
+                    const SizedBox(height: 4),
+                    Text(details.exceptionAsString(),
+                        style: const TextStyle(fontSize: 11),
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () => router.go('/'),
+                      child: const Text('Torna alla home'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _installErrorHandlers();
 
   // Single-instance guard: Hive locks its files, so launching the app twice
   // used to produce a PathAccessException and a blank window.

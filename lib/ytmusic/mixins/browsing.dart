@@ -1,6 +1,8 @@
 import 'dart:core';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:Echo/ytmusic/client.dart';
 
 import '../helpers.dart';
@@ -178,30 +180,40 @@ mixin BrowsingMixin on YTClient {
   }
 
   Future<Map<String, dynamic>> getMoreItems({continuation = ''}) async {
-    String endpoint = 'browse';
-    Map<String, dynamic>? body = {"browseId": "FEmusic_home"};
+    final response = await sendRequest('browse', {'browseId': 'FEmusic_home'},
+        additionalParams: continuation);
+    final containers = response['continuationContents'];
+    if (containers is! Map) return {'items': const [], 'continuation': null};
 
-    var response =
-        await sendRequest(endpoint, body, additionalParams: continuation);
-    String? continuationString = nav(response, [
-      'continuationContents',
-      'musicPlaylistShelfContinuation',
-      'continuations',
-      0,
-      'nextContinuationData',
-      'continuation'
-    ]);
-    List contents = nav(response, [
-          'continuationContents',
-          'musicPlaylistShelfContinuation',
-          'contents'
-        ]) ??
-        [];
+    // Playlist continuations come back as `sectionListContinuation`, while
+    // search/library shelves use `musicPlaylistShelfContinuation` or
+    // `musicShelfContinuation`. Support all of them.
+    Map? shelf = containers['musicPlaylistShelfContinuation'] as Map? ??
+        containers['musicShelfContinuation'] as Map?;
+    Map? sectionList = containers['sectionListContinuation'] as Map?;
+    if (shelf == null && sectionList != null) {
+      final inner = nav(sectionList, ['contents', 0]) as Map?;
+      shelf = inner?['musicPlaylistShelfRenderer'] as Map? ??
+          inner?['musicShelfRenderer'] as Map? ??
+          sectionList;
+    }
+    if (shelf == null) return {'items': const [], 'continuation': null};
+
+    List contents = nav(shelf, ['contents']) as List? ?? const [];
+    final continuationString = _playlistContinuation(shelf) ??
+        _playlistContinuation(sectionList) ??
+        nav(containers, [
+          'sectionListContinuation',
+          'continuations',
+          0,
+          'nextContinuationData',
+          'continuation',
+        ]) as String?;
     return {
       'items': handleContents(contents),
-      'continuation': continuationString != null
-          ? getContinuationString(continuationString)
-          : null,
+      'continuation': continuationString == null
+          ? null
+          : getContinuationString(continuationString),
     };
   }
 
@@ -354,7 +366,30 @@ mixin BrowsingMixin on YTClient {
     List contents = nav(shelf, ['contents']) ?? const [];
     final result = handleContents(contents);
 
-    String? next = _playlistContinuation(shelf);
+    // YouTube puts the continuation on `sectionListRenderer`, NOT on the
+    // `musicPlaylistShelfRenderer` itself. Looking only at the shelf made
+    // every big playlist stop at exactly 100 tracks.
+    Map? sectionList = nav(response, [
+          'contents',
+          'singleColumnBrowseResultsRenderer',
+          'tabs',
+          0,
+          'tabRenderer',
+          'content',
+          'sectionListRenderer',
+        ]) ??
+        nav(response, [
+          'contents',
+          'twoColumnBrowseResultsRenderer',
+          'secondaryContents',
+          'sectionListRenderer',
+        ]);
+    final rawNext = _playlistContinuation(shelf) ??
+        _playlistContinuation(sectionList);
+    // The token must be sent as `&ctoken=...&continuation=...`; passing the
+    // bare token made YouTube ignore it and return no continuation page.
+    String? next = rawNext == null ? null : getContinuationString(rawNext);
+    final initialCount = result.length;
     var pages = 0;
     while (next != null && pages < maxPages) {
       final more = await getMoreItems(continuation: next);
@@ -365,7 +400,62 @@ mixin BrowsingMixin on YTClient {
       next = cont is String && cont.isNotEmpty ? cont : null;
       pages++;
     }
+    if (kDebugMode && pages > 0) {
+      debugPrint('[playlist] ${playlistId}: $initialCount + $pages pages = ${result.length}');
+    }
     return result;
+  }
+
+  /// Diagnostic: content count and every continuation token found in a
+  /// browse response, used by the runtime probe to see why a playlist stops.
+  /// Pure, testable without network.
+  static Map<String, dynamic> playlistDebugInfoFrom(Map response) {
+    final tokens = <String>[];
+    void walk(dynamic value, String path) {
+      if (value is Map) {
+        for (final entry in value.entries) {
+          final key = entry.key.toString();
+          if ((key == 'continuation' || key == 'token') &&
+              entry.value is String &&
+              (entry.value as String).isNotEmpty) {
+            tokens.add('$path/$key=${(entry.value as String).substring(0, (entry.value as String).length.clamp(0, 24))}');
+          }
+          walk(entry.value, '$path/$key');
+        }
+      } else if (value is List) {
+        for (var i = 0; i < value.length && i < 6; i++) {
+          walk(value[i], '$path/$i');
+        }
+      }
+    }
+    walk(response, '');
+    final shelf = nav(response, [
+          'contents',
+          'singleColumnBrowseResultsRenderer',
+          'tabs',
+          0,
+          'tabRenderer',
+          'content',
+          'sectionListRenderer',
+          'contents',
+          0,
+          'musicPlaylistShelfRenderer',
+        ]) ??
+        nav(response, [
+          'contents',
+          'twoColumnBrowseResultsRenderer',
+          'secondaryContents',
+          'sectionListRenderer',
+          'contents',
+          0,
+          'musicPlaylistShelfRenderer',
+        ]);
+    return {
+      'keys': response.keys.toList(),
+      'shelfFound': shelf != null,
+      'contents': shelf == null ? 0 : (nav(shelf, ['contents']) as List?)?.length ?? 0,
+      'tokens': tokens.take(12).toList(),
+    };
   }
 
   /// Continuation token can be in the old or the new InnerTube shape.
