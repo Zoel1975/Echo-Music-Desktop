@@ -178,6 +178,56 @@ class RuntimeProbeService {
           await GetIt.I<YTMusic>().sendRequest('browse', {'browseId': browseId});
       final debug = BrowsingMixin.playlistDebugInfoFrom(response);
       debug['id'] = browseId;
+      final detailHeader = nav(response, [
+        'contents',
+        'twoColumnBrowseResultsRenderer',
+        'tabs',
+        0,
+        'tabRenderer',
+        'content',
+        'sectionListRenderer',
+        'contents',
+        0,
+        'musicEditablePlaylistDetailHeaderRenderer',
+        'header',
+        'musicResponsiveHeaderRenderer',
+        'secondSubtitle',
+        'runs',
+      ]);
+      debug['declaredCount'] = detailHeader is List
+          ? detailHeader
+              .map((r) => r is Map ? r['text'] : '')
+              .where((t) => t != null && t.toString().isNotEmpty)
+              .join(' ')
+          : null;
+      final header = response['header'];
+      debug['headerPreview'] = header == null
+          ? null
+          : jsonEncode(header).substring(0, jsonEncode(header).length.clamp(0, 2500));
+      debug['header'] = header is Map
+          ? {
+              'title': nav(header, [
+                'musicResponsiveHeaderRenderer',
+                'title',
+                'runs',
+                0,
+                'text'
+              ]),
+              'subtitle': nav(header, [
+                'musicResponsiveHeaderRenderer',
+                'secondSubtitle',
+                'runs'
+              ]) is List
+                  ? (nav(header, [
+                          'musicResponsiveHeaderRenderer',
+                          'secondSubtitle',
+                          'runs'
+                        ]) as List)
+                      .map((r) => r is Map ? r['text'] : '')
+                      .join('')
+                  : null,
+            }
+          : null;
       _json(request.response, 200, debug);
       return;
     }

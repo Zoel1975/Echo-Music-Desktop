@@ -99,6 +99,10 @@ void main() {
         reason: 'first batch must render before all continuations finish');
     expect(browsing, contains('_newSongs'),
         reason: 'continuation pages repeat songs and must be deduplicated');
+    expect(browsing, contains('declaredSongCount'),
+        reason: 'must stop at the song count declared by YouTube');
+    expect(browsing, contains('removeRange(declared, result.length)'),
+        reason: 'the last continuation page can overshoot the declared count');
 
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));

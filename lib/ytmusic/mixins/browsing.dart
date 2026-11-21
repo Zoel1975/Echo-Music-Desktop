@@ -361,6 +361,7 @@ mixin BrowsingMixin on YTClient {
       "browseId": playlistId.startsWith('VL') ? playlistId : 'VL$playlistId'
     };
     var response = await sendRequest('browse', body);
+    final declared = declaredSongCount(response);
 
     Map? shelf = nav(response, [
           'contents',
@@ -411,10 +412,13 @@ mixin BrowsingMixin on YTClient {
           'secondaryContents',
           'sectionListRenderer',
         ]);
-    final rawNext = _playlistContinuation(shelf) ??
+    String? rawNext = _playlistContinuation(shelf) ??
         _playlistContinuation(sectionList);
     // The token must be sent as `&ctoken=...&continuation=...`; passing the
     // bare token made YouTube ignore it and return no continuation page.
+    // If YouTube already declared the full length and the first page covers
+    // it, never follow the token into recommended videos.
+    if (declared != null && result.length >= declared) rawNext = null;
     String? next = rawNext == null ? null : getContinuationString(rawNext);
     final initialCount = result.length;
     var pages = 0;
@@ -427,9 +431,15 @@ mixin BrowsingMixin on YTClient {
         result.addAll(fresh);
         if (onBatch != null) onBatch(List.of(fresh));
       }
+      // Stop at the number of tracks YouTube says this playlist contains.
+      if (declared != null && result.length >= declared) break;
       final cont = more['continuation'];
       next = cont is String && cont.isNotEmpty ? cont : null;
       pages++;
+    }
+    // A continuation page can add up to 6 songs past the declared length.
+    if (declared != null && result.length > declared) {
+      result.removeRange(declared, result.length);
     }
     _playlistCache[key] = (
       items: List.of(result),
@@ -491,6 +501,58 @@ mixin BrowsingMixin on YTClient {
       'contents': shelf == null ? 0 : (nav(shelf, ['contents']) as List?)?.length ?? 0,
       'tokens': tokens.take(12).toList(),
     };
+  }
+
+  /// Song count YouTube itself declares in the playlist header, e.g.
+  /// "129 tracce" / "129 songs". Used as a stop condition: the continuation
+  /// token keeps going into unrelated recommended videos after the playlist
+  /// ends, which made the UI add hundreds of foreign tracks.
+  static int? declaredSongCount(Map response) {
+    final runs = nav(response, [
+      'contents',
+      'twoColumnBrowseResultsRenderer',
+      'tabs',
+      0,
+      'tabRenderer',
+      'content',
+      'sectionListRenderer',
+      'contents',
+      0,
+      'musicEditablePlaylistDetailHeaderRenderer',
+      'header',
+      'musicResponsiveHeaderRenderer',
+      'secondSubtitle',
+      'runs',
+    ]) ??
+        nav(response, [
+          'contents',
+          'singleColumnBrowseResultsRenderer',
+          'tabs',
+          0,
+          'tabRenderer',
+          'content',
+          'sectionListRenderer',
+          'contents',
+          0,
+          'musicDetailHeaderRenderer',
+          'secondSubtitle',
+          'runs',
+        ]);
+    final texts = <String>[];
+    if (runs is List) {
+      for (final run in runs) {
+        final text = run is Map ? run['text']?.toString() : null;
+        if (text != null && text.isNotEmpty) texts.add(text);
+      }
+    }
+    if (texts.isEmpty) return null;
+    final joined = texts.join(' ');
+    final match = RegExp(
+      r'(\d[\d.,\s]*)\s*(tracce|traccia|brani|canzoni|songs?|lieder|lied|pistes?|canciones?|canción|曲|首)',
+      caseSensitive: false,
+    ).firstMatch(joined);
+    if (match == null) return null;
+    return int.tryParse(match.group(1)!.replaceAll(RegExp(r'[.,\s]'), ''));
   }
 
   /// Keep the first occurrence of every video. Returns only the fresh items,

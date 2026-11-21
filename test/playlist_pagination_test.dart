@@ -63,6 +63,33 @@ class _FakeYt extends YTMusic {
     ];
     return {
       'contents': {
+        'twoColumnBrowseResultsRenderer': {
+          'tabs': [
+            {
+              'tabRenderer': {
+                'content': {
+                  'sectionListRenderer': {
+                    'contents': [
+                      {
+                        'musicEditablePlaylistDetailHeaderRenderer': {
+                          'header': {
+                            'musicResponsiveHeaderRenderer': {
+                              'secondSubtitle': {
+                                'runs': [
+                                  {'text': '102 tracce'}
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                  }
+                }
+              }
+            }
+          ]
+        },
         'singleColumnBrowseResultsRenderer': {
           'tabs': [
             {
@@ -99,6 +126,43 @@ void main() {
     for (final box in ['SETTINGS', 'COOKIES', 'ACCOUNT']) {
       if (!Hive.isBoxOpen(box)) await Hive.openBox(box);
     }
+  });
+
+  test('declared song count is parsed from localized headers', () {
+    Map header(String text) => {
+          'contents': {
+            'twoColumnBrowseResultsRenderer': {
+              'tabs': [
+                {
+                  'tabRenderer': {
+                    'content': {
+                      'sectionListRenderer': {
+                        'contents': [
+                          {
+                            'musicEditablePlaylistDetailHeaderRenderer': {
+                              'header': {
+                                'musicResponsiveHeaderRenderer': {
+                                  'secondSubtitle': {
+                                    'runs': [
+                                      {'text': text}
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        };
+    expect(BrowsingMixin.declaredSongCount(header('119 visualizzazioni  129 tracce')), 129);
+    expect(BrowsingMixin.declaredSongCount(header('1,234 songs')), 1234);
+    expect(BrowsingMixin.declaredSongCount(header('Nessun conteggio')), isNull);
   });
 
   test('reopening a playlist uses the session cache', () async {
