@@ -53,6 +53,11 @@ class MediaPlayer extends ChangeNotifier {
 
   bool autoFetching = false;
 
+  /// Monotonic generation for every user-initiated play request. A newer
+  /// request invalidates the older one at every await point, so two rapid
+  /// clicks can never interleave stop/load/play on the same AudioPlayer.
+  int _playGeneration = 0;
+
   MediaPlayer() {
     if (Platform.isAndroid) {
       _equalizer = AndroidEqualizer();
@@ -563,8 +568,9 @@ class MediaPlayer extends ChangeNotifier {
   Future<void> playSong(Map<String, dynamic> song) async {
     if (song['videoId'] == null) return;
 
-    // Generate a new request ID
-    final int requestId = DateTime.now().millisecondsSinceEpoch;
+    // Generate a new request ID (monotonic: two taps in the same millisecond
+  // used to get the same id and both continued playing).
+    final int requestId = ++_playGeneration;
     _lastPlayRequestId = requestId;
 
     // Capture what is currently playing for a possible crossfade handoff.
@@ -742,55 +748,80 @@ class MediaPlayer extends ChangeNotifier {
 
   Future<void> playAll(List songs, {int index = 0}) async {
     if (songs.isEmpty) return;
-
+    final generation = ++_playGeneration;
+    _lastPlayRequestId = generation;
+    playbackError.value = null;
     _buttonState.value = ButtonState.loading;
     notifyListeners();
 
     try {
       await _player.stop();
+      if (generation != _playGeneration) return;
+      // stop() does NOT clear a ConcatenatingAudioSource: without this the
+      // previous playlist's tracks remained appended after the new one.
+      await _player.clearAudioSources();
+      if (generation != _playGeneration) return;
 
-      // Play just the selected song immediately - no waiting
-      final selectedSong = Map<String, dynamic>.from(songs[index]);
-      final firstSource = await _getAudioSource(selectedSong);
-
-      await _player.setAudioSource(firstSource);
-      // Don't wait for load - just play immediately
-      _player.play(); // Don't await - let it start playing while we add more
-
-      // Add rest of playlist completely in background (fire and forget)
-      if (songs.length > 1) {
-        // Use unawaited to truly run in background
-        Future(() => _addRemainingToPlaylist(songs, index));
+      // Build the ENTIRE playlist queue in one pass, starting at the tapped
+      // track. YouTubeAudioSource is lazy, so this does not resolve any stream
+      // until a track actually plays - unlike the old incremental add loop
+      // which raced with play() and left a partial queue.
+      final sources = <AudioSource>[];
+      for (final song in songs) {
+        if (generation != _playGeneration) return;
+        sources.add(await _getAudioSource(Map<String, dynamic>.from(song)));
       }
-    } catch (e) {
-      print('Error in playAll: $e');
-      _buttonState.value = ButtonState.paused;
+      if (generation != _playGeneration || sources.isEmpty) return;
+
+      final start = index.clamp(0, sources.length - 1);
+      await _player.setAudioSources(sources, initialIndex: start);
+      if (generation != _playGeneration) return;
+
+      // Await play(): starting it while the previous load is still settling
+      // was a frequent cause of "button pressed but nothing happens".
+      await _player.play();
+      if (generation != _playGeneration) return;
+      _buttonState.value = ButtonState.playing;
       notifyListeners();
+      unawaited(reportIntegrationsNowPlaying());
+    } catch (e) {
+      if (generation == _playGeneration) {
+        debugPrint('Error in playAll: $e');
+        playbackError.value = 'Riproduzione non riuscita: $e';
+        _buttonState.value = ButtonState.paused;
+        notifyListeners();
+      }
     }
   }
 
   // Lazy loading: only add next few songs, not entire playlist
-  Future<void> _addRemainingToPlaylist(List songs, int playedIndex) async {
-    try {
-      // Only preload next 3 songs to avoid hammering YouTube API
-      final int maxPreload = 3;
-      int added = 0;
-
-      // Add songs after the played index (next songs first)
-      for (int i = playedIndex + 1;
-          i < songs.length && added < maxPreload;
-          i++) {
-        try {
-          final source =
-              await _getAudioSource(Map<String, dynamic>.from(songs[i]));
-          await _player.addAudioSource(source);
-          added++;
-        } catch (e) {
-          // Skip failed songs silently
-        }
+  Future<void> _addRemainingToPlaylist(
+    List songs,
+    int playedIndex, [
+    int? generation,
+  ]) async {
+    // The whole playlist becomes the queue, like Android. YouTubeAudioSource
+    // is lazy (it resolves the stream only when that track is played), so
+    // adding every track costs no extra network requests.
+    final maxPreload = songs.length;
+    var attempted = 0;
+    var added = 0;
+    for (var i = playedIndex + 1;
+        i < songs.length && attempted < maxPreload + 2;
+        i++) {
+      if (generation != null && generation != _playGeneration) return;
+      attempted++;
+      try {
+        final source =
+            await _getAudioSource(Map<String, dynamic>.from(songs[i]));
+        if (generation != null && generation != _playGeneration) return;
+        await _player.addAudioSource(source);
+        added++;
+        if (added >= maxPreload) break;
+      } catch (e) {
+        debugPrint('Could not preload track ${songs[i]['videoId']}: $e');
+        // Keep trying the following tracks.
       }
-    } catch (e) {
-      print('Error adding remaining songs: $e');
     }
   }
 

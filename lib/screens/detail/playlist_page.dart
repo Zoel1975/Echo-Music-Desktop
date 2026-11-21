@@ -21,6 +21,7 @@ class OnlinePlaylistPage extends StatefulWidget {
   static int? get songCount => _OnlinePlaylistPageState.lastSongCount;
   static int? get uniqueCount => _OnlinePlaylistPageState.lastUniqueCount;
   static bool? get isLoading => _OnlinePlaylistPageState.lastLoading;
+  static List<Map<String, dynamic>>? get songs => _OnlinePlaylistPageState.lastSongs;
 
   @override
   State<OnlinePlaylistPage> createState() => _OnlinePlaylistPageState();
@@ -31,6 +32,7 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
   static int? lastSongCount;
   static int? lastUniqueCount;
   static bool? lastLoading;
+  static List<Map<String, dynamic>>? lastSongs;
 
   final _mediaPlayer = GetIt.I<MediaPlayer>();
   final _ytMusic = GetIt.I<YTMusic>();
@@ -138,6 +140,7 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
     _OnlinePlaylistPageState.lastUniqueCount =
         _songs.map((s) => s['videoId']).toSet().length;
     _OnlinePlaylistPageState.lastLoading = _isLoading;
+    _OnlinePlaylistPageState.lastSongs = _songs;
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
@@ -171,11 +174,14 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
             Text(_error!, style: const TextStyle(color: Colors.red)),
           if (_isLoading && _songs.isEmpty)
             const Center(child: CircularProgressIndicator()),
-          for (final song in _songs)
-            _PlaylistRow(
-              song: song,
-              onRemove: () => _remove(song),
-            ),
+          ..._songs.asMap().entries.map(
+                (entry) => _PlaylistRow(
+                  song: entry.value,
+                  index: entry.key,
+                  songs: _songs,
+                  onRemove: () => _remove(entry.value),
+                ),
+              ),
         ],
       ),
     );
@@ -378,14 +384,20 @@ class _PlaylistHeader extends StatelessWidget {
 }
 
 class _PlaylistRow extends StatelessWidget {
-  const _PlaylistRow({required this.song, required this.onRemove});
+  const _PlaylistRow({
+    required this.song,
+    required this.index,
+    required this.songs,
+    required this.onRemove,
+  });
 
   final Map<String, dynamic> song;
+  final int index;
+  final List<Map<String, dynamic>> songs;
   final Future<void> Function() onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final mediaPlayer = GetIt.I<MediaPlayer>();
     final thumbnails = safeMapList(song['thumbnails']);
     return ListTile(
       leading: thumbnails.isEmpty
@@ -402,7 +414,9 @@ class _PlaylistRow extends StatelessWidget {
             ),
       title: Text(song['title'] as String? ?? '', maxLines: 1),
       subtitle: Text(song['subtitle'] as String? ?? '', maxLines: 1),
-      onTap: () => mediaPlayer.playSong(Map<String, dynamic>.from(song)),
+      // Android: tapping a track plays it with the whole playlist as its
+      // queue, starting at the tapped index - never a one-song queue.
+      onTap: () => GetIt.I<MediaPlayer>().playAll(songs, index: index),
       trailing: PopupMenuButton<String>(
         onSelected: (value) {
           if (value == 'remove') unawaited(onRemove());

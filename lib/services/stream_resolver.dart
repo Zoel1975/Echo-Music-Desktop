@@ -446,47 +446,63 @@ class StreamResolver {
     final visitorData = await _getVisitorData();
 
     final errors = <String>[];
-    for (final client in YtPlayerClient.fallbackOrder) {
-      try {
-        final music = client.name == 'WEB_REMIX';
-        final response = await _client
-            .post(
-              Uri.parse(music ? _musicPlayerUrl : _playerUrl),
-              headers: _headers(client, music: music),
-              body: jsonEncode(_body(
-                client,
-                videoId,
-                visitorData: music ? _signedInVisitor : visitorData,
-              )),
-            )
-            .timeout(const Duration(seconds: 20));
-        if (response.statusCode != 200) {
-          errors.add('${client.name}: HTTP ${response.statusCode}');
-          continue;
-        }
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        if (!_statusOk(data)) {
-          errors.add('${client.name}: ${data['playabilityStatus']?['reason']}');
-          continue;
-        }
-        final stream = pick(audioFormats(data), quality, client.name);
-        if (stream == null) {
-          errors.add('${client.name}: no direct audio format');
-          continue;
-        }
-        if (!await _validate(stream)) {
-          errors.add('${client.name}: stream URL rejected (403/429)');
-          continue;
-        }
-
-        final expires = _asNum(data['streamingData']?['expiresInSeconds']) == 0 ? 3600 : _asNum(data['streamingData']?['expiresInSeconds']).toInt();
-        final ttl = Duration(seconds: expires.clamp(300, 3600));
-        _loudness[videoId] = stream.loudnessDb;
-        _cache[key] = (stream: stream, expiry: DateTime.now().add(ttl));
-        return stream;
-      } catch (e) {
-        errors.add('${client.name}: $e');
+    // Transient 429/5xx/timeouts are common on mobile networks: retry the
+    // whole client chain once before giving up, so a single hiccup does not
+    // look like "the play button did nothing".
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
       }
+      final roundErrors = <String>[];
+      for (final client in YtPlayerClient.fallbackOrder) {
+        try {
+          final music = client.name == 'WEB_REMIX';
+          final response = await _client
+              .post(
+                Uri.parse(music ? _musicPlayerUrl : _playerUrl),
+                headers: _headers(client, music: music),
+                body: jsonEncode(_body(
+                  client,
+                  videoId,
+                  visitorData: music ? _signedInVisitor : visitorData,
+                )),
+              )
+              .timeout(const Duration(seconds: 20));
+          if (response.statusCode != 200) {
+            roundErrors.add('${client.name}: HTTP ${response.statusCode}');
+            continue;
+          }
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          if (!_statusOk(data)) {
+            roundErrors
+                .add('${client.name}: ${data['playabilityStatus']?['reason']}');
+            continue;
+          }
+          final stream = pick(audioFormats(data), quality, client.name);
+          if (stream == null) {
+            roundErrors.add('${client.name}: no direct audio format');
+            continue;
+          }
+          if (!await _validate(stream)) {
+            roundErrors.add('${client.name}: stream URL rejected (403/429)');
+            continue;
+          }
+
+          final expires =
+              _asNum(data['streamingData']?['expiresInSeconds']) == 0
+                  ? 3600
+                  : _asNum(data['streamingData']?['expiresInSeconds']).toInt();
+          final ttl = Duration(seconds: expires.clamp(300, 3600));
+          _loudness[videoId] = stream.loudnessDb;
+          _cache[key] = (stream: stream, expiry: DateTime.now().add(ttl));
+          return stream;
+        } catch (e) {
+          roundErrors.add('${client.name}: $e');
+        }
+      }
+      errors
+        ..clear()
+        ..addAll(roundErrors);
     }
     throw StreamResolutionException(
       'No playable audio stream for $videoId. ${errors.join(' | ')}',

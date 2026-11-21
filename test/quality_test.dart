@@ -110,6 +110,28 @@ void main() {
     expect(browsing, contains('belongsToPlaylist'),
         reason: 'foreign recommended videos must be rejected before parsing');
 
+    final page =
+        File('lib/screens/detail/playlist_page.dart').readAsStringSync();
+    expect(page, contains('playAll(songs, index: index)'),
+        reason: 'tapping a track must queue the whole playlist');
+    expect(page, isNot(contains('mediaPlayer.playSong')),
+        reason: 'playlist rows must not create a one-song queue');
+
+    final mp = File('lib/services/media_player.dart').readAsStringSync();
+    expect(mp, contains('Monotonic generation for every user-initiated play'));
+    expect(mp, contains('await _player.play();'),
+        reason: 'playAll must await play before touching the queue');
+    expect(mp, contains('generation != _playGeneration'),
+        reason: 'stale play requests must be discarded');
+    expect(mp, contains('setAudioSources(sources, initialIndex: start)'),
+        reason: 'the whole playlist must become the queue at the tapped index');
+    expect(mp, contains('await _player.clearAudioSources()'),
+        reason: 'old queue must be removed before starting a playlist');
+    final resolver =
+        File('lib/services/stream_resolver.dart').readAsStringSync();
+    expect(resolver, contains('for (var attempt = 0; attempt < 2; attempt++)'),
+        reason: 'transient resolution failures must be retried');
+
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));
     expect(mainSrc, contains('ErrorWidget.builder'));

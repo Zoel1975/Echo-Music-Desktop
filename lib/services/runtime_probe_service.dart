@@ -323,6 +323,45 @@ class RuntimeProbeService {
       _json(request.response, 200, {'opened': id});
       return;
     }
+    if (path == '/playlist/play-row' && request.method == 'POST') {
+      final index = int.tryParse(request.uri.queryParameters['index'] ?? '0') ?? 0;
+      final songs = OnlinePlaylistPage.songs;
+      if (songs == null || songs.isEmpty) {
+        _json(request.response, 200, {'error': 'no playlist open'});
+        return;
+      }
+      final next = index.clamp(0, songs.length - 1);
+      await GetIt.I<MediaPlayer>().playAll(songs, index: next);
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      _json(request.response, 200, {
+        'playlistSongs': songs.length,
+        'index': next,
+        'current': GetIt.I<MediaPlayer>().currentSongNotifier.value?.id,
+        'queue': GetIt.I<MediaPlayer>().songList.length,
+      });
+      return;
+    }
+    if (path == '/playlist/play-twice' && request.method == 'POST') {
+      final songs = OnlinePlaylistPage.songs;
+      if (songs == null || songs.isEmpty) {
+        _json(request.response, 200, {'error': 'no playlist open'});
+        return;
+      }
+      final mp = GetIt.I<MediaPlayer>();
+      await Future.wait([
+        mp.playAll(songs, index: 0),
+        mp.playAll(songs, index: 10),
+      ]);
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      _json(request.response, 200, {
+        'queue': mp.songList.length,
+        'current': mp.currentSongNotifier.value?.id,
+        'expected': songs[10]['videoId'],
+        'error': mp.playbackError.value,
+        'playing': mp.player.playing,
+      });
+      return;
+    }
     if (path == '/playlist/ui' && request.method == 'GET') {
       _json(request.response, 200, {
         'songs': OnlinePlaylistPage.songCount,
