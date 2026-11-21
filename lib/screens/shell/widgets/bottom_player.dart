@@ -3,6 +3,8 @@ import 'package:palette_generator/palette_generator.dart';
 
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:Echo/services/cast/cast_device.dart';
+import 'package:Echo/services/cast/cast_service.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/utils/adaptive_widgets/buttons.dart';
 import 'package:Echo/utils/adaptive_widgets/progress_ring.dart';
@@ -211,6 +213,21 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     ),
                                   );
                                 },
+                              ),
+                              ValueListenableBuilder<CastDevice?>(
+                                valueListenable:
+                                    GetIt.I<CastService>().connected,
+                                builder: (context, device, _) =>
+                                    AdaptiveIconButton(
+                                  onPressed: () => context.push('/cast'),
+                                  icon: Icon(
+                                    device == null ? Icons.cast : Icons.cast_connected,
+                                    size: 20,
+                                    color: device == null
+                                        ? Colors.white.withValues(alpha: 0.7)
+                                        : Colors.greenAccent,
+                                  ),
+                                ),
                               ),
                             ],
                           ),

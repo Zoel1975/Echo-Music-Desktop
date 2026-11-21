@@ -53,6 +53,7 @@ import 'package:Echo/screens/detail/artist_page.dart';
 import 'package:Echo/screens/detail/playlist_page.dart';
 import 'package:Echo/screens/account/account_page.dart';
 import 'package:Echo/screens/account/device_link_page.dart';
+import 'package:Echo/screens/connect/cast_page.dart';
 import 'package:Echo/screens/explore/explore_page.dart';
 import 'package:Echo/screens/login/login_page.dart';
 import 'package:Echo/screens/shell/app_shell.dart';
@@ -107,6 +108,10 @@ GoRouter router = GoRouter(
     GoRoute(
       path: '/device_link',
       builder: (context, state) => const DeviceLinkPage(),
+    ),
+    GoRoute(
+      path: '/cast',
+      builder: (context, state) => const CastPage(),
     ),
     // Real Podcasts home via YouTube Music's public podcasts browse endpoint.
     GoRoute(

@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 
 import 'generated/l10n.dart';
 import 'services/audio_fallback.dart';
+import 'services/cast/cast_service.dart';
 import 'services/download_manager.dart';
 import 'services/file_storage.dart';
 import 'services/storage_service.dart';
@@ -109,6 +110,8 @@ void main() async {
   GetIt.I.registerSingleton<ContentFilterService>(ContentFilterService());
   GetIt.I.registerSingleton<ExportTaskQueue>(ExportTaskQueue());
   GetIt.I.registerSingleton<AudioDeviceService>(AudioDeviceService());
+  // Google Cast device picker (Android: CastButton + CastConnectionHandler).
+  GetIt.I.registerSingleton<CastService>(CastService());
   GetIt.I.registerSingleton<ScrobbleService>(ScrobbleService());
   GetIt.I.registerSingleton<SongDnaService>(SongDnaService());
   GetIt.I.registerSingleton<CloudService>(CloudService());

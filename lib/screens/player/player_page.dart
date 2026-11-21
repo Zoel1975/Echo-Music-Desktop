@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:Echo/services/cast/cast_service.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -192,6 +193,19 @@ class _PlayerPageState extends State<PlayerPage> {
                                 ),
                                 Row(
                                   children: [
+                                    ValueListenableBuilder<bool>(
+                                      valueListenable:
+                                          GetIt.I<CastService>().client.playing,
+                                      builder: (context, casting, _) =>
+                                          AdaptiveIconButton(
+                                        onPressed: () => context.push('/cast'),
+                                        icon: Icon(Icons.cast,
+                                            color: casting
+                                                ? Colors.greenAccent
+                                                : Colors.white
+                                                    .withValues(alpha: 0.7)),
+                                      ),
+                                    ),
                                     AdaptiveIconButton(
                                       onPressed: () =>
                                           context.push('/canvas_ambient'),

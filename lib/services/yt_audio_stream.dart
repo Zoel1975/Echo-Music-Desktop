@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 
@@ -71,11 +72,77 @@ class YouTubeAudioSource extends StreamAudioSource {
 /// `http://127.0.0.1:<port>/audio?id=...&quality=...` with Range headers and
 /// this handler proxies the resolved googlevideo stream.
 Future<String> createAudioStreamServer() async {
-  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  // Bind all interfaces so a Cast receiver (TV/speaker) can fetch the audio
+  // too. The returned URL stays loopback for local playback; castCurrentSong()
+  // rewrites the host to the LAN address.
+  final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
   server.listen(handleAudioRequest);
-  final url = 'http://${server.address.host}:${server.port}/audio';
+  final url = 'http://127.0.0.1:${server.port}/audio';
   print('Generic streaming server started on $url. Use ?id=...&quality=... to stream.');
   return url;
+}
+
+/// IPv4 address of this machine that can actually reach [peerHost].
+///
+/// A desktop can have WSL/Hyper-V/Tailscale adapters with their own IPs. The
+/// first non-loopback address is often one of those virtual networks, which a
+/// Cast device cannot route to - pick the address in the peer's subnet first.
+Future<String> lanIp({String? peerHost}) async {
+  final candidates = <String>[];
+  try {
+    final interfaces = await NetworkInterface.list(
+      includeLoopback: false,
+      type: InternetAddressType.IPv4,
+    );
+    for (final nic in interfaces) {
+      for (final address in nic.addresses) {
+        if (!address.isLoopback) candidates.add(address.address);
+      }
+    }
+  } catch (_) {}
+  if (candidates.isEmpty) return '127.0.0.1';
+
+  return pickLanAddress(candidates, peerHost);
+}
+
+/// Pure: prefer the address in the receiver's subnet, then a real LAN address.
+String pickLanAddress(List<String> candidates, String? peerHost) {
+  bool sameSubnet(String a, String b) {
+    final x = a.split('.');
+    final y = b.split('.');
+    return x.length == 4 && y.length == 4 && x[0] == y[0] && x[1] == y[1];
+  }
+
+  if (peerHost != null) {
+    for (final ip in candidates) {
+      if (sameSubnet(ip, peerHost)) return ip;
+    }
+  }
+  for (final ip in candidates) {
+    if (ip.startsWith('192.168.') || ip.startsWith('10.')) return ip;
+  }
+  return candidates.first;
+}
+
+/// Pure: rewrite the relay URL so another device on the LAN can reach it.
+String audioUrlForHost(
+  String baseUrl,
+  String host,
+  String videoId, {
+  String quality = 'high',
+}) {
+  final uri = Uri.parse(baseUrl);
+  return uri
+      .replace(host: host, queryParameters: {'id': videoId, 'quality': quality})
+      .toString();
+}
+
+/// URL a Cast receiver can use to play [videoId] through Echo's relay.
+Future<String> lanAudioUrl(String videoId,
+    {String quality = 'high', String? peerHost}) async {
+  final base = GetIt.I<String>(instanceName: 'audioStreamUrl');
+  return audioUrlForHost(base, await lanIp(peerHost: peerHost), videoId,
+      quality: quality);
 }
 
 Future<void> handleAudioRequest(HttpRequest request) async {

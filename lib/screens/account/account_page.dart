@@ -76,10 +76,10 @@ class AccountPage extends StatelessWidget {
               onTap: () => context.go('/login'),
             ),
             ListTile(
-              leading: const Icon(Icons.link),
-              title: const Text('Link mobile device'),
-              subtitle: const Text('Pair like YouTube Music (LAN code)'),
-              onTap: () => context.go('/device_link'),
+              leading: const Icon(Icons.cast),
+              title: const Text('Riproduci su TV / speaker (Cast)'),
+              subtitle: const Text('Scegli dove riprodurre, come YouTube Music'),
+              onTap: () => context.go('/cast'),
             ),
             ListTile(
               leading: const Icon(Icons.close),

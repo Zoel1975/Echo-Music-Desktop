@@ -67,10 +67,10 @@ class SettingsPage extends StatelessWidget {
                     ),
                     SettingTile(
                       title: 'Linked devices',
-                      subtitle: 'YouTube Music playback-state link (see docs/DEVICE_LINK_PROTOCOL.md)',
-                      leading: const Icon(Icons.link),
+                      subtitle: 'Scegli TV o speaker dove riprodurre la musica (Cast)',
+                      leading: const Icon(Icons.cast),
                       isLast: true,
-                      onTap: () => context.go('/device_link'),
+                      onTap: () => context.go('/cast'),
                     ),
 
                     GroupTitle(title: "Smart features"),

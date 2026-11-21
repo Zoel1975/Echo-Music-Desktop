@@ -54,6 +54,7 @@ dependencies:
   device_info_plus: ^12.1.0
   flutter_expandable_fab: ^2.1.0
   flutter_lyric: ^2.0.4+6
+  multicast_dns: ^0.3.3+1
   media_kit_libs_windows_audio: any
   media_kit_libs_linux: any
   media_kit_libs_macos_audio: any

@@ -7,6 +7,9 @@ import 'package:hive/hive.dart';
 
 import 'account_refresh.dart';
 import 'audio_fallback.dart';
+import 'cast/cast_device.dart';
+import 'cast/cast_service.dart';
+import 'media_player.dart';
 import 'cookie_store.dart';
 import 'session_service.dart';
 import '../utils/router.dart' as app_router;
@@ -85,6 +88,85 @@ class RuntimeProbeService {
       }
       notifyAccountChanged();
       _json(request.response, 200, {'after': state()});
+      return;
+    }
+    if (path == '/play' && request.method == 'POST') {
+      final id = request.uri.queryParameters['id'] ?? 'dQw4w9WgXcQ';
+      await GetIt.I<MediaPlayer>().playSong({
+        'videoId': id,
+        'title': 'Probe Song',
+        'artists': [
+          {'name': 'Probe'}
+        ],
+        'duration': 210000,
+      });
+      _json(request.response, 200, {'playing': id});
+      return;
+    }
+    if (path == '/cast/state' && request.method == 'GET') {
+      final cast = GetIt.I<CastService>();
+      _json(request.response, 200, {
+        'devices': cast.devices.value
+            .map((d) => {
+                  'name': d.name,
+                  'host': d.host,
+                  'port': d.port,
+                  'kind': d.kind.label,
+                })
+            .toList(),
+        'connected': cast.connected.value?.name,
+        'status': cast.status.value,
+        'isConnected': cast.isCasting,
+        'transportId': cast.client.transportId,
+        'mediaSessionId': cast.client.mediaSessionId,
+      });
+      return;
+    }
+    if (path == '/cast/media' && request.method == 'GET') {
+      final cast = GetIt.I<CastService>();
+      final status = await cast.client.mediaStatus();
+      final media = status.isEmpty ? cast.client.lastMediaStatus.value : status;
+      final first = media['status'];
+      final item = first is List && first.isNotEmpty && first.first is Map
+          ? Map<String, dynamic>.from(first.first as Map)
+          : media;
+      _json(request.response, 200, {
+        'mediaSessionId': cast.client.mediaSessionId,
+        'playing': cast.client.playing.value,
+        'playerState': item['playerState'],
+        'contentId': item['media'] is Map ? item['media']['contentId'] : null,
+        'title': item['media'] is Map && item['media']['metadata'] is Map
+            ? item['media']['metadata']['title']
+            : null,
+        'status': media,
+      });
+      return;
+    }
+    if (path == '/cast/scan' && request.method == 'GET') {
+      final cast = GetIt.I<CastService>();
+      await cast.scan();
+      _json(request.response, 200, {
+        'devices': cast.devices.value
+            .map((d) => {'name': d.name, 'host': d.host, 'port': d.port})
+            .toList(),
+        'status': cast.status.value,
+      });
+      return;
+    }
+    if (path == '/cast/connect' && request.method == 'POST') {
+      final cast = GetIt.I<CastService>();
+      final host = request.uri.queryParameters['host'];
+      final matches =
+          cast.devices.value.where((d) => host == null || d.host == host).toList();
+      if (matches.isEmpty) {
+        _json(request.response, 404, {'error': 'device not found', 'host': host});
+        return;
+      }
+      await cast.connect(matches.first);
+      _json(request.response, 200, {
+        'connected': cast.connected.value?.name,
+        'status': cast.status.value,
+      });
       return;
     }
     if (path == '/goto' && request.method == 'POST') {
