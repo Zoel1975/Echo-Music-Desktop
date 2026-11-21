@@ -216,21 +216,43 @@ class RuntimeProbeService {
       final more = await yt.getMoreItems(continuation: cont);
       final raw = await yt.sendRequest('browse', {'browseId': 'FEmusic_home'},
           additionalParams: cont);
+      final sl = raw['continuationContents'] is Map
+          ? raw['continuationContents']['sectionListContinuation']
+          : null;
+      final slContents = sl is Map ? sl['contents'] as List? : null;
       _json(request.response, 200, {
         'tokenLength': token.toString().length,
         'items': (more['items'] as List?)?.length ?? 0,
-        'moreContinuation': more['continuation'],
+        'moreContinuation': more['continuation'] != null,
         'rawKeys': raw.keys.toList(),
         'continuationKeys': raw['continuationContents'] is Map
             ? (raw['continuationContents'] as Map).keys.toList()
             : const [],
+        'sectionContents': slContents?.length ?? 0,
+        'renderers': slContents
+            ?.map((c) => c is Map ? c.keys.toList() : const [])
+            .toList(),
+        'shelfLens': slContents
+            ?.map((c) => (c is Map
+                    ? nav(c, ['musicPlaylistShelfRenderer', 'contents']) as List?
+                    : null)
+                ?.length)
+            .toList(),
       });
       return;
     }
     if (path == '/playlist/count' && request.method == 'GET') {
       final id = request.uri.queryParameters['id'] ?? '';
-      final songs = await GetIt.I<YTMusic>().getPlaylistSongs(id);
-      _json(request.response, 200, {'id': id, 'count': songs.length});
+      final force = request.uri.queryParameters['force'] == '1';
+      final sw = Stopwatch()..start();
+      final songs =
+          await GetIt.I<YTMusic>().getPlaylistSongs(id, force: force);
+      _json(request.response, 200, {
+        'id': id,
+        'count': songs.length,
+        'ms': sw.elapsedMilliseconds,
+        'forced': force,
+      });
       return;
     }
     if (path == '/home/state' && request.method == 'GET') {

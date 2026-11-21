@@ -10,6 +10,7 @@ import 'package:Echo/services/cookie_store.dart';
 import 'package:Echo/services/google_login_service.dart';
 import 'package:Echo/services/stream_resolver.dart';
 import 'package:Echo/ytmusic/modals/yt_config.dart';
+import 'package:Echo/ytmusic/mixins/browsing.dart';
 import 'package:Echo/ytmusic/ytmusic.dart';
 
 /// Google sign-in for YouTube Music on desktop. Opens the system browser with
@@ -115,6 +116,7 @@ class _LoginPageState extends State<LoginPage> {
     // 1. Account id first: `user.onBehalfOfUser` is required by the library
     //    endpoints and by `account/account_menu`.
     await CookieStore.instance.saveDataSyncId(session?.dataSyncId);
+    BrowsingMixin.clearPlaylistCache();
 
     // 2. Account-bound visitor id (Android stores `VISITOR_DATA` too).
     final settings = Hive.box('SETTINGS');

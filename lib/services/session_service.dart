@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 import 'account_refresh.dart';
 import 'cookie_store.dart';
 import 'google_login_service.dart';
+import '../ytmusic/mixins/browsing.dart';
 import '../ytmusic/ytmusic.dart';
 
 /// Desktop port of Android's `App.forgetAccount()`.
@@ -40,6 +41,7 @@ class SessionService {
       await Hive.box('SETTINGS').delete('VISITOR_ID');
     }
     await CookieStore.instance.saveDataSyncId(null);
+    BrowsingMixin.clearPlaylistCache();
     try {
       await _refreshClient();
     } catch (_) {

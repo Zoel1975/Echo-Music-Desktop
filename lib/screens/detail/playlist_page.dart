@@ -54,7 +54,16 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
         });
       }
 
-      final songs = await _ytMusic.getPlaylistSongs(widget.playlistId);
+      // Show the first batch (100 songs) immediately; the remaining 7-song
+      // continuation pages are appended as they arrive.
+      final raw = <dynamic>[];
+      final songs = await _ytMusic.getPlaylistSongs(
+        widget.playlistId,
+        onBatch: (batch) {
+          raw.addAll(batch);
+          if (mounted) setState(() => _songs = toPlaySongs(raw));
+        },
+      );
       if (mounted) {
         setState(() {
           _songs = toPlaySongs(songs);
@@ -143,6 +152,8 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
             onPlay: () => _play(),
             onShuffle: () => _play(shuffle: true),
           ),
+          if (_isLoading && _songs.isNotEmpty)
+            const LinearProgressIndicator(minHeight: 2),
           if (_error != null)
             Text(_error!, style: const TextStyle(color: Colors.red)),
           if (_isLoading && _songs.isEmpty)

@@ -93,6 +93,10 @@ void main() {
         reason: 'real playlist continuations arrive as sectionListContinuation');
     expect(browsing, contains('getContinuationString(rawNext)'),
         reason: 'bare tokens are ignored by YouTube');
+    expect(browsing, contains('_playlistCache'),
+        reason: 'big playlists must be cached between opens');
+    expect(browsing, contains('onBatch'),
+        reason: 'first batch must render before all continuations finish');
 
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));

@@ -100,6 +100,16 @@ void main() {
     }
   });
 
+  test('reopening a playlist uses the session cache', () async {
+    BrowsingMixin.clearPlaylistCache();
+    final yt = _FakeYt();
+    await yt.getPlaylistSongs('PLCACHE');
+    final calls = yt.calls;
+    final again = await yt.getPlaylistSongs('PLCACHE');
+    expect(again, hasLength(102));
+    expect(yt.calls, calls, reason: 'cached playlist must not hit the network');
+  });
+
   test('getMoreItems understands sectionListContinuation (real playlists)',
       () async {
     final yt = _FakeYt();

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'package:Echo/ytmusic/client.dart';
+import 'package:Echo/services/cookie_store.dart';
 
 import '../helpers.dart';
 import 'utils.dart';
@@ -335,7 +336,27 @@ mixin BrowsingMixin on YTClient {
   /// YouTube returns at most ~100 items per browse page. Android calls
   /// `YouTube.library(...).completed()`, which follows those tokens; without
   /// the loop the desktop UI silently stopped at 100 tracks.
-  Future<List> getPlaylistSongs(String playlistId, {int maxPages = 100}) async {
+  /// Songs already fetched in this session, keyed by playlist + account.
+  /// Big playlists need ~100 continuation requests; without a cache reopening
+  /// them was painfully slow.
+  static final Map<String, ({List items, DateTime expiry})> _playlistCache = {};
+
+  static void clearPlaylistCache() => _playlistCache.clear();
+
+  Future<List> getPlaylistSongs(
+    String playlistId, {
+    int maxPages = 100,
+    bool force = false,
+    /// Called with every batch as soon as it arrives, so the UI can show the
+    /// first 100 songs immediately instead of waiting for all continuations.
+    void Function(List batch)? onBatch,
+  }) async {
+    final key = '$playlistId:${CookieStore.instance.dataSyncId ?? ''}';
+    final cached = _playlistCache[key];
+    if (!force && cached != null && DateTime.now().isBefore(cached.expiry)) {
+      if (onBatch != null) onBatch(List.of(cached.items));
+      return List.of(cached.items);
+    }
     Map<String, dynamic> body = {
       "browseId": playlistId.startsWith('VL') ? playlistId : 'VL$playlistId'
     };
@@ -365,6 +386,7 @@ mixin BrowsingMixin on YTClient {
 
     List contents = nav(shelf, ['contents']) ?? const [];
     final result = handleContents(contents);
+    if (onBatch != null) onBatch(List.of(result));
 
     // YouTube puts the continuation on `sectionListRenderer`, NOT on the
     // `musicPlaylistShelfRenderer` itself. Looking only at the shelf made
@@ -396,10 +418,15 @@ mixin BrowsingMixin on YTClient {
       final items = more['items'] as List? ?? const [];
       if (items.isEmpty) break;
       result.addAll(items);
+      if (onBatch != null) onBatch(List.of(items));
       final cont = more['continuation'];
       next = cont is String && cont.isNotEmpty ? cont : null;
       pages++;
     }
+    _playlistCache[key] = (
+      items: List.of(result),
+      expiry: DateTime.now().add(const Duration(minutes: 10)),
+    );
     if (kDebugMode && pages > 0) {
       debugPrint('[playlist] ${playlistId}: $initialCount + $pages pages = ${result.length}');
     }
