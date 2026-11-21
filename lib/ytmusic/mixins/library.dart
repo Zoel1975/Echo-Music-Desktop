@@ -168,6 +168,42 @@ mixin LibraryMixin on YTClient {
     };
   }
 
+  /// Podcast episodes shown in Android's `LibraryFilter.PODCASTS` tab.
+  Future<Map> getLibraryPodcasts({String? continuationParams}) async {
+    final response = await sendRequest('browse',
+        {'browseId': continuationParams == null ? 'FEmusic_podcasts' : 'FEmusic_home'},
+        additionalParams: continuationParams ?? '');
+    Map? shelf = nav(response, [
+          'contents',
+          'singleColumnBrowseResultsRenderer',
+          'tabs',
+          0,
+          'tabRenderer',
+          'content',
+          'sectionListRenderer',
+          'contents',
+          0,
+          'musicShelfRenderer',
+        ]) ??
+        nav(response, [
+          'contents',
+          'singleColumnBrowseResultsRenderer',
+          'tabs',
+          0,
+          'tabRenderer',
+          'content',
+          'sectionListRenderer',
+          'contents',
+          0,
+          'gridRenderer',
+        ]);
+    final raw = nav(shelf, ['items']) ?? nav(shelf, ['contents']) ?? const [];
+    return {
+      'contents': handleContents(raw),
+      'continuation': null,
+    };
+  }
+
   Future<Map> getLibrarySubscriptions({String? continuationParams}) async {
     Map<String, dynamic> body = {'browseId': 'FEmusic_library_corpus_artists'};
     final response = await sendRequest('browse', body,

@@ -70,7 +70,6 @@ void main() {
     // Real, reachable features.
     for (final label in [
       'Account',
-      'Linked devices',
       'AI lyrics & translation',
       'Listening Summary',
       'Echo Wrapped',

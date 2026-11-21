@@ -152,6 +152,10 @@ void main() {
         File('docs/ui_parity_contact_sheet.png').existsSync(),
         isTrue,
         reason: 'runtime screenshots for the audited interfaces are required');
+    expect(
+        File('docs/ui_parity_final_contact_sheet.png').existsSync(),
+        isTrue,
+        reason: 'screenshots for the final 5-tab/6-filter/Cast split are required');
     final settingsSrc =
         File('lib/screens/settings/settings_page.dart').readAsStringSync();
     expect(settingsSrc, contains("title: 'AI lyrics & translation'"));
@@ -160,6 +164,26 @@ void main() {
     expect(player, contains('TextScrollMode.bouncing'));
     expect(player, contains('height: 38'),
         reason: 'marquee must not overlap artwork/lyrics');
+
+    final navShell = File('lib/screens/shell/app_shell.dart').readAsStringSync();
+    expect(navShell, contains("label: 'Esplora'"),
+        reason: 'Explore must be a fifth floating-nav destination');
+    expect(navShell, contains('clamp(0, 4)'));
+
+    final library =
+        File('lib/screens/library/ytm_library_page.dart').readAsStringSync();
+    for (final label in ['Playlist', 'Brani', 'Album', 'Artisti', 'Podcast', 'Local']) {
+      expect(library, contains("'$label'"), reason: 'library filter missing: $label');
+    }
+    final castPage = File('lib/screens/connect/cast_page.dart').readAsStringSync();
+    final castSession =
+        File('lib/screens/connect/cast_session_page.dart').readAsStringSync();
+    expect(castPage, contains("context.push('/cast/session')"));
+    expect(castSession, contains('CastSessionPage'));
+    final castRouter = File('lib/utils/router.dart').readAsStringSync();
+    expect(castRouter, contains("path: 'session'"));
+    expect(settingsSrc, isNot(contains("title: 'Linked devices'")),
+        reason: 'extra desktop-only settings entry must be removed');
 
     final thumb = File('lib/utils/song_thumbnail.dart').readAsStringSync();
     expect(thumb, contains("thumbnails.first['url']"),

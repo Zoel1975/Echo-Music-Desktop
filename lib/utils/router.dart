@@ -57,6 +57,7 @@ import 'package:Echo/screens/account/account_page.dart';
 import 'package:Echo/screens/account/device_link_page.dart';
 import 'package:Echo/utils/page_transitions.dart';
 import 'package:Echo/screens/connect/cast_page.dart';
+import 'package:Echo/screens/connect/cast_session_page.dart';
 import 'package:Echo/screens/explore/explore_page.dart';
 import 'package:Echo/screens/login/login_page.dart';
 import 'package:Echo/screens/shell/app_shell.dart';
@@ -212,21 +213,6 @@ List<StatefulShellBranch> branches = [
           ),
         ),
       ),
-      GoRoute(
-        path: '/explore',
-        pageBuilder: (context, state) =>
-            _softPage(state, const ExplorePage()),
-      ),
-      GoRoute(
-        path: '/new_releases',
-        pageBuilder: (context, state) => _softPage(
-          state,
-          const ChipPage(
-            title: 'New releases',
-            endpoint: {'browseId': 'FEmusic_new_releases_albums'},
-          ),
-        ),
-      ),
     ],
   ),
   StatefulShellBranch(
@@ -244,6 +230,28 @@ List<StatefulShellBranch> branches = [
           GoRoute(
             path: 'local',
             builder: (context, state) => const LocalSearchPage(),
+          ),
+        ],
+      ),
+    ],
+  ),
+  // Android's fifth navigation tab.
+  StatefulShellBranch(
+    routes: [
+      GoRoute(
+        path: '/explore',
+        pageBuilder: (context, state) =>
+            _softPage(state, const ExplorePage()),
+        routes: [
+          GoRoute(
+            path: 'new_releases',
+            pageBuilder: (context, state) => _softPage(
+              state,
+              const ChipPage(
+                title: 'New releases',
+                endpoint: {'browseId': 'FEmusic_new_releases_albums'},
+              ),
+            ),
           ),
         ],
       ),
@@ -455,6 +463,13 @@ List<StatefulShellBranch> branches = [
       GoRoute(
         path: '/cast',
         pageBuilder: (context, state) => _softPage(state, const CastPage()),
+        routes: [
+          GoRoute(
+            path: 'session',
+            pageBuilder: (context, state) =>
+                _softPage(state, const CastSessionPage()),
+          ),
+        ],
       ),
   ]),
   ];

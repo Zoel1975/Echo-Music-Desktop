@@ -57,24 +57,29 @@ class _AppShellState extends State<AppShell> {
           onTap: () => _goBranch(1),
         ),
         EchoNavDestination(
+          label: 'Esplora',
+          icon: Icons.explore_outlined,
+          selectedIcon: Icons.explore,
+          onTap: () => _goBranch(2),
+        ),
+        EchoNavDestination(
           label: S.of(context).Saved,
           icon: Icons.library_music_outlined,
           selectedIcon: Icons.library_music,
-          onTap: () => _goBranch(2),
+          onTap: () => _goBranch(3),
         ),
         EchoNavDestination(
           label: S.of(context).Settings,
           icon: CupertinoIcons.gear_alt,
           selectedIcon: CupertinoIcons.gear_alt_fill,
-          onTap: () => _goBranch(3),
+          onTap: () => _goBranch(4),
         ),
       ];
 
   @override
   Widget build(BuildContext context) {
-    // Detail/account/login/explore are also shell branches; clamp so the
-    // floating bar never points past its four visible destinations.
-    final shellIndex = widget.navigationShell.currentIndex.clamp(0, 3);
+    // Same five destinations as Android: Home, Search, Explore, Library, Account.
+    final shellIndex = widget.navigationShell.currentIndex.clamp(0, 4);
     _AppShellState.lastBranchIndex = widget.navigationShell.currentIndex;
     return Scaffold(
       backgroundColor: Colors.transparent,

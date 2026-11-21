@@ -62,14 +62,8 @@ class SettingsPage extends StatelessWidget {
                       }(),
                       leading: const Icon(Icons.account_circle_outlined),
                       isFirst: true,
-                      onTap: () => context.go('/account'),
-                    ),
-                    SettingTile(
-                      title: 'Linked devices',
-                      subtitle: 'Scegli TV o speaker dove riprodurre la musica (Cast)',
-                      leading: const Icon(Icons.cast),
                       isLast: true,
-                      onTap: () => context.go('/cast'),
+                      onTap: () => context.go('/account'),
                     ),
 
                     GroupTitle(title: "Smart features"),

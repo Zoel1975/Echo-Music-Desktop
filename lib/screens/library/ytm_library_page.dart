@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../services/account_refresh.dart';
 import '../../services/cookie_store.dart';
@@ -25,7 +26,15 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
   final _errors = <int, String>{};
   bool _loading = false;
 
-  static const _labels = ['Playlist', 'Brani', 'Album', 'Artisti'];
+  // Android LibraryScreen: 6 filters in this exact order.
+  static const _labels = [
+    'Playlist',
+    'Brani',
+    'Album',
+    'Artisti',
+    'Podcast',
+    'Local',
+  ];
 
   @override
   void initState() {
@@ -57,9 +66,20 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
   }
 
   Future<void> _load(int index, {bool force = false}) async {
+    if (!force && _cache.containsKey(index)) return;
+    // The Local filter reads local Hive data and works without a login.
+    if (index == 5) {
+      final local = <dynamic>[];
+      for (final boxName in ['FAVOURITES', 'SONG_HISTORY']) {
+        if (Hive.isBoxOpen(boxName)) {
+          local.addAll(Hive.box(boxName).values.whereType<Map>());
+        }
+      }
+      if (mounted) setState(() => _cache[index] = local);
+      return;
+    }
     // Never hit the network while logged out (avoids hangs and empty errors).
     if (CookieStore.instance.cookieHeader == null) return;
-    if (!force && _cache.containsKey(index)) return;
     setState(() {
       _loading = true;
       if (force) _errors.remove(index);
@@ -69,7 +89,8 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
         0 => await _yt.getLibraryPlaylists(),
         1 => await _yt.getLibrarySongs(),
         2 => await _yt.getLibraryAlbums(),
-        _ => await _yt.getLibraryArtists(),
+        3 => await _yt.getLibraryArtists(),
+        _ => await _yt.getLibraryPodcasts(),
       };
       final contents = (res['contents'] as List?) ?? const [];
       if (mounted) setState(() {
