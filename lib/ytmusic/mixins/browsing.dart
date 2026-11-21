@@ -385,8 +385,13 @@ mixin BrowsingMixin on YTClient {
         ]);
 
     List contents = nav(shelf, ['contents']) ?? const [];
-    final result = handleContents(contents);
-    if (onBatch != null) onBatch(List.of(result));
+    // Continuation pages repeat songs already present in an earlier page.
+    // Without deduplication a 777-song playlist showed 800 rows.
+    final seen = <String>{};
+    final result = <dynamic>[];
+    final firstBatch = _newSongs(handleContents(contents), seen);
+    result.addAll(firstBatch);
+    if (onBatch != null) onBatch(List.of(firstBatch));
 
     // YouTube puts the continuation on `sectionListRenderer`, NOT on the
     // `musicPlaylistShelfRenderer` itself. Looking only at the shelf made
@@ -417,8 +422,11 @@ mixin BrowsingMixin on YTClient {
       final more = await getMoreItems(continuation: next);
       final items = more['items'] as List? ?? const [];
       if (items.isEmpty) break;
-      result.addAll(items);
-      if (onBatch != null) onBatch(List.of(items));
+      final fresh = _newSongs(items, seen);
+      if (fresh.isNotEmpty) {
+        result.addAll(fresh);
+        if (onBatch != null) onBatch(List.of(fresh));
+      }
       final cont = more['continuation'];
       next = cont is String && cont.isNotEmpty ? cont : null;
       pages++;
@@ -483,6 +491,27 @@ mixin BrowsingMixin on YTClient {
       'contents': shelf == null ? 0 : (nav(shelf, ['contents']) as List?)?.length ?? 0,
       'tokens': tokens.take(12).toList(),
     };
+  }
+
+  /// Keep the first occurrence of every video. Returns only the fresh items,
+  /// so the UI never renders the same track twice while pages arrive.
+  static List _newSongs(List items, Set<String> seen) {
+    final out = <dynamic>[];
+    for (final item in items) {
+      String key;
+      if (item is Map) {
+        final videoId = item['videoId']?.toString() ?? '';
+        final setId = item['setVideoId']?.toString() ?? '';
+        // The same video can reappear with a different setVideoId; the user
+        // still sees it as one song, so dedupe on videoId first.
+        key = videoId.isNotEmpty ? 'v:$videoId' : 's:$setId';
+      } else {
+        key = 'o:$item';
+      }
+      if (key == 'v:' || key == 's:' || !seen.add(key)) continue;
+      out.add(item);
+    }
+    return out;
   }
 
   /// Continuation token can be in the old or the new InnerTube shape.

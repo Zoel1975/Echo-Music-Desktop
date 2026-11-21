@@ -14,6 +14,7 @@ import 'media_player.dart';
 import '../screens/home/cubit/home_cubit.dart';
 import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
+import '../screens/detail/playlist_page.dart';
 import '../ytmusic/helpers.dart';
 import '../ytmusic/mixins/browsing.dart';
 import '../ytmusic/ytmusic.dart';
@@ -238,6 +239,21 @@ class RuntimeProbeService {
                     : null)
                 ?.length)
             .toList(),
+      });
+      return;
+    }
+    if (path == '/playlist/view' && request.method == 'POST') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      app_router.router.push('/playlist', extra: {'playlistId': id});
+      _json(request.response, 200, {'opened': id});
+      return;
+    }
+    if (path == '/playlist/ui' && request.method == 'GET') {
+      _json(request.response, 200, {
+        'songs': OnlinePlaylistPage.songCount,
+        'unique': OnlinePlaylistPage.uniqueCount,
+        'loading': OnlinePlaylistPage.isLoading,
+        'queue': GetIt.I<MediaPlayer>().songList.length,
       });
       return;
     }

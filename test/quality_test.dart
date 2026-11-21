@@ -97,6 +97,8 @@ void main() {
         reason: 'big playlists must be cached between opens');
     expect(browsing, contains('onBatch'),
         reason: 'first batch must render before all continuations finish');
+    expect(browsing, contains('_newSongs'),
+        reason: 'continuation pages repeat songs and must be deduplicated');
 
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));

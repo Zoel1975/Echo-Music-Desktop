@@ -18,11 +18,20 @@ class OnlinePlaylistPage extends StatefulWidget {
 
   final String playlistId;
 
+  static int? get songCount => _OnlinePlaylistPageState.lastSongCount;
+  static int? get uniqueCount => _OnlinePlaylistPageState.lastUniqueCount;
+  static bool? get isLoading => _OnlinePlaylistPageState.lastLoading;
+
   @override
   State<OnlinePlaylistPage> createState() => _OnlinePlaylistPageState();
 }
 
 class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
+  /// Live diagnostics for the runtime probe.
+  static int? lastSongCount;
+  static int? lastUniqueCount;
+  static bool? lastLoading;
+
   final _mediaPlayer = GetIt.I<MediaPlayer>();
   final _ytMusic = GetIt.I<YTMusic>();
 
@@ -125,6 +134,10 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
 
   @override
   Widget build(BuildContext context) {
+    _OnlinePlaylistPageState.lastSongCount = _songs.length;
+    _OnlinePlaylistPageState.lastUniqueCount =
+        _songs.map((s) => s['videoId']).toSet().length;
+    _OnlinePlaylistPageState.lastLoading = _isLoading;
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),

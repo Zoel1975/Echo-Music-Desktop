@@ -24,7 +24,8 @@ class _FakeYt extends YTMusic {
               {
                 'musicPlaylistShelfRenderer': {
                   'contents': [
-                    for (final id in ['last1', 'last2'])
+                    // YouTube repeats a song from page 1: must be ignored.
+                    for (final id in ['v0', 'last1', 'last2'])
                       {
                         'playlistPanelVideoRenderer': {
                           'videoId': id,
