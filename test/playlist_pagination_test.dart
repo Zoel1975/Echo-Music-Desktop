@@ -16,14 +16,12 @@ class _FakeYt extends YTMusic {
   Future<Map> sendRequest(String endpoint, Map<String, dynamic> body,
       {Map<String, String>? headers, String additionalParams = ''}) async {
     calls++;
-    if (additionalParams.contains('TOKEN2')) {
+    if ((body['continuation'] ?? additionalParams).toString().contains('TOKEN2')) {
       return {
-        'continuationContents': {
-          'sectionListContinuation': {
-            'contents': [
-              {
-                'musicPlaylistShelfRenderer': {
-                  'contents': [
+        'onResponseReceivedActions': [
+          {
+            'appendContinuationItemsAction': {
+              'continuationItems': [
                     // YouTube repeats a song from page 1: must be ignored.
                     for (final id in ['v0', 'last1', 'last2'])
                       {
@@ -56,13 +54,11 @@ class _FakeYt extends YTMusic {
                         },
                       }
                     }
-                  ],
-                }
-              }
-            ],
-          }
-        }
-      };
+                ],
+              },
+            },
+          ],
+        };
     }
     final firstPage = [
       for (var i = 0; i < 100; i++)
@@ -114,14 +110,24 @@ class _FakeYt extends YTMusic {
               'tabRenderer': {
                 'content': {
                   'sectionListRenderer': {
-                    // Real YouTube places the token here, not on the shelf.
+                    // Android calls this the "related videos" continuation.
+                    // It must NOT be used to fetch playlist songs.
                     'continuations': [
-                      {'nextContinuationData': {'continuation': 'TOKEN2'}}
+                      {'nextContinuationData': {'continuation': 'RELATED'}}
                     ],
                     'contents': [
                       {
                         'musicPlaylistShelfRenderer': {
-                          'contents': firstPage,
+                          'contents': [
+                            ...firstPage,
+                            {
+                              'continuationItemRenderer': {
+                                'continuationEndpoint': {
+                                  'continuationCommand': {'token': 'TOKEN2'}
+                                }
+                              }
+                            }
+                          ],
                         }
                       }
                     ],

@@ -178,6 +178,31 @@ class RuntimeProbeService {
           await GetIt.I<YTMusic>().sendRequest('browse', {'browseId': browseId});
       final debug = BrowsingMixin.playlistDebugInfoFrom(response);
       debug['id'] = browseId;
+      final tailItems = nav(response, [
+            'contents',
+            'twoColumnBrowseResultsRenderer',
+            'secondaryContents',
+            'sectionListRenderer',
+            'contents',
+            0,
+            'musicPlaylistShelfRenderer',
+            'contents',
+          ]) as List?;
+      if (tailItems != null && tailItems.isNotEmpty) {
+        final last = tailItems.last;
+        debug['shelfLastKeys'] = last is Map ? last.keys.toList() : const [];
+        debug['shelfLastType'] = last is Map && last.containsKey('continuationItemRenderer')
+            ? 'continuationItemRenderer'
+            : 'song';
+        debug['shelfLastContinuation'] = last is Map
+            ? nav(last, [
+                'continuationItemRenderer',
+                'continuationEndpoint',
+                'continuationCommand',
+                'token'
+              ])
+            : null;
+      }
       final detailHeader = nav(response, [
         'contents',
         'twoColumnBrowseResultsRenderer',
@@ -307,15 +332,83 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/playlist/continue-shelf' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final browseId = id.startsWith('VL') ? id : 'VL$id';
+      final yt = GetIt.I<YTMusic>();
+      final first = await yt.sendRequest('browse', {'browseId': browseId});
+      final shelf = nav(first, [
+            'contents',
+            'twoColumnBrowseResultsRenderer',
+            'secondaryContents',
+            'sectionListRenderer',
+            'contents',
+            0,
+            'musicPlaylistShelfRenderer',
+          ]) as Map?;
+      final token = BrowsingMixin.songsContinuation(shelf);
+      if (token == null) {
+        _json(request.response, 200, {'error': 'no shelf token'});
+        return;
+      }
+      final cont = '&ctoken=$token&continuation=$token';
+      final more = await yt.getMoreItems(continuation: cont);
+      final raw = await yt.sendRequest('browse', {'browseId': 'FEmusic_home'},
+          additionalParams: cont);
+      final containers = raw['continuationContents'];
+      _json(request.response, 200, {
+        'tokenLength': token.length,
+        'items': (more['items'] as List?)?.length ?? 0,
+        'continuation': more['continuation'] != null,
+        'rawKeys': raw.keys.toList(),
+        'containerKeys': containers is Map ? containers.keys.toList() : const [],
+        'preview': jsonEncode(raw['onResponseReceivedActions'] ?? containers)
+            .substring(
+                0,
+                jsonEncode(raw['onResponseReceivedActions'] ?? containers)
+                    .length
+                    .clamp(0, 1800)),
+      });
+      return;
+    }
     if (path == '/playlist/count' && request.method == 'GET') {
       final id = request.uri.queryParameters['id'] ?? '';
       final force = request.uri.queryParameters['force'] == '1';
       final sw = Stopwatch()..start();
       final songs =
           await GetIt.I<YTMusic>().getPlaylistSongs(id, force: force);
+      final expected = id.startsWith('VL') ? id.substring(2) : id;
+      var foreign = 0;
+      var withId = 0;
+      for (final song in songs) {
+        if (song is! Map) continue;
+        final raw = nav(song, [
+              'navigationEndpoint',
+              'watchEndpoint',
+              'playlistId',
+            ]) ??
+            nav(song, [
+              'overlay',
+              'musicItemThumbnailOverlayRenderer',
+              'content',
+              'musicPlayButtonRenderer',
+              'playNavigationEndpoint',
+              'watchEndpoint',
+              'playlistId',
+            ]) ??
+            song['playlistId'];
+        if (raw == null || raw.toString().isEmpty) continue;
+        withId++;
+        final p = raw.toString();
+        final normalized = p.startsWith('VL') ? p.substring(2) : p;
+        if (normalized != expected) foreign++;
+      }
       _json(request.response, 200, {
         'id': id,
         'count': songs.length,
+        'withPlaylistId': withId,
+        'foreign': foreign,
+        'filteredForeignRaw': BrowsingMixin.lastFilteredForeign,
         'ms': sw.elapsedMilliseconds,
         'forced': force,
       });

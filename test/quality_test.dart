@@ -103,6 +103,12 @@ void main() {
         reason: 'must stop at the song count declared by YouTube');
     expect(browsing, contains('removeRange(declared, result.length)'),
         reason: 'the last continuation page can overshoot the declared count');
+    expect(browsing, contains("sendRequest('browse', {'continuation': token})"),
+        reason: 'Android sends the continuation in the POST body, not the URL');
+    expect(browsing, contains('appendContinuationItemsAction'),
+        reason: 'playlist shelf continuations use onResponseReceivedActions');
+    expect(browsing, contains('belongsToPlaylist'),
+        reason: 'foreign recommended videos must be rejected before parsing');
 
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));

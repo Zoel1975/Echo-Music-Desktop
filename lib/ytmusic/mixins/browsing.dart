@@ -180,38 +180,75 @@ mixin BrowsingMixin on YTClient {
     return result;
   }
 
-  Future<Map<String, dynamic>> getMoreItems({continuation = ''}) async {
-    final response = await sendRequest('browse', {'browseId': 'FEmusic_home'},
-        additionalParams: continuation);
+  /// Android `InnerTube.browse(continuation = token)`: the token goes in the
+  /// POST body. The old desktop code put it in the query string, which only
+  /// worked for the "related" token and silently returned nothing for the
+  /// real playlist-songs token.
+  Future<Map<String, dynamic>> getMoreItems({
+    continuation = '',
+    String? expectedPlaylistId,
+  }) async {
+    String? token;
+    if (continuation.startsWith('&')) {
+      final params = Uri.splitQueryString(continuation.substring(1));
+      token = params['ctoken'] ?? params['continuation'];
+    } else if (continuation.isNotEmpty) {
+      token = continuation;
+    }
+    final response = token != null
+        ? await sendRequest('browse', {'continuation': token})
+        : await sendRequest('browse', {'browseId': 'FEmusic_home'},
+            additionalParams: continuation);
     final containers = response['continuationContents'];
-    if (containers is! Map) return {'items': const [], 'continuation': null};
+    if (containers is! Map) {
+      // Playlist-shelf continuations answer with
+      // onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems.
+      final actions = response['onResponseReceivedActions'];
+      final items = actions is List && actions.isNotEmpty
+          ? nav(actions.first, [
+              'appendContinuationItemsAction',
+              'continuationItems',
+            ]) as List?
+          : null;
+      if (items == null) return {'items': const [], 'continuation': null};
+      final nextToken = songsContinuation({'contents': items});
+      final mine = expectedPlaylistId == null
+          ? items
+          : items.where((e) => belongsToPlaylist(e, expectedPlaylistId)).toList();
+      lastFilteredForeign += items.length - mine.length;
+      return {
+        'items': handleContents(mine),
+        'continuation':
+            nextToken == null ? null : getContinuationString(nextToken),
+      };
+    }
 
     // Playlist continuations come back as `sectionListContinuation`, while
     // search/library shelves use `musicPlaylistShelfContinuation` or
     // `musicShelfContinuation`. Support all of them.
     Map? shelf = containers['musicPlaylistShelfContinuation'] as Map? ??
         containers['musicShelfContinuation'] as Map?;
-    Map? sectionList = containers['sectionListContinuation'] as Map?;
-    if (shelf == null && sectionList != null) {
-      final inner = nav(sectionList, ['contents', 0]) as Map?;
+    Map? outer = containers['sectionListContinuation'] as Map?;
+    Map? inner;
+    if (shelf == null && outer != null) {
+      inner = nav(outer, ['contents', 0]) as Map?;
       shelf = inner?['musicPlaylistShelfRenderer'] as Map? ??
           inner?['musicShelfRenderer'] as Map? ??
-          sectionList;
+          outer;
     }
     if (shelf == null) return {'items': const [], 'continuation': null};
 
     List contents = nav(shelf, ['contents']) as List? ?? const [];
-    final continuationString = _playlistContinuation(shelf) ??
-        _playlistContinuation(sectionList) ??
-        nav(containers, [
-          'sectionListContinuation',
-          'continuations',
-          0,
-          'nextContinuationData',
-          'continuation',
-        ]) as String?;
+    // Never use sectionList-level continuations here: they are "related".
+    final continuationString = songsContinuation(shelf) ??
+        songsContinuation(outer) ??
+        songsContinuation(inner);
+    final mine = expectedPlaylistId == null
+        ? contents
+        : contents.where((e) => belongsToPlaylist(e, expectedPlaylistId)).toList();
+    lastFilteredForeign += contents.length - mine.length;
     return {
-      'items': handleContents(contents),
+      'items': handleContents(mine),
       'continuation': continuationString == null
           ? null
           : getContinuationString(continuationString),
@@ -341,6 +378,9 @@ mixin BrowsingMixin on YTClient {
   /// them was painfully slow.
   static final Map<String, ({List items, DateTime expiry})> _playlistCache = {};
 
+  /// Diagnostic: how many raw items were rejected as foreign in the last load.
+  static int lastFilteredForeign = 0;
+
   static void clearPlaylistCache() => _playlistCache.clear();
 
   Future<List> getPlaylistSongs(
@@ -360,6 +400,7 @@ mixin BrowsingMixin on YTClient {
     Map<String, dynamic> body = {
       "browseId": playlistId.startsWith('VL') ? playlistId : 'VL$playlistId'
     };
+    lastFilteredForeign = 0;
     var response = await sendRequest('browse', body);
     final declared = declaredSongCount(response);
 
@@ -391,31 +432,21 @@ mixin BrowsingMixin on YTClient {
     final seen = <String>{};
     final result = <dynamic>[];
     final expectedId = playlistId.startsWith('VL') ? playlistId.substring(2) : playlistId;
-    final firstBatch =
-        _newSongs(handleContents(contents), seen, expectedId);
+    final rawFirst = contents
+        .where((item) => belongsToPlaylist(item, expectedId))
+        .toList();
+    lastFilteredForeign += contents.length - rawFirst.length;
+    final firstBatch = _newSongs(handleContents(rawFirst), seen, expectedId);
     result.addAll(firstBatch);
     if (onBatch != null) onBatch(List.of(firstBatch));
 
     // YouTube puts the continuation on `sectionListRenderer`, NOT on the
     // `musicPlaylistShelfRenderer` itself. Looking only at the shelf made
     // every big playlist stop at exactly 100 tracks.
-    Map? sectionList = nav(response, [
-          'contents',
-          'singleColumnBrowseResultsRenderer',
-          'tabs',
-          0,
-          'tabRenderer',
-          'content',
-          'sectionListRenderer',
-        ]) ??
-        nav(response, [
-          'contents',
-          'twoColumnBrowseResultsRenderer',
-          'secondaryContents',
-          'sectionListRenderer',
-        ]);
-    String? rawNext = _playlistContinuation(shelf) ??
-        _playlistContinuation(sectionList);
+    // Android's `songsContinuation`: ONLY from inside the playlist shelf.
+    // `sectionListRenderer.continuations` is the "related videos" stream in
+    // Android (`PlaylistPage.related`) and must never be used for songs.
+    String? rawNext = songsContinuation(shelf);
     // The token must be sent as `&ctoken=...&continuation=...`; passing the
     // bare token made YouTube ignore it and return no continuation page.
     // If YouTube already declared the full length and the first page covers
@@ -425,7 +456,8 @@ mixin BrowsingMixin on YTClient {
     final initialCount = result.length;
     var pages = 0;
     while (next != null && pages < maxPages) {
-      final more = await getMoreItems(continuation: next);
+      final more = await getMoreItems(
+          continuation: next, expectedPlaylistId: expectedId);
       final items = more['items'] as List? ?? const [];
       if (items.isEmpty) break;
       final fresh = _newSongs(items, seen, expectedId);
@@ -574,6 +606,16 @@ mixin BrowsingMixin on YTClient {
               'watchEndpoint',
               'playlistId',
             ]) ??
+            nav(item, [
+              'overlay',
+              'musicItemThumbnailOverlayRenderer',
+              'content',
+              'musicPlayButtonRenderer',
+              'playNavigationEndpoint',
+              'watchEndpoint',
+              'playlistId',
+            ]) ??
+            nav(item, ['playlistItemData', 'playlistId']) ??
             item['playlistId'];
         if (rawId != null && rawId.toString().isNotEmpty) {
           final id = rawId.toString();
@@ -597,16 +639,59 @@ mixin BrowsingMixin on YTClient {
     return out;
   }
 
-  /// Continuation token can be in the old or the new InnerTube shape.
-  static String? _playlistContinuation(Map? shelf) =>
-      nav(shelf, ['continuations', 0, 'nextContinuationData', 'continuation']) ??
-      nav(shelf, ['continuations', 0, 'continuationCommand', 'token']) ??
-      nav(shelf, [
-        'continuations',
-        0,
-        'reloadContinuationData',
-        'continuation'
-      ]);
+  /// True when a RAW playlist renderer belongs to [expectedId]. Must run
+  /// before `handleContents`, which drops the nested playlist id fields.
+  static bool belongsToPlaylist(dynamic renderer, String expectedId) {
+    if (renderer is! Map) return true;
+    final inner = renderer['musicResponsiveListItemRenderer'] ??
+        renderer['playlistPanelVideoRenderer'] ??
+        renderer;
+    if (inner is! Map) return true;
+    final raw = nav(inner, ['navigationEndpoint', 'watchEndpoint', 'playlistId']) ??
+        nav(inner, [
+          'overlay',
+          'musicItemThumbnailOverlayRenderer',
+          'content',
+          'musicPlayButtonRenderer',
+          'playNavigationEndpoint',
+          'watchEndpoint',
+          'playlistId',
+        ]) ??
+        nav(inner, ['playlistItemData', 'playlistId']) ??
+        inner['playlistId'];
+    if (raw == null || raw.toString().isEmpty) return true;
+    final id = raw.toString();
+    final normalized = id.startsWith('VL') ? id.substring(2) : id;
+    return normalized == expectedId;
+  }
+
+  /// Android `MusicShelfRenderer.getContinuation()` / `List<Continuation>.getContinuation()`:
+  /// the songs token is a `continuationItemRenderer` at the END of the shelf's
+  /// contents, or the shelf's own `continuations`. The `sectionListRenderer`
+  /// token is for related videos and is deliberately ignored here.
+  static String? songsContinuation(Map? shelf) {
+    if (shelf == null) return null;
+    final contents = shelf['contents'];
+    if (contents is List) {
+      for (final item in contents) {
+        final token = nav(item, [
+          'continuationItemRenderer',
+          'continuationEndpoint',
+          'continuationCommand',
+          'token',
+        ]);
+        if (token is String && token.isNotEmpty) return token;
+      }
+    }
+    return nav(shelf, ['continuations', 0, 'nextContinuationData', 'continuation']) ??
+        nav(shelf, ['continuations', 0, 'continuationCommand', 'token']) ??
+        nav(shelf, [
+          'continuations',
+          0,
+          'reloadContinuationData',
+          'continuation'
+        ]);
+  }
 }
 
 List handleChips(chips) {
