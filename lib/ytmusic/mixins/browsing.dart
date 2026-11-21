@@ -390,7 +390,9 @@ mixin BrowsingMixin on YTClient {
     // Without deduplication a 777-song playlist showed 800 rows.
     final seen = <String>{};
     final result = <dynamic>[];
-    final firstBatch = _newSongs(handleContents(contents), seen);
+    final expectedId = playlistId.startsWith('VL') ? playlistId.substring(2) : playlistId;
+    final firstBatch =
+        _newSongs(handleContents(contents), seen, expectedId);
     result.addAll(firstBatch);
     if (onBatch != null) onBatch(List.of(firstBatch));
 
@@ -426,7 +428,7 @@ mixin BrowsingMixin on YTClient {
       final more = await getMoreItems(continuation: next);
       final items = more['items'] as List? ?? const [];
       if (items.isEmpty) break;
-      final fresh = _newSongs(items, seen);
+      final fresh = _newSongs(items, seen, expectedId);
       if (fresh.isNotEmpty) {
         result.addAll(fresh);
         if (onBatch != null) onBatch(List.of(fresh));
@@ -557,9 +559,28 @@ mixin BrowsingMixin on YTClient {
 
   /// Keep the first occurrence of every video. Returns only the fresh items,
   /// so the UI never renders the same track twice while pages arrive.
-  static List _newSongs(List items, Set<String> seen) {
+  static List _newSongs(
+    List items,
+    Set<String> seen, [
+    String? expectedPlaylistId,
+  ]) {
     final out = <dynamic>[];
     for (final item in items) {
+      // Continuation pages can contain "recommended" videos that are NOT in
+      // this playlist. When YouTube exposes the playlist id, require a match.
+      if (expectedPlaylistId != null && item is Map) {
+        final rawId = nav(item, [
+              'navigationEndpoint',
+              'watchEndpoint',
+              'playlistId',
+            ]) ??
+            item['playlistId'];
+        if (rawId != null && rawId.toString().isNotEmpty) {
+          final id = rawId.toString();
+          final normalized = id.startsWith('VL') ? id.substring(2) : id;
+          if (normalized != expectedPlaylistId) continue;
+        }
+      }
       String key;
       if (item is Map) {
         final videoId = item['videoId']?.toString() ?? '';

@@ -36,8 +36,26 @@ class _FakeYt extends YTMusic {
                             ]
                           },
                           'setVideoId': 'set-$id',
+                          'navigationEndpoint': {
+                            'watchEndpoint': {'playlistId': 'PL123'}
+                          },
                         }
+                      },
+                    {
+                      'playlistPanelVideoRenderer': {
+                        'videoId': 'foreign',
+                        'title': {'runs': [{'text': 'Not mine'}]},
+                        'thumbnail': {
+                          'thumbnails': [
+                            {'url': 'https://img/foreign'}
+                          ]
+                        },
+                        'setVideoId': 'set-foreign',
+                        'navigationEndpoint': {
+                          'watchEndpoint': {'playlistId': 'OTHER'}
+                        },
                       }
+                    }
                   ],
                 }
               }
@@ -168,9 +186,9 @@ void main() {
   test('reopening a playlist uses the session cache', () async {
     BrowsingMixin.clearPlaylistCache();
     final yt = _FakeYt();
-    await yt.getPlaylistSongs('PLCACHE');
+    await yt.getPlaylistSongs('VLPL123');
     final calls = yt.calls;
-    final again = await yt.getPlaylistSongs('PLCACHE');
+    final again = await yt.getPlaylistSongs('VLPL123');
     expect(again, hasLength(102));
     expect(yt.calls, calls, reason: 'cached playlist must not hit the network');
   });
@@ -186,6 +204,7 @@ void main() {
   });
 
   test('getPlaylistSongs follows continuations past 100 tracks', () async {
+    BrowsingMixin.clearPlaylistCache();
     final yt = _FakeYt();
     final songs = await yt.getPlaylistSongs('VLPL123');
     expect(songs, hasLength(102),
