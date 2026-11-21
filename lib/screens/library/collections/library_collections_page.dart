@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../services/library_aggregation.dart';
 import '../../../services/media_player.dart';
+import '../../../utils/safe_cast.dart';
 import '../../../utils/song_thumbnail.dart';
 import '../../../../core/widgets/back_button.dart';
 
@@ -139,7 +140,7 @@ class _LibraryCollectionsPageState extends State<LibraryCollectionsPage> {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) {
         final item = items[i];
-        final songs = (item['songs'] as List).cast<Map<String, dynamic>>();
+        final songs = safeMapList(item['songs']);
         return ListTile(
           leading: Icon(isAlbum ? Icons.album : Icons.person,
               size: 40),

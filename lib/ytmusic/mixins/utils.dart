@@ -504,6 +504,9 @@ Map handlePlaylistPanelVideoRenderer(Map item) {
         nav(item, ['navigationEndpoint', 'browseEndpoint']),
     'videoId': nav(item, ['videoId']) ??
         nav(item, ['navigationEndpoint', 'watchEndpoint', 'videoId']),
+    // Per-playlist entry id, required by ACTION_REMOVE_VIDEO.
+    'setVideoId': nav(item, ['setVideoId']) ??
+        nav(item, ['playlistItemData', 'setVideoId']),
     'playlistId':
         nav(item, ['navigationEndpoint', 'watchEndpoint', 'playlistId']),
     'type': itemCategory[nav(item, [

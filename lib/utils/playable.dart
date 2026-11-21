@@ -17,6 +17,10 @@ Map<String, dynamic> toPlaySong(dynamic item) {
     'subtitle': item['subtitle'],
     'duration': item['duration'],
   };
+  final setVideoId = item['setVideoId'];
+  if (setVideoId is String && setVideoId.isNotEmpty) {
+    result['setVideoId'] = setVideoId;
+  }
 
   final album = item['album'];
   if (album != null) result['album'] = album;

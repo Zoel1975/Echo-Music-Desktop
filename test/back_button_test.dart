@@ -15,6 +15,8 @@ void main() {
       'lib/screens/settings/services/spotify/spotify_import_page.dart',
       'lib/screens/settings/player/equalizer/axion_eq_page.dart',
       'lib/screens/settings/ai/echo_brain_page.dart',
+      'lib/screens/detail/playlist_page.dart',
+      'lib/screens/connect/cast_page.dart',
     ];
     for (final f in files) {
       final src = File(f).readAsStringSync();

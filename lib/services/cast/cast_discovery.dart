@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:multicast_dns/multicast_dns.dart';
 
 import 'cast_device.dart';
+import 'cast_dial.dart';
 import 'cast_mdns_raw.dart';
 import 'cast_protocol.dart';
 
@@ -18,10 +19,18 @@ class CastDiscovery {
   Future<List<CastDevice>> discover({
     Duration timeout = const Duration(seconds: 6),
   }) async {
-    // Try the raw query first: it follows the machine's default route and
-    // works even when a VPN adapter confuses package:multicast_dns.
-    final raw = await discoverRaw(timeout: timeout);
-    if (raw.isNotEmpty) return raw;
+    // Both discovery channels used by YouTube/YouTube Music senders:
+    // mDNS (_googlecast._tcp) and DIAL/SSDP. Run them together so a device that
+    // answers only one of them still appears in the picker.
+    final results = await Future.wait([
+      discoverRaw(timeout: timeout),
+      const CastDial().discover(timeout: timeout),
+    ]);
+    final combined = <String, CastDevice>{
+      for (final device in [...results[0], ...results[1]]) device.host: device,
+    }.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+    if (combined.isNotEmpty) return combined;
+
     final client = MDnsClient();
     try {
       await client.start();
