@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:Echo/services/update_service/update_service.dart';
 import 'package:Echo/services/cookie_store.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -114,7 +113,7 @@ class SettingsPage extends StatelessWidget {
                       title: 'Music Flow',
                       subtitle: 'Resso-style vertical swipe discovery',
                       leading: const Icon(Icons.auto_awesome_mosaic),
-                      onTap: () => context.go('/explore'),
+                      onTap: () => context.go('/settings/music_flow'),
                     ),
                     SettingTile(
                       title: 'Content',
@@ -254,9 +253,7 @@ class SettingsPage extends StatelessWidget {
                       title: 'System update',
                       subtitle: S.of(context).Check_For_Update,
                       leading: const Icon(Icons.update_rounded),
-                      onTap: () async {
-                        await UpdateService.manualCheck(context);
-                      },
+                      onTap: () => context.go('/settings/update'),
                     ),
                     _comingSoonTile(
                       context,

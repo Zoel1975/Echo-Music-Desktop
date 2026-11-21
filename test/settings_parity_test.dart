@@ -23,6 +23,30 @@ void main() {
     }
   });
 
+  test('Android settings screens all have a desktop route', () {
+    final router = File('lib/utils/router.dart').readAsStringSync();
+    for (final path in [
+      '/account',
+      'ai',
+      'listening_summary',
+      'wrapped',
+      'appearance',
+      'player',
+      'music_flow',
+      'content',
+      'privacy',
+      'storage',
+      'backup_storage',
+      'update',
+      'about',
+    ]) {
+      expect(router, contains("path: '$path'"), reason: 'missing route: $path');
+    }
+    final source = File('lib/screens/settings/settings_page.dart').readAsStringSync();
+    expect(source, contains("context.go('/settings/music_flow')"));
+    expect(source, contains("context.go('/settings/update')"));
+  });
+
   testWidgets('Settings menu mirrors all Android entries (real + placeholders)',
       (tester) async {
     tester.view.physicalSize = const Size(1000, 4000);

@@ -40,6 +40,8 @@ import 'package:Echo/screens/settings/content/content_page.dart';
 import 'package:Echo/screens/settings/content/content_filter_page.dart';
 import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
 import 'package:Echo/screens/settings/player/equalizer/axion_eq_page.dart';
+import 'package:Echo/screens/settings/music_flow_settings_page.dart';
+import 'package:Echo/screens/settings/update_settings_page.dart';
 import 'package:Echo/screens/settings/player/player_settings_page.dart';
 import 'package:Echo/screens/settings/privacy/privacy_page.dart';
 import 'package:Echo/screens/settings/stats/listening_summary_page.dart';
@@ -367,6 +369,16 @@ List<StatefulShellBranch> branches = [
                   'Coming soon',
               feature: (state.extra as Map<String, dynamic>?)?['feature'] as String?,
             ),
+          ),
+          GoRoute(
+            path: 'music_flow',
+            pageBuilder: (context, state) =>
+                _softPage(state, const MusicFlowSettingsPage()),
+          ),
+          GoRoute(
+            path: 'update',
+            pageBuilder: (context, state) =>
+                _softPage(state, const UpdateSettingsPage()),
           ),
           GoRoute(
               path: 'player',
