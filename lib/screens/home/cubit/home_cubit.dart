@@ -3,6 +3,9 @@ import 'package:Echo/ytmusic/ytmusic.dart';
 import 'package:Echo/services/account_refresh.dart';
 import 'package:Echo/services/charts_service.dart';
 import 'package:Echo/services/chart_model.dart';
+import 'package:Echo/services/cookie_store.dart';
+import 'package:Echo/services/home_sections.dart';
+import 'package:Echo/utils/safe_cast.dart';
 import 'package:meta/meta.dart';
 
 part 'home_state.dart';
@@ -22,73 +25,77 @@ class HomeCubit extends Cubit<HomeState> {
     return super.close();
   }
 
+  /// Build the home screen from the user's [HomeSectionsConfig] order.
+  /// Disabled sections are not fetched at all (no needless network calls).
   Future<void> fetch() async {
     emit(const HomeLoading());
     try {
-      final responses = await Future.wait([
-        _ytMusic.browse(),
-        ChartsService().getChartsWithPreviews(),
+      final config = HomeSectionsConfig.load();
+      final enabled = config.order.toSet();
+      final signedIn = CookieStore.instance.cookieHeader != null;
+
+      final results = await Future.wait([
+        enabled.contains(HomeSectionKind.feed)
+            ? _ytMusic.browse()
+            : Future<Map<String, dynamic>>.value(<String, dynamic>{}),
+        enabled.contains(HomeSectionKind.charts)
+            ? ChartsService().getChartsWithPreviews()
+            : Future<List<ChartURL>>.value(<ChartURL>[]),
+        enabled.contains(HomeSectionKind.likedSongs) && signedIn
+            ? _ytMusic.getLibrarySongs()
+            : Future<Map>.value(<String, dynamic>{}),
+        enabled.contains(HomeSectionKind.playlists) && signedIn
+            ? _ytMusic.getLibraryPlaylists()
+            : Future<Map>.value(<String, dynamic>{}),
       ]);
-      
-      final feed = responses[0] as Map<String, dynamic>;
-      final charts = responses[1] as List<ChartURL>;
 
-      List sections = feed['sections'];
-      
-      // Add "Browse Charts" Section with dynamic previews
-      sections.insert(0, _createChartsSection(charts));
+      final feed = results[0] as Map<String, dynamic>;
+      final charts = results[1] as List<ChartURL>;
+      final liked = results[2] as Map;
+      final playlists = results[3] as Map;
 
-      emit(HomeSuccess(
-        chips: feed['chips'] ?? [],
-        sections: sections,
-        continuation: feed['continuation'],
-        loadingMore: false,
-      ));
-    } catch (e, st) {
-      emit(HomeError(e.toString(), st.toString()));
-    }
-  }
-
-  Map<String, dynamic> _createChartsSection(List<ChartURL> charts) {
-      return {
-          'title': 'Browse Charts',
-          'contents': charts.map((chart) => {
-              'title': chart.title,
-              'subtitle': 'Billboard Chart',
-              'thumbnails': [{'url': chart.coverArt ?? 'https://www.billboard.com/wp-content/themes/vip/pmc-billboard-2021/assets/app/icons/icon-512x512.png', 'width': 500, 'height': 500}],
-              'chartUrl': chart,
-              'aspectRatio': 1.0, // Square cards
-          }).toList(),
+      final likedItems = safeMapList(liked['contents']);
+      final playlistItems = safeMapList(playlists['contents']);
+      final built = <HomeSectionKind, List<dynamic>>{
+        HomeSectionKind.feed: safeMapList(feed['sections']),
+        HomeSectionKind.charts: [_createChartsSection(charts)],
+        HomeSectionKind.likedSongs: likedItems.isEmpty
+            ? const []
+            : [
+                {
+                  'title': 'Brani preferiti',
+                  'contents': likedItems,
+                }
+              ],
+        HomeSectionKind.playlists: playlistItems.isEmpty
+            ? const []
+            : [
+                {
+                  'title': 'Le tue playlist',
+                  'contents': playlistItems,
+                }
+              ],
       };
-  }
-  
-  // Removed _formatChartToSection as distinct chart sections are no longer needed
 
-  Future<void> refresh() async {
-    try {
-      final responses = await Future.wait([
-        _ytMusic.browse(),
-         ChartsService().getChartsWithPreviews(),
-      ]);
-
-      final feed = responses[0] as Map<String, dynamic>;
-      final charts = responses[1] as List<ChartURL>;
-
-      List sections = feed['sections'];
-
-      // Add "Browse Charts" Section
-      sections.insert(0, _createChartsSection(charts));
+      final sections = <dynamic>[];
+      for (final kind in config.order) {
+        sections.addAll(built[kind] ?? const []);
+      }
 
       emit(HomeSuccess(
         chips: feed['chips'] ?? [],
         sections: sections,
-        continuation: feed['continuation'],
+        continuation: enabled.contains(HomeSectionKind.feed)
+            ? feed['continuation']
+            : null,
         loadingMore: false,
       ));
     } catch (e, st) {
       emit(HomeError(e.toString(), st.toString()));
     }
   }
+
+  Future<void> refresh() => fetch();
 
   Future<void> fetchNext() async {
     final current = state;
@@ -110,4 +117,24 @@ class HomeCubit extends Cubit<HomeState> {
       emit(HomeError(e.toString(), st.toString()));
     }
   }
+
+  Map<String, dynamic> _createChartsSection(List<ChartURL> charts) => {
+        'title': 'Browse Charts',
+        'contents': charts.map((chart) {
+          return {
+            'title': chart.title,
+            'subtitle': 'Billboard Chart',
+            'thumbnails': [
+              {
+                'url': chart.coverArt ??
+                    'https://www.billboard.com/wp-content/themes/vip/pmc-billboard-2021/assets/app/icons/icon-512x512.png',
+                'width': 500,
+                'height': 500
+              }
+            ],
+            'chartUrl': chart,
+            'aspectRatio': 1.0,
+          };
+        }).toList(),
+      };
 }

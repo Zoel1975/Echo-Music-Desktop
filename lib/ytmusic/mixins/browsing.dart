@@ -318,13 +318,18 @@ mixin BrowsingMixin on YTClient {
     }
   }
 
-  Future<List> getPlaylistSongs(String playlistId) async {
+  /// Returns every song of a playlist, following `continuation` tokens.
+  ///
+  /// YouTube returns at most ~100 items per browse page. Android calls
+  /// `YouTube.library(...).completed()`, which follows those tokens; without
+  /// the loop the desktop UI silently stopped at 100 tracks.
+  Future<List> getPlaylistSongs(String playlistId, {int maxPages = 100}) async {
     Map<String, dynamic> body = {
       "browseId": playlistId.startsWith('VL') ? playlistId : 'VL$playlistId'
     };
     var response = await sendRequest('browse', body);
 
-    List contents = nav(response, [
+    Map? shelf = nav(response, [
           'contents',
           'singleColumnBrowseResultsRenderer',
           'tabs',
@@ -335,7 +340,6 @@ mixin BrowsingMixin on YTClient {
           'contents',
           0,
           'musicPlaylistShelfRenderer',
-          'contents'
         ]) ??
         nav(response, [
           'contents',
@@ -345,13 +349,35 @@ mixin BrowsingMixin on YTClient {
           'contents',
           0,
           'musicPlaylistShelfRenderer',
-          'contents'
         ]);
 
-    List result = handleContents(contents);
+    List contents = nav(shelf, ['contents']) ?? const [];
+    final result = handleContents(contents);
 
+    String? next = _playlistContinuation(shelf);
+    var pages = 0;
+    while (next != null && pages < maxPages) {
+      final more = await getMoreItems(continuation: next);
+      final items = more['items'] as List? ?? const [];
+      if (items.isEmpty) break;
+      result.addAll(items);
+      final cont = more['continuation'];
+      next = cont is String && cont.isNotEmpty ? cont : null;
+      pages++;
+    }
     return result;
   }
+
+  /// Continuation token can be in the old or the new InnerTube shape.
+  static String? _playlistContinuation(Map? shelf) =>
+      nav(shelf, ['continuations', 0, 'nextContinuationData', 'continuation']) ??
+      nav(shelf, ['continuations', 0, 'continuationCommand', 'token']) ??
+      nav(shelf, [
+        'continuations',
+        0,
+        'reloadContinuationData',
+        'continuation'
+      ]);
 }
 
 List handleChips(chips) {

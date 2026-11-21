@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:Echo/core/utils/service_locator.dart';
 import 'package:Echo/screens/home/cubit/home_cubit.dart';
 import 'package:Echo/core/widgets/section_item.dart';
+import 'package:Echo/services/home_sections.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -140,6 +141,71 @@ class _HomePageState extends State<_HomePage> {
     );
   }
 
+  /// Lets the user pick which sections appear on Home and in which order,
+  /// e.g. liked songs / playlists instead of Billboard charts.
+  Future<void> _customizeHome(BuildContext context) async {
+    var config = HomeSectionsConfig.load();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Personalizza la home'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final kind in HomeSectionKind.values)
+                  ListTile(
+                    leading: Icon(kind.icon),
+                    title: Text(kind.label),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (config.isEnabled(kind)) ...[
+                          IconButton(
+                            tooltip: 'Sposta su',
+                            icon: const Icon(Icons.arrow_upward),
+                            onPressed: () => setState(
+                                () => config = config.move(kind, -1)),
+                          ),
+                          IconButton(
+                            tooltip: 'Sposta giù',
+                            icon: const Icon(Icons.arrow_downward),
+                            onPressed: () => setState(
+                                () => config = config.move(kind, 1)),
+                          ),
+                        ],
+                        Switch(
+                          value: config.isEnabled(kind),
+                          onChanged: (_) =>
+                              setState(() => config = config.toggle(kind)),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == true) {
+      await config.save();
+      if (context.mounted) context.read<HomeCubit>().fetch();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return InternetGuard(
@@ -154,6 +220,13 @@ class _HomePageState extends State<_HomePage> {
               style: appBarTitleStyle(),
             ),
             centerTitle: true,
+            actions: [
+              IconButton(
+                tooltip: 'Personalizza home',
+                icon: const Icon(Icons.dashboard_customize),
+                onPressed: () => _customizeHome(context),
+              ),
+            ],
           ),
         ),
         body: ExpressiveRefreshIndicator(
