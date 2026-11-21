@@ -9,7 +9,10 @@ import 'account_refresh.dart';
 import 'audio_fallback.dart';
 import 'cast/cast_device.dart';
 import 'cast/cast_service.dart';
+import 'home_sections.dart';
 import 'media_player.dart';
+import '../screens/home/cubit/home_cubit.dart';
+import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
 import 'cookie_store.dart';
 import 'session_service.dart';
@@ -89,6 +92,38 @@ class RuntimeProbeService {
       }
       notifyAccountChanged();
       _json(request.response, 200, {'after': state()});
+      return;
+    }
+    if (path == '/home/state' && request.method == 'GET') {
+      final state = HomeCubit.lastState;
+      final sections = state is HomeSuccess
+          ? state.sections
+              .map((s) => (s is Map ? s['title'] : null)?.toString())
+              .toList()
+          : <String?>[];
+      _json(request.response, 200, {
+        'config': HomeSectionsConfig.load().encode(),
+        'state': state.runtimeType.toString(),
+        'titles': sections,
+      });
+      return;
+    }
+    if (path == '/home/config' && request.method == 'POST') {
+      final raw = request.uri.queryParameters['order'] ?? '';
+      final order = raw.split(',').where((s) => s.isNotEmpty).toList();
+      final config = HomeSectionsConfig.decode(order);
+      await config.save();
+      HomeSectionsConfig.onChange?.call();
+      _json(request.response, 200, {
+        'saved': config.encode(),
+        'refreshed': HomeSectionsConfig.onChange != null,
+      });
+      return;
+    }
+    if (path == '/nav' && request.method == 'GET') {
+      _json(request.response, 200, {
+        'branch': AppShell.currentBranchIndex,
+      });
       return;
     }
     if (path == '/current' && request.method == 'GET') {

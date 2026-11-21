@@ -19,11 +19,18 @@ class AppShell extends StatefulWidget {
   }) : super(key: key ?? const ValueKey('AppShell'));
   final StatefulNavigationShell navigationShell;
 
+  /// Branch currently highlighted in the floating nav (runtime diagnostics).
+  static int? get currentBranchIndex => _AppShellState.lastBranchIndex;
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
 class _AppShellState extends State<AppShell> {
+  /// Live branch index, read by the runtime probe to verify that detail pages
+  /// highlight the correct tab.
+  static int? lastBranchIndex;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +75,7 @@ class _AppShellState extends State<AppShell> {
     // Detail/account/login/explore are also shell branches; clamp so the
     // floating bar never points past its four visible destinations.
     final shellIndex = widget.navigationShell.currentIndex.clamp(0, 3);
+    _AppShellState.lastBranchIndex = widget.navigationShell.currentIndex;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Column(

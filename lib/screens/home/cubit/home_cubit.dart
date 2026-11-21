@@ -12,9 +12,19 @@ part 'home_state.dart';
 
 class HomeCubit extends Cubit<HomeState> {
   final YTMusic _ytMusic;
+  /// Last emitted state, exposed for runtime diagnostics of the rendered home.
+  static HomeState? lastState;
+
   HomeCubit(this._ytMusic) : super(HomeLoading()) {
     // Re-fetch with fresh credentials when the account changes (login).
     accountEpoch.addListener(_onAccountChanged);
+    HomeSectionsConfig.onChange = refresh;
+  }
+
+  @override
+  void emit(HomeState state) {
+    lastState = state;
+    super.emit(state);
   }
 
   // Keep the current content on screen while reloading: a full HomeLoading
@@ -24,6 +34,7 @@ class HomeCubit extends Cubit<HomeState> {
   @override
   Future<void> close() {
     accountEpoch.removeListener(_onAccountChanged);
+    if (HomeSectionsConfig.onChange == refresh) HomeSectionsConfig.onChange = null;
     return super.close();
   }
 

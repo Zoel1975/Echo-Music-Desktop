@@ -53,6 +53,10 @@ class HomeSectionsConfig {
 
   static const storageKey = 'HOME_SECTIONS';
 
+  /// Set by HomeCubit so external callers (e.g. the runtime probe) can apply
+  /// a changed configuration to the live page.
+  static void Function()? onChange;
+
   static HomeSectionsConfig decode(dynamic raw) {
     if (raw is! List) return defaults;
     final parsed = <HomeSectionKind>[];
