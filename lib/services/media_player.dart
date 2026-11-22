@@ -684,9 +684,19 @@ class MediaPlayer extends ChangeNotifier {
       _beat = null;
       return;
     }
+    if (!GetIt.I.isRegistered<SettingsManager>()) return;
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.crossfadeEnabled || !settings.automixBeatAlign) {
+      _beat = null;
+      return;
+    }
     _beat = BeatAnalyzerService.cached(id);
     if (_beat != null) return;
-    unawaited(BeatAnalyzerService.analyzeSong(Map<String, dynamic>.from(extras))
+    // Don't compete with the first seconds of playback buffering: the beat
+    // grid is only needed near the end of the track, 20 s before the fade.
+    unawaited(Future<void>.delayed(const Duration(seconds: 2))
+        .then((_) => BeatAnalyzerService.analyzeSong(
+            Map<String, dynamic>.from(extras)))
         .then((result) {
       if (result != null && _currentSongNotifier.value?.id == id) {
         _beat = result;
