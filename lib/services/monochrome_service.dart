@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'audio_source_info.dart';
+
 /// Monochrome public API (https://monochrome.st/), no account required.
 /// `/search?q=` returns track metadata, `/track/<id>` serves the FLAC bytes
 /// directly with `Accept-Ranges: bytes` and permissive CORS. Used as a
@@ -51,6 +53,41 @@ class MonochromeService {
   static const base = 'https://tracks.monochrome.st';
   static final http.Client _client = http.Client();
   static final Map<String, List<MonochromeTrack>> _cache = {};
+  static final Map<String, FlacStreamInfo> _flacInfoCache = {};
+
+  /// The CDN rejects requests with a generic library User-Agent (HTTP 429
+  /// "oooooooooooooooooof beep boop"). A browser UA + referer is required for
+  /// both the audio bytes and the small STREAMINFO probe.
+  static const browserHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Referer': 'https://monochrome.st/',
+    'Accept': 'audio/flac,*/*',
+  };
+
+  /// Reads the FLAC STREAMINFO header (42 bytes) so the player can show the
+  /// real sample rate / bit depth instead of a generic "FLAC" label. Cached
+  /// per track and best-effort: a 429 leaves the plain label in place.
+  static Future<FlacStreamInfo?> probeFlacInfo(MonochromeTrack track) async {
+    final cached = _flacInfoCache[track.id];
+    if (cached != null) return cached;
+    try {
+      final request = http.Request('GET', Uri.parse(track.streamUrl))
+        ..headers.addAll({...browserHeaders, 'Range': 'bytes=0-41'});
+      final response = await _client
+          .send(request)
+          .timeout(const Duration(seconds: 10));
+      final bytes = await response.stream.toBytes();
+      if (response.statusCode != 200 && response.statusCode != 206) {
+        return null;
+      }
+      final info = FlacStreamInfo.parse(bytes);
+      if (info != null) _flacInfoCache[track.id] = info;
+      return info;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Pure parser, unit-testable without network.
   static List<MonochromeTrack> parseSearch(String body) {

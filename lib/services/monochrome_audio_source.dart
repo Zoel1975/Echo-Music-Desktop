@@ -16,23 +16,22 @@ class MonochromeAudioSource extends StreamAudioSource {
   MonochromeAudioSource({
     required this.track,
     required this.fallbackVideoId,
+    this.onFallback,
+    this.onFallbackResolved,
     super.tag,
   });
 
   final MonochromeTrack track;
   final String fallbackVideoId;
+
+  /// Notified when the FLAC request fails and playback switches to YouTube.
+  final void Function()? onFallback;
+  final void Function(String mimeType, int bitrate)? onFallbackResolved;
+
   final http.Client _client = http.Client();
   int? _total;
 
-  // Monochrome's CDN rejects requests with a generic library User-Agent
-  // (HTTP 429 "oooooooooooooooooof beep boop"). A normal browser UA + referer
-  // is required for the lossless stream to be served.
-  static const _headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-        'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    'Referer': 'https://monochrome.st/',
-    'Accept': 'audio/flac,*/*',
-  };
+  static const _headers = MonochromeService.browserHeaders;
 
   Future<int> _discoverLength() async {
     final cached = _total;
@@ -129,9 +128,14 @@ class MonochromeAudioSource extends StreamAudioSource {
     } catch (e) {
       // A matched-but-broken FLAC must not break playback: use YouTube.
       if (fallbackVideoId.isNotEmpty) {
+        onFallback?.call();
         return YouTubeAudioSource(
           videoId: fallbackVideoId,
           quality: 'high',
+          onResolved: onFallbackResolved == null
+              ? null
+              : (stream) =>
+                  onFallbackResolved!(stream.mimeType, stream.bitrate),
         ).request(start, end);
       }
       throw Exception('Failed to load FLAC: $e');

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:Echo/services/audio_source_info.dart';
 import 'package:Echo/services/crossfade_engine.dart';
 import 'package:Echo/services/desktop_dsp.dart';
 import 'package:Echo/services/playback_cutoff.dart';
@@ -34,6 +35,11 @@ class MediaPlayer extends ChangeNotifier {
   late final AudioPlayer _player;
 
   final ValueNotifier<String?> playbackError = ValueNotifier<String?>(null);
+
+  /// Effective format/source of the playing track, updated when the audio
+  /// source is created and again when a stream resolves (real codec/bitrate).
+  final ValueNotifier<PlaybackSourceInfo?> playbackSource =
+      ValueNotifier<PlaybackSourceInfo?>(null);
 
   final _loudnessEnhancer = AndroidLoudnessEnhancer();
   AndroidEqualizer? _equalizer;
@@ -73,6 +79,9 @@ class MediaPlayer extends ChangeNotifier {
     _player = AudioPlayer(audioPipeline: pipeline);
     sleepTimer = SleepTimer(_JustAudioSleepTarget(_player));
     sleepTimer.addListener(notifyListeners);
+    // Every path that changes the current song (queue, crossfade, restore,
+    // retry) goes through this notifier, so the source label stays in sync.
+    _currentSongNotifier.addListener(_syncSourceInfoFromCurrent);
 
     GetIt.I.registerSingleton<AndroidLoudnessEnhancer>(_loudnessEnhancer);
     if (Platform.isAndroid && _equalizer != null) {
@@ -513,6 +522,35 @@ class MediaPlayer extends ChangeNotifier {
     GetIt.I<SettingsManager>().skipSilence = value;
   }
 
+  /// Records the effective source on the source's tag (survives queue
+  /// switches) and, when it is the playing song, in the player UI notifier.
+  void _setSourceInfo(Object? tag, PlaybackSourceInfo info) {
+    if (tag is! MediaItem) return;
+    final extras = tag.extras;
+    if (extras != null) {
+      extras['echoSourceFormat'] = info.format;
+      extras['echoSourceName'] = info.source;
+      extras['echoSourceDetail'] = info.detail ?? '';
+    }
+    if (tag.id != null && tag.id == _currentSongNotifier.value?.id) {
+      playbackSource.value = info;
+    }
+  }
+
+  /// Restores the label stored on a tag when the current track changes.
+  void _syncSourceInfoFromCurrent() {
+    final extras = _currentSongNotifier.value?.extras;
+    if (extras == null) {
+      playbackSource.value = null;
+      return;
+    }
+    playbackSource.value = PlaybackSourceInfo(
+      format: extras['echoSourceFormat']?.toString() ?? 'Audio',
+      source: extras['echoSourceName']?.toString() ?? 'YouTube',
+      detail: extras['echoSourceDetail']?.toString(),
+    );
+  }
+
   Future<AudioSource> _getAudioSource(Map<String, dynamic> song) async {
     MediaItem tag = MediaItem(
       id: song['videoId'],
@@ -522,7 +560,8 @@ class MediaPlayer extends ChangeNotifier {
           ? Uri.tryParse(song['thumbnails'].first['url']?.toString() ?? '')
           : null,
       artist: song['artists']?.map((artist) => artist['name']).join(','),
-      extras: song,
+      // Copy: source metadata is added below without mutating the library map.
+      extras: <String, dynamic>{...song},
     );
 
     final bool isDownloaded =
@@ -531,6 +570,15 @@ class MediaPlayer extends ChangeNotifier {
             (await File(song['path']).exists());
 
     if (isDownloaded) {
+      final path = song['path'].toString();
+      final ext = path.contains('.') ? path.split('.').last.toUpperCase() : '';
+      _setSourceInfo(
+        tag,
+        PlaybackSourceInfo(
+          format: ext.isEmpty ? 'File' : ext,
+          source: 'File locale',
+        ),
+      );
       return AudioSource.file(song['path'], tag: tag);
     } else {
       // Data Saver forces the low-bitrate stream (Android's Wi-Fi/Cellular
@@ -548,20 +596,62 @@ class MediaPlayer extends ChangeNotifier {
       if (quality == 'flac') {
         final track = await MonochromeService.findBySong(song);
         if (track != null) {
+          _setSourceInfo(
+            tag,
+            const PlaybackSourceInfo(format: 'FLAC', source: 'Monochrome'),
+          );
+          // Best-effort STREAMINFO probe: reveals real Hz/bit depth when the
+          // CDN allows it; the plain label stays when it is rate-limited.
+          unawaited(MonochromeService.probeFlacInfo(track).then((info) {
+            if (info != null) {
+              _setSourceInfo(
+                tag,
+                PlaybackSourceInfo(
+                  format: 'FLAC',
+                  source: 'Monochrome',
+                  detail: info.label,
+                ),
+              );
+            }
+          }));
           return MonochromeAudioSource(
             track: track,
             fallbackVideoId: song['videoId']?.toString() ?? '',
+            onFallback: () => _setSourceInfo(
+              tag,
+              const PlaybackSourceInfo(format: 'Opus', source: 'YouTube'),
+            ),
+            onFallbackResolved: (mime, bitrate) => _setSourceInfo(
+              tag,
+              PlaybackSourceInfo.fromStream(mime, bitrate),
+            ),
             tag: tag,
           );
         }
       }
       // Use direct URL approach for macOS for better compatibility with AVFoundation
       if (Platform.isMacOS) {
-        return await getDirectUrlAudioSource(song['videoId'], quality, tag);
+        return await getDirectUrlAudioSource(
+          song['videoId'],
+          quality,
+          tag,
+          onResolved: (stream) => _setSourceInfo(
+            tag,
+            PlaybackSourceInfo.fromStream(stream.mimeType, stream.bitrate),
+          ),
+        );
       }
+      _setSourceInfo(
+        tag,
+        const PlaybackSourceInfo(format: 'Opus', source: 'YouTube'),
+      );
       return YouTubeAudioSource(
         videoId: song['videoId'],
         quality: quality,
+        onResolved: (stream) => _setSourceInfo(
+          tag,
+          PlaybackSourceInfo.fromStream(stream.mimeType, stream.bitrate),
+        ),
         tag: tag,
       );
     }

@@ -62,7 +62,7 @@ class AppearanceDetailsPage extends StatelessWidget {
           _switch(context, s, 'Enable swipe to change song', 'swipeChangeSong', true),
           _switch(context, s, 'Rotating thumbnail', 'rotatingThumb', false),
           _switch(context, s, 'Show comment button', 'showComment', false),
-          _switch(context, s, 'Show codec on player', 'showCodec', false),
+          _switch(context, s, 'Show codec on player', 'showCodec', true),
           _slider(context, s, 'Mini-player swipe sensitivity', 'swipeSensitivity', 1, 10, 5),
 
           const GroupTitle(title: 'Lyrics'),

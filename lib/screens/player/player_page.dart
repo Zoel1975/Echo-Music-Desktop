@@ -18,6 +18,7 @@ import 'package:palette_generator/palette_generator.dart';
 
 import 'widgets/animated_gradient_bg.dart';
 
+import '../../services/audio_source_info.dart';
 import '../../services/media_player.dart';
 import '../../services/player_layout.dart';
 import '../../services/settings_manager.dart';
@@ -483,26 +484,28 @@ class _PlayerPageState extends State<PlayerPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (GetIt.I<SettingsManager>()
-                      .extra<bool>('showCodec', false))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        currentSong?.extras?['status']?.toString() == 'LOCAL'
-                            ? 'Local file'
-                            : () {
-                                final q = GetIt.I<SettingsManager>()
-                                    .streamingQuality;
-                                return q == AudioQuality.flac
-                                    ? 'FLAC · Monochrome'
-                                    : 'AAC · ${q.name.toUpperCase()}';
-                              }(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5),
+                  // Effective source, not the requested quality ceiling:
+                  // e.g. "FLAC 48 kHz · 24 bit · stereo · Monochrome" or
+                  // "Opus 160 kbps · YouTube" (or the local file format).
+                  ValueListenableBuilder<PlaybackSourceInfo?>(
+                    valueListenable:
+                        GetIt.I<MediaPlayer>().playbackSource,
+                    builder: (context, info, _) {
+                      if (info == null) return const SizedBox.shrink();
+                      final detailed = GetIt.I<SettingsManager>()
+                          .extra<bool>('showCodec', true);
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          detailed ? info.label : info.shortLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

@@ -16,11 +16,17 @@ class YouTubeAudioSource extends StreamAudioSource {
   YouTubeAudioSource({
     required this.videoId,
     required this.quality,
+    this.onResolved,
     super.tag,
   });
 
   final String videoId;
   final String quality; // 'high' or 'low'
+
+  /// Called once the real InnerTube format is known, so the player can show
+  /// the effective codec/bitrate (Opus vs AAC) instead of a guessed label.
+  final void Function(ResolvedStream stream)? onResolved;
+
   ResolvedStream? _resolved;
 
   Future<ResolvedStream> _resolve() async {
@@ -29,6 +35,7 @@ class YouTubeAudioSource extends StreamAudioSource {
     final resolved =
         await StreamResolver.instance.resolve(videoId, quality: quality);
     _resolved = resolved;
+    onResolved?.call(resolved);
     return resolved;
   }
 
@@ -222,9 +229,11 @@ Future<void> handleAudioRequest(HttpRequest request) async {
 Future<AudioSource> getDirectUrlAudioSource(
   String videoId,
   String quality,
-  dynamic tag,
-) async {
+  dynamic tag, {
+  void Function(ResolvedStream stream)? onResolved,
+}) async {
   final stream = await StreamResolver.instance.resolve(videoId, quality: quality);
+  onResolved?.call(stream);
   return AudioSource.uri(
     Uri.parse(stream.url),
     headers: {
