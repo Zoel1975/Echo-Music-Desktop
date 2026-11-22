@@ -156,6 +156,14 @@ void main() {
     expect(eqPage, contains('Cerca profili AutoEq'));
     expect(eqPage, contains('_applyProfile'),
         reason: 'tapping a search result must apply the profile');
+    final routesFile = File('lib/utils/router.dart').readAsStringSync();
+    expect(
+        RegExp(r'state\.extra as Map<String, dynamic>(?!\?)')
+            .allMatches(routesFile),
+        isEmpty,
+        reason: 'every route must tolerate a null extra');
+    expect(mainSrc, contains('error.log'),
+        reason: 'runtime errors must be logged for diagnosis');
 
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));

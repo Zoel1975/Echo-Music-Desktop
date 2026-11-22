@@ -46,13 +46,31 @@ RandomAccessFile? _instanceLock;
 
 /// Keep the app usable when a single widget/network callback throws: log the
 /// error and show a recoverable card instead of Flutter's red error screen.
+void _writeErrorLog(String text) {
+  try {
+    final dir = Directory(
+      '${Platform.environment['LOCALAPPDATA'] ?? Directory.systemTemp.path}'
+      r'\com.echo\Echo Music',
+    );
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    File('${dir.path}\\error.log').writeAsStringSync(
+      '${DateTime.now().toIso8601String()} $text\n---\n',
+      mode: FileMode.append,
+    );
+  } catch (_) {}
+}
+
 void _installErrorHandlers() {
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint('[echo] Flutter error: ${details.exceptionAsString()}');
+    _writeErrorLog(
+      'Flutter error: ${details.exceptionAsString()}\n${details.stack ?? StackTrace.empty}',
+    );
   };
   ui.PlatformDispatcher.instance.onError = (error, stack) {
     debugPrint('[echo] Uncaught error: $error\n$stack');
+    _writeErrorLog('Uncaught error: $error\n$stack');
     return true;
   };
   ErrorWidget.builder = (details) => MaterialApp(

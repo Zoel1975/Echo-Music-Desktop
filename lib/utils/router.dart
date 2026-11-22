@@ -166,7 +166,7 @@ List<StatefulShellBranch> branches = [
             GoRoute(
               path: 'chip',
               builder: (context, state) {
-                Map<String, dynamic> args = state.extra as Map<String, dynamic>;
+                final args = state.extra as Map<String, dynamic>? ?? {};
                 return ChipPage(
                     title: args['title'] ?? '',
                     endpoint: args['endpoint'] ?? {});
@@ -198,8 +198,9 @@ List<StatefulShellBranch> branches = [
         pageBuilder: (context, state) => _softPage(
           state,
           AlbumPage(
-            browseId:
-                (state.extra as Map<String, dynamic>)['browseId'] as String,
+            browseId: ((state.extra as Map<String, dynamic>? ?? {})['browseId'])
+                    ?.toString() ??
+                '',
           ),
         ),
       ),
@@ -208,8 +209,9 @@ List<StatefulShellBranch> branches = [
         pageBuilder: (context, state) => _softPage(
           state,
           ArtistPage(
-            browseId:
-                (state.extra as Map<String, dynamic>)['browseId'] as String,
+            browseId: ((state.extra as Map<String, dynamic>? ?? {})['browseId'])
+                    ?.toString() ??
+                '',
           ),
         ),
       ),
@@ -277,9 +279,9 @@ List<StatefulShellBranch> branches = [
             GoRoute(
               path: 'download_playlist_page',
               builder: (context, state) {
-                final args = state.extra as Map<String, dynamic>;
+                final args = state.extra as Map<String, dynamic>? ?? {};
                 return DownloadPlaylistPage(
-                  playlistId: args['playlistId'] as String,
+                  playlistId: args['playlistId']?.toString() ?? '',
                 );
               },
             ),
@@ -319,9 +321,9 @@ List<StatefulShellBranch> branches = [
         GoRoute(
           path: 'playlist_details',
           builder: (context, state) {
-            final args = state.extra as Map<String, dynamic>;
+            final args = state.extra as Map<String, dynamic>? ?? {};
             return PlaylistDetailsPage(
-              playlistkey: args['playlistkey'] as String,
+              playlistkey: args['playlistkey']?.toString() ?? '',
             );
           },
         ),
@@ -338,8 +340,9 @@ List<StatefulShellBranch> branches = [
       pageBuilder: (context, state) => _softPage(
         state,
         OnlinePlaylistPage(
-          playlistId: (state.extra as Map<String, dynamic>)['playlistId']
-              as String,
+          playlistId: ((state.extra as Map<String, dynamic>? ?? {})['playlistId'])
+                  ?.toString() ??
+              '',
         ),
       ),
     ),
