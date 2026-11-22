@@ -25,6 +25,7 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
             skipSilence: GetIt.I<SettingsManager>().skipSilence,
             showSeekButtons: GetIt.I<SettingsManager>().showSeekButtons,
             crossfadeEnabled: GetIt.I<SettingsManager>().crossfadeEnabled,
+            automixBeatAlign: GetIt.I<SettingsManager>().automixBeatAlign,
             crossfadeDuration: GetIt.I<SettingsManager>().crossfadeDuration,
             dataSaver: GetIt.I<SettingsManager>().dataSaver,
             streamingQuality: GetIt.I<SettingsManager>().streamingQuality,
@@ -75,6 +76,7 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
         skipSilence: _settings.skipSilence,
         showSeekButtons: _settings.showSeekButtons,
         crossfadeEnabled: _settings.crossfadeEnabled,
+        automixBeatAlign: _settings.automixBeatAlign,
         crossfadeDuration: _settings.crossfadeDuration,
         dataSaver: _settings.dataSaver,
         streamingQuality: _settings.streamingQuality,
@@ -112,6 +114,8 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
   void setShowSeekButtons(bool value) => _settings.showSeekButtons = value;
 
   void setCrossfadeEnabled(bool value) => _settings.crossfadeEnabled = value;
+
+  void setAutomixBeatAlign(bool value) => _settings.automixBeatAlign = value;
 
   void setCrossfadeDuration(double value) =>
       _settings.crossfadeDuration = value;

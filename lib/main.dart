@@ -308,4 +308,5 @@ Future<void> initialiseHive() async {
   await Hive.openBox('ACCOUNT');
   await Hive.openBox('BLOCKED_ARTISTS');
   await Hive.openBox('DISLIKED_SONGS');
+  await Hive.openBox('BEAT_ANALYSIS');
 }

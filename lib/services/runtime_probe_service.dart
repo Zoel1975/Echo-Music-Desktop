@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
@@ -10,6 +11,7 @@ import 'account_refresh.dart';
 import 'audio_fallback.dart';
 import 'ffmpeg_audio_encoder.dart';
 import 'autoeq_service.dart';
+import 'beat_analyzer_service.dart';
 import 'cast/cast_device.dart';
 import 'cast/cast_service.dart';
 import 'google_login_service.dart';
@@ -87,6 +89,44 @@ class RuntimeProbeService {
     ascii('data');
     dword(data);
     bytes.addAll(List<int>.filled(data, 0));
+    return bytes;
+  }
+
+  /// 12 s of 120 BPM clicks, to verify the Automix beat analysis end to end.
+  static List<int> _probeClickWav() {
+    const rate = 22050;
+    const seconds = 12;
+    final samples = List<double>.filled(rate * seconds, 0.0);
+    for (var beat = 0; beat < seconds * 2; beat++) {
+      final start = (beat * 0.5 * rate).round();
+      for (var i = 0; i < (0.06 * rate).round(); i++) {
+        final envelope =
+            math.exp(-i / (rate * 0.012));
+        samples[start + i] =
+            math.sin(2 * math.pi * 180 * i / rate) * envelope * 0.9;
+      }
+    }
+    final data = samples.length * 2;
+    final bytes = <int>[];
+    void ascii(String s) => bytes.addAll(s.codeUnits);
+    void word(int v) => bytes.addAll([v & 0xff, (v >> 8) & 0xff]);
+    void dword(int v) =>
+        bytes.addAll([v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff]);
+    ascii('RIFF');
+    dword(36 + data);
+    ascii('WAVEfmt ');
+    dword(16);
+    word(1);
+    word(1);
+    dword(rate);
+    dword(rate * 2);
+    word(2);
+    word(16);
+    ascii('data');
+    dword(data);
+    for (final s in samples) {
+      word((s.clamp(-1.0, 1.0) * 32767).round());
+    }
     return bytes;
   }
 
@@ -606,6 +646,25 @@ class RuntimeProbeService {
         'contextUser': (yt.context['user'] as Map?)?['onBehalfOfUser'],
         'results': results,
       });
+      return;
+    }
+    if (path == '/beat/analyze' && request.method == 'POST') {
+      final dir = Directory.systemTemp;
+      final wav = '${dir.path}${Platform.pathSeparator}echo_beat_probe.wav';
+      try {
+        File(wav).writeAsBytesSync(_probeClickWav());
+        final beat = await BeatAnalyzerService.analyzePath(
+          'probe-click-120',
+          wav,
+        );
+        _json(request.response, 200, {
+          'bpm': beat?.bpm,
+          'offsetMs': beat?.firstBeatOffsetMs,
+          'confidence': beat?.confidence,
+        });
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
       return;
     }
     if (path == '/crossfade/test' && request.method == 'POST') {

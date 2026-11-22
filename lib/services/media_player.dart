@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/audio_source_info.dart';
+import 'package:Echo/services/beat_analysis.dart';
+import 'package:Echo/services/beat_analyzer_service.dart';
 import 'package:Echo/services/crossfade_engine.dart';
 import 'package:Echo/services/crossfade_prearm.dart';
 import 'package:Echo/services/desktop_dsp.dart';
@@ -108,6 +110,9 @@ class MediaPlayer extends ChangeNotifier {
 
   /// Read-only instrumentation for the diagnostic probe: volumes during a
   /// handoff/crossfade must change gradually, never jump in one step.
+  BeatAnalysisResult? _beat;
+  BeatAnalysisResult? get diagnosticBeat => _beat;
+
   double get diagnosticOutVolume => _xfadeOutPlayer?.volume ?? 0;
   bool get diagnosticHandoffRunning => _handoffEngine?.isRunning ?? false;
   bool get diagnosticCrossfading => _xfade?.isCrossfading ?? false;
@@ -534,6 +539,14 @@ class MediaPlayer extends ChangeNotifier {
     if (duration <= crossfade) return;
 
     final remaining = duration - position;
+    var triggerMs = crossfade.inMilliseconds;
+    if (settings.automixBeatAlign && _beat != null) {
+      triggerMs = automixTriggerMs(
+        duration.inMilliseconds,
+        crossfade.inMilliseconds,
+        _beat!,
+      );
+    }
     final lead = _preArm.currentLeadTime;
     final prepared = _xfadeArmed && _xfadeArmedIndex == idx;
     if (!prepared) {
@@ -545,13 +558,13 @@ class MediaPlayer extends ChangeNotifier {
       );
       if (remaining > lead && !cutoffArm) return;
       // Too late to prepare a standby: better a clean cut than a frozen fade.
-      if (remaining <= crossfade) return;
+      if (remaining.inMilliseconds <= triggerMs) return;
       final ready = await _prepareStandby(position, idx);
       if (!ready) return;
       _xfadeArmed = true;
       _xfadeArmedIndex = idx;
     }
-    if (remaining <= crossfade) {
+    if (remaining.inMilliseconds <= triggerMs) {
       await _triggerQueueCrossfade(idx, nextIdx, position);
     }
   }
@@ -663,12 +676,32 @@ class MediaPlayer extends ChangeNotifier {
   }
 
   /// Restores the label stored on a tag when the current track changes.
+  /// Lazily analyzes the current track's beat grid (Automix phase 1).
+  void _maybeAnalyzeBeat() {
+    final extras = _currentSongNotifier.value?.extras;
+    final id = _currentSongNotifier.value?.id;
+    if (extras == null || id == null) {
+      _beat = null;
+      return;
+    }
+    _beat = BeatAnalyzerService.cached(id);
+    if (_beat != null) return;
+    unawaited(BeatAnalyzerService.analyzeSong(Map<String, dynamic>.from(extras))
+        .then((result) {
+      if (result != null && _currentSongNotifier.value?.id == id) {
+        _beat = result;
+      }
+    }));
+  }
+
   void _syncSourceInfoFromCurrent() {
     final extras = _currentSongNotifier.value?.extras;
     if (extras == null) {
       playbackSource.value = null;
+      _beat = null;
       return;
     }
+    _maybeAnalyzeBeat();
     playbackSource.value = PlaybackSourceInfo(
       format: extras['echoSourceFormat']?.toString() ?? 'Audio',
       source: extras['echoSourceName']?.toString() ?? 'YouTube',

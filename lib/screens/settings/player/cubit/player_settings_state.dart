@@ -9,6 +9,7 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
   final bool skipSilence;
   final bool showSeekButtons;
   final bool crossfadeEnabled;
+  final bool automixBeatAlign;
   final double crossfadeDuration;
   final bool dataSaver;
   final dynamic streamingQuality;
@@ -39,6 +40,7 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
     required this.skipSilence,
     required this.showSeekButtons,
     required this.crossfadeEnabled,
+    this.automixBeatAlign = true,
     required this.crossfadeDuration,
     required this.dataSaver,
     required this.streamingQuality,
@@ -68,6 +70,7 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
     bool? skipSilence,
     bool? showSeekButtons,
     bool? crossfadeEnabled,
+    bool? automixBeatAlign,
     double? crossfadeDuration,
     bool? dataSaver,
     dynamic streamingQuality,
@@ -96,6 +99,7 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
       skipSilence: skipSilence ?? this.skipSilence,
       showSeekButtons: showSeekButtons ?? this.showSeekButtons,
       crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
+      automixBeatAlign: automixBeatAlign ?? this.automixBeatAlign,
       crossfadeDuration: crossfadeDuration ?? this.crossfadeDuration,
       dataSaver: dataSaver ?? this.dataSaver,
       streamingQuality: streamingQuality ?? this.streamingQuality,

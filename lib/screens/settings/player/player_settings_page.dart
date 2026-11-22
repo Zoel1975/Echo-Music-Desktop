@@ -122,6 +122,14 @@ class PlayerSettingsPage extends StatelessWidget {
                       onChanged: cubit.setCrossfadeEnabled,
                     ),
                     if (s.crossfadeEnabled)
+                      SettingSwitchTile(
+                        title: 'Automix · allinea al beat',
+                        subtitle: 'Il blend finisce su un beat della traccia',
+                        leading: const Icon(Icons.align_vertical_center),
+                        value: s.automixBeatAlign,
+                        onChanged: cubit.setAutomixBeatAlign,
+                      ),
+                    if (s.crossfadeEnabled)
                       SettingEmptyTile(
                         leading: const Icon(Icons.timeline),
                         child: ListTile(
