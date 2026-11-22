@@ -25,6 +25,9 @@ void main() {
     final player = src('lib/services/media_player.dart');
     expect(player, contains('BeatAnalyzerService.analyzeSong'));
     expect(player, contains('automixTriggerMs('));
+    expect(player, contains('beatAlignedStartMs('));
+    expect(player, contains('mixOutMs: _beat!.mixOutMs'));
+    expect(player, contains('_maybeAnalyzeNextBeat(nextIdx)'));
     expect(player, contains('settings.automixBeatAlign'));
 
     final main = src('lib/main.dart');
@@ -35,6 +38,6 @@ void main() {
     expect(analyzer, contains("Hive.box(_boxName).put"));
 
     final doc = src('docs/AUTOMIX.md');
-    expect(doc, contains('beat-align'));
+    expect(doc, contains('beat-matching'));
   });
 }

@@ -51,6 +51,48 @@ void main() {
     expect(fadeEnd % beat.beatPeriodMs, closeTo(0, 1));
   });
 
+  test('energy scan finds mix-in and mix-out', () {
+    final samples = clickTrack(seconds: 30);
+    final mixIn = energyMixIn(samples, 22050);
+    expect(mixIn, isNotNull);
+    expect(mixIn!, greaterThanOrEqualTo(0));
+    expect(mixIn, lessThanOrEqualTo(20000));
+
+    // Tail starts at the energy of the bars; mix-out must be near the end.
+    final tail = samples.sublist(samples.length - 22050 * 10);
+    final mixOut = energyMixOut(tail, 22050, 30000);
+    expect(mixOut, isNotNull);
+    expect(mixOut!, greaterThan(30000 - 12000));
+    expect(mixOut, lessThanOrEqualTo(30000));
+  });
+
+  test('incoming start is shifted so its beat lands at the fade end', () {
+    const incoming = BeatAnalysisResult(
+      bpm: 120, // 500 ms per beat
+      firstBeatOffsetMs: 250,
+      mixInMs: 0,
+      confidence: 1,
+    );
+    const crossfadeMs = 5000;
+    final start = beatAlignedStartMs(incoming, crossfadeMs);
+    expect(start, greaterThanOrEqualTo(0));
+    final phase = (start + crossfadeMs - incoming.firstBeatOffsetMs) %
+        incoming.beatPeriodMs;
+    expect(phase, closeTo(0, 1));
+  });
+
+  test('mix-out point moves the trigger earlier than the track end', () {
+    const beat = BeatAnalysisResult(
+      bpm: 120,
+      firstBeatOffsetMs: 0,
+      confidence: 1,
+      mixOutMs: 170000,
+    );
+    final withMixOut = automixTriggerMs(180000, 5000, beat, mixOutMs: 170000);
+    final natural = automixTriggerMs(180000, 5000, beat);
+    expect(withMixOut, greaterThan(natural));
+  });
+
   test('JSON round-trip keeps the beat grid', () {
     const beat = BeatAnalysisResult(
       bpm: 128.5,

@@ -111,7 +111,9 @@ class MediaPlayer extends ChangeNotifier {
   /// Read-only instrumentation for the diagnostic probe: volumes during a
   /// handoff/crossfade must change gradually, never jump in one step.
   BeatAnalysisResult? _beat;
+  BeatAnalysisResult? _nextBeat;
   BeatAnalysisResult? get diagnosticBeat => _beat;
+  BeatAnalysisResult? get diagnosticNextBeat => _nextBeat;
 
   double get diagnosticOutVolume => _xfadeOutPlayer?.volume ?? 0;
   bool get diagnosticHandoffRunning => _handoffEngine?.isRunning ?? false;
@@ -494,7 +496,16 @@ class MediaPlayer extends ChangeNotifier {
         AudioPlayerAdapter(outPlayer),
         peak,
       );
-      await _player.seek(Duration.zero, index: nextIdx);
+      // Phase 2: enter the incoming track at the offset whose beat grid lines
+      // up with the fade end, instead of always starting at 0:00.
+      var startMs = 0;
+      if (settings.automixBeatAlign && _nextBeat != null) {
+        startMs = beatAlignedStartMs(
+          _nextBeat!,
+          (settings.crossfadeDuration * 1000).round(),
+        );
+      }
+      await _player.seek(Duration(milliseconds: startMs), index: nextIdx);
       _currentSongNotifier.value = nextTag;
       _currentIndex.value = nextIdx;
       await _player.play();
@@ -545,6 +556,7 @@ class MediaPlayer extends ChangeNotifier {
         duration.inMilliseconds,
         crossfade.inMilliseconds,
         _beat!,
+        mixOutMs: _beat!.mixOutMs,
       );
     }
     final lead = _preArm.currentLeadTime;
@@ -561,6 +573,7 @@ class MediaPlayer extends ChangeNotifier {
       if (remaining.inMilliseconds <= triggerMs) return;
       final ready = await _prepareStandby(position, idx);
       if (!ready) return;
+      _maybeAnalyzeNextBeat(nextIdx);
       _xfadeArmed = true;
       _xfadeArmedIndex = idx;
     }
@@ -688,8 +701,10 @@ class MediaPlayer extends ChangeNotifier {
     final settings = GetIt.I<SettingsManager>();
     if (!settings.crossfadeEnabled || !settings.automixBeatAlign) {
       _beat = null;
+      _nextBeat = null;
       return;
     }
+    _nextBeat = null;
     _beat = BeatAnalyzerService.cached(id);
     if (_beat != null) return;
     // Don't compete with the first seconds of playback buffering: the beat
@@ -700,6 +715,26 @@ class MediaPlayer extends ChangeNotifier {
         .then((result) {
       if (result != null && _currentSongNotifier.value?.id == id) {
         _beat = result;
+      }
+    }));
+  }
+
+  /// Phase 2: analyze the queued track while the standby is being prepared so
+  /// both beat grids are known before the blend starts.
+  void _maybeAnalyzeNextBeat(int nextIdx) {
+    if (nextIdx < 0 || nextIdx >= _songList.length) return;
+    final tag = _songList[nextIdx].tag;
+    if (tag is! MediaItem) return;
+    if (!GetIt.I.isRegistered<SettingsManager>()) return;
+    if (!GetIt.I<SettingsManager>().automixBeatAlign) return;
+    final id = tag.id;
+    _nextBeat = BeatAnalyzerService.cached(id);
+    if (_nextBeat != null) return;
+    unawaited(BeatAnalyzerService.analyzeSong(Map<String, dynamic>.from(
+      tag.extras ?? const <String, dynamic>{},
+    )).then((result) {
+      if (result != null && _player.currentIndex == nextIdx - 1) {
+        _nextBeat = result;
       }
     }));
   }

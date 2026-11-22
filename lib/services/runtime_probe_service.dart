@@ -95,7 +95,7 @@ class RuntimeProbeService {
   /// 12 s of 120 BPM clicks, to verify the Automix beat analysis end to end.
   static List<int> _probeClickWav() {
     const rate = 22050;
-    const seconds = 12;
+    const seconds = 35;
     final samples = List<double>.filled(rate * seconds, 0.0);
     for (var beat = 0; beat < seconds * 2; beat++) {
       final start = (beat * 0.5 * rate).round();
@@ -683,13 +683,18 @@ class RuntimeProbeService {
       try {
         File(wav).writeAsBytesSync(_probeClickWav());
         final beat = await BeatAnalyzerService.analyzePath(
-          'probe-click-120',
+          'probe-click-120-v4',
           wav,
+          durationMs: 35000,
         );
         _json(request.response, 200, {
           'bpm': beat?.bpm,
           'offsetMs': beat?.firstBeatOffsetMs,
           'confidence': beat?.confidence,
+          'mixInMs': beat?.mixInMs,
+          'mixOutMs': beat?.mixOutMs,
+          'tailBytes': BeatAnalyzerService.lastTailBytes,
+          'tailError': BeatAnalyzerService.lastTailError,
         });
       } catch (e) {
         _json(request.response, 500, {'error': e.toString()});

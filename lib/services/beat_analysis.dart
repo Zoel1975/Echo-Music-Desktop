@@ -8,11 +8,17 @@ class BeatAnalysisResult {
     required this.bpm,
     required this.firstBeatOffsetMs,
     required this.confidence,
+    this.mixInMs,
+    this.mixOutMs,
   });
 
   final double bpm;
   final double firstBeatOffsetMs;
   final double confidence;
+
+  /// Energy-based mix points (Android BeatAnalyzer HEAD/TAIL energy scan).
+  final int? mixInMs;
+  final int? mixOutMs;
 
   double get beatPeriodMs => 60000.0 / bpm;
 
@@ -20,6 +26,8 @@ class BeatAnalysisResult {
         'bpm': bpm,
         'firstBeatOffsetMs': firstBeatOffsetMs,
         'confidence': confidence,
+        'mixInMs': mixInMs,
+        'mixOutMs': mixOutMs,
       };
 
   factory BeatAnalysisResult.fromJson(Map<String, dynamic> json) =>
@@ -28,6 +36,8 @@ class BeatAnalysisResult {
         firstBeatOffsetMs:
             (json['firstBeatOffsetMs'] as num?)?.toDouble() ?? 0,
         confidence: (json['confidence'] as num?)?.toDouble() ?? 0,
+        mixInMs: (json['mixInMs'] as num?)?.toInt(),
+        mixOutMs: (json['mixOutMs'] as num?)?.toInt(),
       );
 }
 
@@ -162,34 +172,126 @@ double estimateBeatPhase(List<double> flux, double frameRate, double bpm) {
   return bestPhase / frameRate * 1000.0;
 }
 
-BeatAnalysisResult? analyzePcm(List<double> mono, int sampleRate) {
+/// First block whose RMS energy rises above 35% of the loudest block: the
+/// start of the real song, after the intro (Android HEAD_WINDOW energy scan).
+int? energyMixIn(
+  List<double> mono,
+  int sampleRate, {
+  int blockMs = 500,
+  int maxSkipMs = 20000,
+}) {
+  final block = sampleRate * blockMs ~/ 1000;
+  if (block <= 0 || mono.length < block * 3) return null;
+  final energies = <double>[];
+  for (var start = 0; start + block <= mono.length; start += block) {
+    var sum = 0.0;
+    for (var i = start; i < start + block; i++) {
+      sum += mono[i] * mono[i];
+    }
+    energies.add(math.sqrt(sum / block));
+  }
+  final peak = energies.reduce(math.max);
+  if (peak <= 0) return null;
+  final threshold = peak * 0.35;
+  for (var i = 0; i < energies.length; i++) {
+    if (energies[i] >= threshold) {
+      return math.min(i * blockMs, maxSkipMs);
+    }
+  }
+  return null;
+}
+
+/// Last energetic block of the tail window, converted to an absolute position
+/// in the track (Android TAIL_WINDOW energy scan).
+int? energyMixOut(
+  List<double> tail,
+  int sampleRate,
+  int durationMs, {
+  int blockMs = 500,
+  int maxCutMs = 45000,
+}) {
+  final block = sampleRate * blockMs ~/ 1000;
+  if (block <= 0 || tail.length < block * 2 || durationMs <= 0) return null;
+  final energies = <double>[];
+  for (var start = 0; start + block <= tail.length; start += block) {
+    var sum = 0.0;
+    for (var i = start; i < start + block; i++) {
+      sum += tail[i] * tail[i];
+    }
+    energies.add(math.sqrt(sum / block));
+  }
+  final peak = energies.reduce(math.max);
+  if (peak <= 0) return null;
+  final threshold = peak * 0.35;
+  var last = -1;
+  for (var i = 0; i < energies.length; i++) {
+    if (energies[i] >= threshold) last = i;
+  }
+  if (last < 0) return null;
+  final windowMs = (tail.length / sampleRate * 1000).round();
+  final absolute = durationMs - windowMs + last * blockMs + blockMs ~/ 2;
+  if (absolute < durationMs - maxCutMs) return null;
+  return absolute.clamp(0, durationMs).round();
+}
+
+BeatAnalysisResult? analyzePcm(
+  List<double> mono,
+  int sampleRate, {
+  List<double>? tailMono,
+  int? durationMs,
+}) {
   final flux = spectralFlux(mono);
   if (flux.length < 32) return null;
   final frameRate = sampleRate / 512.0;
   final tempo = estimateTempo(flux, frameRate);
   if (tempo.confidence <= 0) return null;
   final phase = estimateBeatPhase(flux, frameRate, tempo.bpm);
+  final mixOut = tailMono == null || durationMs == null
+      ? null
+      : energyMixOut(tailMono, sampleRate, durationMs);
   return BeatAnalysisResult(
     bpm: tempo.bpm,
     firstBeatOffsetMs: phase,
     confidence: tempo.confidence,
+    mixInMs: energyMixIn(mono, sampleRate),
+    mixOutMs: mixOut,
   );
 }
 
-/// Aligns the end of the crossfade with a beat close to the track end.
-/// Returns the remaining-time threshold (ms) at which the fade should start.
+/// Aligns the end of the crossfade with a beat near the outgoing mix-out point
+/// (or the track end). Returns the remaining-time threshold (ms) to trigger.
 int automixTriggerMs(
   int durationMs,
   int crossfadeMs,
-  BeatAnalysisResult beat,
-) {
+  BeatAnalysisResult beat, {
+  int? mixOutMs,
+}) {
   if (durationMs <= crossfadeMs) return crossfadeMs;
   final period = beat.beatPeriodMs;
   if (period <= 0) return crossfadeMs;
-  final rawEnd = durationMs - crossfadeMs / 2;
-  final beatsBefore = ((rawEnd - beat.firstBeatOffsetMs) / period).floor();
-  var targetEnd = beat.firstBeatOffsetMs + beatsBefore * period;
-  if (targetEnd > durationMs) targetEnd -= period;
-  final start = targetEnd - crossfadeMs;
+  final targetEnd = (mixOutMs ?? durationMs).clamp(crossfadeMs, durationMs);
+  final beatsBefore = ((targetEnd - beat.firstBeatOffsetMs) / period).floor();
+  var alignedEnd = beat.firstBeatOffsetMs + beatsBefore * period;
+  if (alignedEnd > durationMs) alignedEnd -= period;
+  final start = alignedEnd - crossfadeMs;
   return (durationMs - start).round().clamp(crossfadeMs, durationMs);
+}
+
+/// Offset into the incoming track so that one of its beats lands exactly at
+/// the end of the crossfade. This is the phase-matching part of Automix.
+int beatAlignedStartMs(
+  BeatAnalysisResult incoming,
+  int crossfadeMs, {
+  int maxSkipMs = 30000,
+}) {
+  final period = incoming.beatPeriodMs;
+  if (period <= 0) return 0;
+  final mixIn = incoming.mixInMs ?? 0;
+  var start = incoming.firstBeatOffsetMs - crossfadeMs;
+  if (start < mixIn) {
+    final beats = ((mixIn - start) / period).ceil();
+    start += beats * period;
+  }
+  if (start > maxSkipMs) return mixIn;
+  return math.max(0, start).round();
 }
