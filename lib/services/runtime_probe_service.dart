@@ -6,8 +6,8 @@ import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
 
 import 'account_refresh.dart';
-import 'autoeq_service.dart';
 import 'audio_fallback.dart';
+import 'autoeq_service.dart';
 import 'cast/cast_device.dart';
 import 'cast/cast_service.dart';
 import 'google_login_service.dart';
@@ -74,6 +74,19 @@ class RuntimeProbeService {
 
   static Future<void> _handle(HttpRequest request) async {
     final path = request.uri.path;
+    if (path == '/autoeq/search' && request.method == 'GET') {
+      final q = request.uri.queryParameters['q'] ?? '';
+      final all = await AutoEqService.loadIndex();
+      final results = AutoEqService.search(q, limit: 5);
+      _json(request.response, 200, {
+        'indexSize': all.length,
+        'query': q,
+        'results': results
+            .map((p) => {'name': p.name, 'source': p.source})
+            .toList(),
+      });
+      return;
+    }
     if (path == '/state' && request.method == 'GET') {
       _json(request.response, 200, state());
       return;
@@ -484,34 +497,6 @@ class RuntimeProbeService {
     if (path == '/nav' && request.method == 'GET') {
       _json(request.response, 200, {
         'branch': AppShell.currentBranchIndex,
-      });
-      return;
-    }
-    if (path == '/autoeq/search' && request.method == 'GET') {
-      final q = request.uri.queryParameters['q'] ?? '';
-      final profiles = await AutoEqService.loadProfiles();
-      final found = AutoEqService.search(profiles, q, limit: 8);
-      _json(request.response, 200, {
-        'indexSize': profiles.length,
-        'results': found
-            .map((p) => {'name': p.name, 'source': p.source, 'path': p.path})
-            .toList(),
-      });
-      return;
-    }
-    if (path == '/autoeq/gains' && request.method == 'GET') {
-      final q = request.uri.queryParameters['q'] ?? 'AKG K371';
-      final profiles = await AutoEqService.loadProfiles();
-      final found = AutoEqService.search(profiles, q, limit: 1);
-      if (found.isEmpty) {
-        _json(request.response, 200, {'error': 'not found'});
-        return;
-      }
-      final gains = await AutoEqService.gainsFor(found.first);
-      _json(request.response, 200, {
-        'profile': found.first.displayName,
-        'url': AutoEqService.parametricEqUrl(found.first),
-        'gains': gains,
       });
       return;
     }

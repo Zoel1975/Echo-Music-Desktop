@@ -6,139 +6,141 @@ import 'package:http/http.dart' as http;
 
 import 'axion_eq_service.dart';
 
-/// A profile from the official AutoEq results index, searched in-app.
-@immutable
+/// In-app search over the official AutoEq results database.
+/// The 850 KB `results/INDEX.md` is fetched once and cached in Hive, so search
+/// is instant and works offline afterwards.
 class AutoEqProfile {
   const AutoEqProfile({
     required this.name,
     required this.path,
-    required this.source,
+    required this.author,
+    this.target = '',
   });
 
   final String name;
-  /// URL-encoded path relative to `results/`, straight from INDEX.md.
   final String path;
-  final String source;
+  final String author;
+  final String target;
 
-  String get displayName {
-    final target = Uri.decodeComponent(path.split('/').last);
-    return target.toLowerCase() == name.toLowerCase() ? name : '$name · $target';
+  String get source => path.split('/').first.replaceAll('%20', ' ');
+
+  String get rawUrl =>
+      'https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/'
+      '$path/ParametricEQ.txt';
+
+  factory AutoEqProfile.fromMarkdown(String line) {
+    final match = RegExp(
+      r'^- \[(.*?)\]\(\./(.+)\) by (.*?)(?: on (.*))?$',
+    ).firstMatch(line);
+    if (match == null) {
+      return AutoEqProfile(name: '', path: '', author: '');
+    }
+    return AutoEqProfile(
+      name: match.group(1) ?? '',
+      path: match.group(2) ?? '',
+      author: match.group(3) ?? '',
+      target: match.group(4) ?? '',
+    );
   }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'path': path,
+        'author': author,
+        'target': target,
+      };
+
+  factory AutoEqProfile.fromJson(Map<String, dynamic> json) => AutoEqProfile(
+        name: json['name']?.toString() ?? '',
+        path: json['path']?.toString() ?? '',
+        author: json['author']?.toString() ?? '',
+        target: json['target']?.toString() ?? '',
+      );
 }
 
-/// In-app AutoEq database search: downloads the small INDEX.md once, caches it
-/// for 7 days, then fetches just the chosen ParametricEQ.txt.
 class AutoEqService {
   AutoEqService._();
 
   static const _indexUrl =
       'https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/INDEX.md';
-  static const _rawBase =
-      'https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/';
-  static const _cacheKey = 'autoeqIndex';
-  static const _cacheTimeKey = 'autoeqIndexTime';
+  static const _cacheKey = 'AUTOEQ_INDEX';
+  static const _cacheTimeKey = 'AUTOEQ_INDEX_TIME';
+  static const _cacheDuration = Duration(days: 7);
 
-  static List<AutoEqProfile> _profiles = const [];
-  static DateTime? _fetched;
+  static List<AutoEqProfile> _memory = const [];
 
-  /// Pure parser for the markdown index (`- [Name](./source/target/path)`).
-  static List<AutoEqProfile> parseIndex(String markdown) {
-    final out = <AutoEqProfile>[];
-    final re = RegExp(r'^- \[([^\]]+)\]\(\./([^)]+)\)', multiLine: true);
-    for (final match in re.allMatches(markdown)) {
-      final name = match.group(1)?.trim() ?? '';
-      final path = match.group(2)?.trim() ?? '';
-      if (name.isEmpty || path.isEmpty || path.contains('#')) continue;
-      final segments = path.split('/');
-      final source = segments.isEmpty ? '' : Uri.decodeComponent(segments.first);
-      out.add(AutoEqProfile(name: name, path: path, source: source));
-    }
-    return out;
-  }
+  static List<AutoEqProfile> get all => _memory;
 
-  /// Pure: raw URL for a profile's ParametricEQ.txt.
-  static String parametricEqUrl(AutoEqProfile profile) {
-    final last = Uri.decodeComponent(profile.path.split('/').last);
-    final file = Uri.encodeComponent('$last ParametricEQ.txt');
-    // Keep the profile directory itself: .../AKG K371/AKG K371 ParametricEQ.txt
-    return '$_rawBase${profile.path}/$file';
-  }
+  /// Pure parser, unit-testable without network.
+  static List<AutoEqProfile> parseIndex(String markdown) => markdown
+      .split(RegExp(r'[\r\n]+'))
+      .where((line) => line.startsWith('- ['))
+      .map(AutoEqProfile.fromMarkdown)
+      .where((p) => p.name.isNotEmpty && p.path.isNotEmpty)
+      .toList();
 
-  /// Pure: ranked search over profile names (prefix > substring > tokens).
-  static List<AutoEqProfile> search(
-    List<AutoEqProfile> profiles,
-    String query, {
-    int limit = 40,
-  }) {
-    final q = query.toLowerCase().trim();
-    if (q.isEmpty) return profiles.take(limit).toList();
-    final scored = <(AutoEqProfile profile, int score)>[];
-    for (final p in profiles) {
-      final name = p.name.toLowerCase();
-      var score = 0;
-      if (name.startsWith(q)) {
-        score = 100 - name.length;
-      } else if (name.contains(q)) {
-        score = 60 - name.indexOf(q);
-      } else {
-        final tokens = q.split(RegExp(r'\s+'));
-        if (tokens.every(name.contains)) score = 20;
-      }
-      if (score > 0) scored.add((p, score));
-    }
-    scored.sort((a, b) => b.$2.compareTo(a.$2));
-    return scored.take(limit).map((e) => e.$1).toList();
-  }
-
-  static Future<List<AutoEqProfile>> loadProfiles({bool force = false}) async {
-    if (!force && _profiles.isNotEmpty) return _profiles;
+  static Future<List<AutoEqProfile>> loadIndex({bool force = false}) async {
+    if (_memory.isNotEmpty && !force) return _memory;
     try {
-      if (Hive.isBoxOpen('SETTINGS')) {
-        final box = Hive.box('SETTINGS');
-        final cached = box.get(_cacheKey)?.toString() ?? '';
-        final time = box.get(_cacheTimeKey) as DateTime?;
-        if (!force &&
-            cached.isNotEmpty &&
-            time != null &&
-            DateTime.now().difference(time).inDays < 7) {
-          _profiles = parseIndex(cached);
-          if (_profiles.isNotEmpty) return _profiles;
-        }
+      if (!Hive.isBoxOpen('SETTINGS')) return const [];
+      final box = Hive.box('SETTINGS');
+      final cached = box.get(_cacheKey);
+      final cachedAt = box.get(_cacheTimeKey);
+      final fresh = cachedAt is int &&
+          DateTime.now().millisecondsSinceEpoch - cachedAt <
+              _cacheDuration.inMilliseconds;
+      if (!force && fresh && cached is List && cached.isNotEmpty) {
+        _memory = cached
+            .whereType<Map>()
+            .map((m) => AutoEqProfile.fromJson(Map<String, dynamic>.from(m)))
+            .toList();
+        return _memory;
       }
-      final response =
-          await http.get(Uri.parse(_indexUrl)).timeout(const Duration(seconds: 25));
-      if (response.statusCode == 200) {
-        _profiles = parseIndex(response.body);
-        _fetched = DateTime.now();
-        if (Hive.isBoxOpen('SETTINGS')) {
-          final box = Hive.box('SETTINGS');
-          await box.put(_cacheKey, response.body);
-          await box.put(_cacheTimeKey, _fetched);
-        }
+    } catch (_) {}
+
+    try {
+      final response = await http
+          .get(Uri.parse(_indexUrl))
+          .timeout(const Duration(seconds: 25));
+      if (response.statusCode != 200) return _memory;
+      _memory = parseIndex(response.body);
+      if (Hive.isBoxOpen('SETTINGS')) {
+        await Hive.box('SETTINGS').put(
+          _cacheKey,
+          _memory.map((p) => p.toJson()).toList(),
+        );
+        await Hive.box('SETTINGS')
+            .put(_cacheTimeKey, DateTime.now().millisecondsSinceEpoch);
       }
     } catch (e) {
       debugPrint('[autoeq] index: $e');
     }
-    return _profiles;
+    return _memory;
   }
 
-  static DateTime? get lastFetched => _fetched;
+  static List<AutoEqProfile> search(String query, {int limit = 60}) {
+    final q = query.toLowerCase().trim();
+    if (q.isEmpty) return _memory.take(limit).toList();
+    return _memory
+        .where((p) =>
+            p.name.toLowerCase().contains(q) ||
+            p.author.toLowerCase().contains(q) ||
+            p.source.toLowerCase().contains(q))
+        .take(limit)
+        .toList();
+  }
 
-  /// Fetch and parse the 10-band gains for a selected profile.
-  static Future<List<double>?> gainsFor(AutoEqProfile profile) async {
+  /// Download a profile's ParametricEQ.txt and convert it to our 10 bands.
+  static Future<List<double>?> fetchGains(AutoEqProfile profile) async {
     try {
-      final url = parametricEqUrl(profile);
       final response = await http
-          .get(Uri.parse(url))
+          .get(Uri.parse(profile.rawUrl))
           .timeout(const Duration(seconds: 20));
-      if (response.statusCode != 200) {
-        debugPrint('[autoeq] ${response.statusCode} $url');
-        return null;
-      }
+      if (response.statusCode != 200) return null;
       final gains = AxionEqService.parseAutoEqProfile(response.body);
       return gains.any((g) => g != 0) ? gains : null;
     } catch (e) {
-      debugPrint('[autoeq] profile: $e');
+      debugPrint('[autoeq] ${profile.name}: $e');
       return null;
     }
   }

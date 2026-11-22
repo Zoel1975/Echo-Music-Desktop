@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:provider/provider.dart';
 
 import '../../../../core/widgets/back_button.dart';
 import '../../../../services/autoeq_service.dart';
@@ -8,8 +7,8 @@ import '../../../../services/axion_eq_service.dart';
 import '../../../../services/settings_manager.dart';
 import '../../../../services/silence_filter.dart';
 
-/// Real AXION / AutoEq equalizer: headphone presets, 10-band sliders and
-/// AutoEq profile import. Gains are persisted via SettingsManager.
+/// AXION / AutoEq equalizer with the full AutoEq database searchable inline:
+/// type a headphone name, tap a result, the 10 bands are applied immediately.
 class AxionEqPage extends StatefulWidget {
   const AxionEqPage({super.key});
 
@@ -20,10 +19,11 @@ class AxionEqPage extends StatefulWidget {
 class _AxionEqPageState extends State<AxionEqPage> {
   late List<double> _gains;
   String _presetName = 'Custom';
-  final _searchController = TextEditingController();
-  List<AutoEqProfile> _autoEqResults = const [];
-  bool _autoEqLoading = false;
-  String? _autoEqError;
+  final _search = TextEditingController();
+  List<AutoEqProfile> _results = const [];
+  bool _indexLoading = true;
+  String? _applying;
+  String? _error;
 
   @override
   void initState() {
@@ -41,6 +41,44 @@ class _AxionEqPageState extends State<AxionEqPage> {
     } else {
       _gains = List<double>.from(AxionEqService.presets.first.gains);
     }
+    _loadIndex();
+  }
+
+  Future<void> _loadIndex() async {
+    final profiles = await AutoEqService.loadIndex();
+    if (!mounted) return;
+    setState(() {
+      _indexLoading = false;
+      _results = profiles.take(30).toList();
+      _error = profiles.isEmpty
+          ? 'Indice AutoEq non disponibile (verifica la connessione).'
+          : null;
+    });
+  }
+
+  void _filter(String query) {
+    setState(() => _results = AutoEqService.search(query));
+  }
+
+  Future<void> _applyProfile(AutoEqProfile profile) async {
+    setState(() => _applying = profile.name);
+    final gains = await AutoEqService.fetchGains(profile);
+    if (!mounted) return;
+    setState(() => _applying = null);
+    if (gains == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Profilo "${profile.name}" non caricato.')),
+      );
+      return;
+    }
+    setState(() {
+      _gains = gains;
+      _presetName = profile.name;
+    });
+    _save();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('AutoEq applicato: ${profile.name}')),
+    );
   }
 
   void _save() {
@@ -48,8 +86,6 @@ class _AxionEqPageState extends State<AxionEqPage> {
     s.setExtra<String>(
         'axionEQGains', AxionEqService.encodePreset(EqPreset(_presetName, _gains)));
     s.equalizerEnabled = true;
-    // Apply the 10-band EQ to the desktop mpv filter chain (combined with
-    // skip-silence if enabled).
     SilenceFilter.apply(
       enabled: s.skipSilence,
       eqGains: _gains,
@@ -65,37 +101,9 @@ class _AxionEqPageState extends State<AxionEqPage> {
     _save();
   }
 
-  Future<void> _searchAutoEq(String query) async {
-    setState(() {
-      _autoEqLoading = true;
-      _autoEqError = null;
-    });
-    final profiles = await AutoEqService.loadProfiles();
-    if (!mounted) return;
-    setState(() {
-      _autoEqResults = AutoEqService.search(profiles, query);
-      _autoEqLoading = false;
-      if (profiles.isEmpty) {
-        _autoEqError = 'Database AutoEq non disponibile offline.';
-      }
-    });
-  }
-
-  Future<void> _applyAutoEq(AutoEqProfile profile) async {
-    setState(() => _autoEqLoading = true);
-    final gains = await AutoEqService.gainsFor(profile);
-    if (!mounted) return;
-    setState(() => _autoEqLoading = false);
-    if (gains == null) {
-      setState(() => _autoEqError = 'Profilo non scaricabile.');
-      return;
-    }
-    _applyPreset(EqPreset(profile.name, gains));
-  }
-
   @override
   void dispose() {
-    _searchController.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -107,8 +115,8 @@ class _AxionEqPageState extends State<AxionEqPage> {
         leading: echoBackButton(context),
         actions: [
           IconButton(
-            icon: const Icon(Icons.upload_file),
-            tooltip: 'Import AutoEq profile',
+            icon: const Icon(Icons.content_paste),
+            tooltip: 'Incolla profilo AutoEq (avanzato)',
             onPressed: _importProfile,
           ),
         ],
@@ -129,35 +137,55 @@ class _AxionEqPageState extends State<AxionEqPage> {
                 .toList(),
           ),
           const SizedBox(height: 24),
-          Text('AutoEq · cerca il tuo modello',
+          Text('Cerca profili AutoEq',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           TextField(
-            controller: _searchController,
-            onChanged: _searchAutoEq,
-            decoration: const InputDecoration(
-              hintText: 'Es. AKG K371, Sony XM5, 7Hz Zero…',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
+            controller: _search,
+            onChanged: _filter,
+            decoration: InputDecoration(
+              hintText: 'Es. Sennheiser HD 600, Sony XM5…',
+              prefixIcon: _indexLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : const Icon(Icons.search),
+              border: const OutlineInputBorder(),
             ),
           ),
-          if (_autoEqLoading) const LinearProgressIndicator(minHeight: 2),
-          if (_autoEqError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(_autoEqError!,
-                  style: const TextStyle(color: Colors.orange)),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: Colors.orange)),
+          ],
+          const SizedBox(height: 8),
+          if (_results.isEmpty && !_indexLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text('Nessun profilo trovato.'),
             ),
-          ..._autoEqResults.take(8).map(
-                (p) => ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.headphones),
-                  title: Text(p.displayName),
-                  subtitle: Text(p.source),
-                  onTap: () => _applyAutoEq(p),
-                ),
-              ),
-          const SizedBox(height: 20),
+          ..._results.map(
+            (p) => ListTile(
+              title: Text(p.name),
+              subtitle: Text('${p.author} · ${p.source}'
+                  '${p.target.isEmpty ? '' : ' · ${p.target}'}'),
+              trailing: _applying == p.name
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : _presetName == p.name
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : const Icon(Icons.tune),
+              onTap: () => _applyProfile(p),
+            ),
+          ),
+          const SizedBox(height: 24),
           Text('10-band equalizer',
               style: Theme.of(context).textTheme.titleMedium),
           ...List.generate(eqFrequencies.length, (i) {
@@ -192,7 +220,7 @@ class _AxionEqPageState extends State<AxionEqPage> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Import AutoEq profile'),
+        title: const Text('Incolla profilo AutoEq'),
         content: SizedBox(
           width: 400,
           height: 300,
@@ -201,7 +229,7 @@ class _AxionEqPageState extends State<AxionEqPage> {
             maxLines: null,
             expands: true,
             decoration: const InputDecoration(
-              hintText: 'Paste AutoEq profile (Filter N: ... Gain -x dB)',
+              hintText: 'Filter N: ... Gain -x dB',
               border: OutlineInputBorder(),
             ),
           ),
@@ -209,7 +237,7 @@ class _AxionEqPageState extends State<AxionEqPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Annulla'),
           ),
           FilledButton(
             onPressed: () {
@@ -221,7 +249,7 @@ class _AxionEqPageState extends State<AxionEqPage> {
               _save();
               Navigator.of(ctx).pop();
             },
-            child: const Text('Import'),
+            child: const Text('Importa'),
           ),
         ],
       ),

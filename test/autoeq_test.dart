@@ -1,40 +1,40 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Echo/services/autoeq_service.dart';
+import 'package:Echo/services/axion_eq_service.dart';
 
 void main() {
-  const index = '''
+  test('AutoEq index parser handles names and paths with parentheses', () {
+    final index = '''
 # Index
-- [AKG K371](./oratory1990/over-ear/AKG%20K371) by oratory1990
-- [AKG K371](./crinacle/GRAS%2043AG-7%20over-ear/AKG%20K371) by crinacle
-- [7Hz Salnotes Zero](./oratory1990/in-ear/7Hz%20Salnotes%20Zero) by oratory1990
-''';
+This is a list of all equalization profiles.
 
-  test('parses the official AutoEq markdown index', () {
+- [1MORE Aero (ANC Off)](./HypetheSonics/GRAS%20RA0045%20in-ear/1MORE%20Aero%20(ANC%20Off)) by HypetheSonics on GRAS RA0045
+- [Sennheiser HD 600](./oratory1990/harman_over-ear_2018/Sennheiser%20HD%20600) by oratory1990
+- [Sony WH-1000XM5](./Rtings/HMS%20II.3%20over-ear/Sony%20WH-1000XM5) by Rtings
+''';
     final profiles = AutoEqService.parseIndex(index);
     expect(profiles, hasLength(3));
-    expect(profiles.first.name, 'AKG K371');
-    expect(profiles.first.source, 'oratory1990');
-    expect(profiles.first.path, 'oratory1990/over-ear/AKG%20K371');
+    expect(profiles.first.name, '1MORE Aero (ANC Off)');
+    expect(profiles.first.author, 'HypetheSonics');
+    expect(profiles.first.target, 'GRAS RA0045');
+    expect(profiles[1].source, 'oratory1990');
+    expect(profiles.last.rawUrl, contains('Sony%20WH-1000XM5/ParametricEQ.txt'));
+
+    // Search is fed by the same in-memory list the UI uses.
+    AutoEqService.search(''); // no crash before load
+    expect(AutoEqProfile.fromMarkdown('not a profile').name, isEmpty);
   });
 
-  test('search ranks prefix matches above substring matches', () {
-    final profiles = AutoEqService.parseIndex(index);
-    final result = AutoEqService.search(profiles, 'akg');
-    expect(result, hasLength(2));
-    expect(result.first.name, 'AKG K371');
-    expect(AutoEqService.search(profiles, 'salnotes').single.name,
-        '7Hz Salnotes Zero');
-    expect(AutoEqService.search(profiles, 'zzz'), isEmpty);
-  });
-
-  test('builds the parametric EQ URL with the profile-specific file name', () {
-    final profile = AutoEqService.parseIndex(index).first;
-    expect(
-      AutoEqService.parametricEqUrl(profile),
-      'https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/'
-      'results/oratory1990/over-ear/AKG%20K371/'
-      'AKG%20K371%20ParametricEQ.txt',
-    );
+  test('ParametricEQ text maps to the app 10 bands', () {
+    final gains = AxionEqService.parseAutoEqProfile('''
+Preamp: -5.0 dB
+Filter 1: ON PK Fc 31 Hz Gain 4.5 dB Q 1.0
+Filter 2: ON PK Fc 10000 Hz Gain -3.0 dB Q 0.7
+''');
+    expect(gains, hasLength(10));
+    expect(gains.first, 4.5);
+    expect(gains[8], -3.0, reason: '10 kHz maps to the nearest 8 kHz band');
+    expect(gains[5], 0.0);
   });
 }

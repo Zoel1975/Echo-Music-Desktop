@@ -146,13 +146,16 @@ void main() {
     expect(login, contains('Network.requestWillBeSent'));
     expect(login, contains('googlevideo.com/videoplayback'));
 
-    expect(File('lib/services/autoeq_service.dart').existsSync(), isTrue);
-    final eqPage = File(
-      'lib/screens/settings/player/equalizer/axion_eq_page.dart',
-    ).readAsStringSync();
-    expect(eqPage, contains("hintText: 'Es. AKG K371"));
-    expect(eqPage, contains('_searchAutoEq'));
-    expect(eqPage, contains('_applyAutoEq'));
+    final autoeq = File('lib/services/autoeq_service.dart').readAsStringSync();
+    expect(autoeq, contains('results/INDEX.md'),
+        reason: 'AutoEq index must come from the official database');
+    expect(autoeq, contains('ParametricEQ.txt'));
+    final eqPage =
+        File('lib/screens/settings/player/equalizer/axion_eq_page.dart')
+            .readAsStringSync();
+    expect(eqPage, contains('Cerca profili AutoEq'));
+    expect(eqPage, contains('_applyProfile'),
+        reason: 'tapping a search result must apply the profile');
 
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));
