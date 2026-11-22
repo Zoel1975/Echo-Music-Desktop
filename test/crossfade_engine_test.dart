@@ -116,6 +116,27 @@ void main() {
     engine.dispose();
   });
 
+  test('handoff ramp starts from silence instead of a full-volume step',
+      () async {
+    final from = FakePlayer()..volume = 0.8;
+    final to = FakePlayer()..volume = 0;
+    final sw = ManualStopwatch();
+    final engine = CrossfadeEngine(
+      out: from,
+      inPlayer: to,
+      tick: const Duration(milliseconds: 10),
+      stopwatchFactory: () => sw,
+    )..peakVolume = 0.8;
+    await engine.start(const Duration(milliseconds: 200));
+    sw.micros = 20000; // t = 0.1
+    await Future<void>.delayed(const Duration(milliseconds: 35));
+    expect(to.volume, greaterThan(0));
+    expect(to.volume, lessThan(0.8 * 0.5),
+        reason: 'first ticks must be a gentle ramp, not a step to full volume');
+    expect(from.volume, lessThan(0.8));
+    engine.dispose();
+  });
+
   test('player crossfade prepares the outgoing source before stopping main',
       () {
     final src = File('lib/services/media_player.dart').readAsStringSync();
@@ -129,15 +150,21 @@ void main() {
     expect(handoff, greaterThan(0));
     expect(stopMain, greaterThan(handoff),
         reason: 'outgoing track must be running before main is stopped');
-    expect(crossfadeTo, contains('await Future.wait(['));
+    expect(crossfadeTo, contains('await _rampHandoff('));
+    expect(crossfadeTo, isNot(contains('await Future.wait([')),
+        reason: 'instant volume swap clicks at fade start');
     expect(crossfadeTo, isNot(contains('_player.setVolume(_dspTargetGain)')));
 
     final arm = src.substring(
-      src.indexOf('Future<void> _maybePreArmQueueCrossfade'),
+      src.indexOf('Future<bool> _prepareStandby'),
       src.indexOf('void _maybeSkipSponsor'),
     );
     expect(arm, contains('await outPlayer.setVolume(0)'));
+    expect(arm, contains('_preArm.recordPreparationDuration'));
+    expect(arm, contains('Future<void> _triggerQueueCrossfade'));
     expect(arm, contains('final peak = _dspTargetGain'));
+    expect(arm, contains('await _rampHandoff('));
     expect(arm, contains('_player.setVolume(peak)'));
+    expect(arm, contains('_preArm.currentLeadTime'));
   });
 }

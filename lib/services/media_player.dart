@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/audio_source_info.dart';
 import 'package:Echo/services/crossfade_engine.dart';
+import 'package:Echo/services/crossfade_prearm.dart';
 import 'package:Echo/services/desktop_dsp.dart';
 import 'package:Echo/services/playback_cutoff.dart';
 import 'package:Echo/services/scrobble_service.dart';
@@ -66,6 +67,9 @@ class MediaPlayer extends ChangeNotifier {
   /// clicks can never interleave stop/load/play on the same AudioPlayer.
   int _playGeneration = 0;
 
+  /// Invalidates stale fade-in loops when a new play request arrives.
+  int _fadeInGeneration = 0;
+
   MediaPlayer() {
     if (Platform.isAndroid) {
       _equalizer = AndroidEqualizer();
@@ -101,6 +105,12 @@ class MediaPlayer extends ChangeNotifier {
   bool get shuffleModeEnabled => _shuffleModeEnabled;
   ValueNotifier<LoopMode> get loopMode => _loopMode;
   ValueNotifier<Duration?> get timerDuration => sleepTimer.remaining;
+
+  /// Read-only instrumentation for the diagnostic probe: volumes during a
+  /// handoff/crossfade must change gradually, never jump in one step.
+  double get diagnosticOutVolume => _xfadeOutPlayer?.volume ?? 0;
+  bool get diagnosticHandoffRunning => _handoffEngine?.isRunning ?? false;
+  bool get diagnosticCrossfading => _xfade?.isCrossfading ?? false;
 
   Stream<
       ({
@@ -343,8 +353,63 @@ class MediaPlayer extends ChangeNotifier {
   // track with the new one on user-initiated track switches.
   AudioPlayer? _xfadeOutPlayer;
   QueueCrossfadeController? _xfade;
+  CrossfadeEngine? _handoffEngine;
+  final AdaptivePreArmManager _preArm = AdaptivePreArmManager();
   bool _xfadeArmed = false;
   int? _xfadeArmedIndex;
+  bool _xfadeTriggered = false;
+
+  /// Short equal-power ramp used before the crossfade itself: the outgoing
+  /// player starts muted, so jumping straight to full volume would click.
+  static const Duration handoffRampDuration = Duration(milliseconds: 140);
+
+  /// A freshly attached StreamAudioSource needs a moment to buffer the range
+  /// at [position]. Starting the handoff before that produced an audible
+  /// freeze: the outgoing player went silent exactly when it became audible.
+  Future<bool> _waitForOutgoingReady(
+    AudioPlayer outgoing,
+    Duration position,
+  ) async {
+    const maxWait = Duration(milliseconds: 2500);
+    final deadline = DateTime.now().add(maxWait);
+    while (DateTime.now().isBefore(deadline)) {
+      final buffered = outgoing.bufferedPosition;
+      if (outgoing.playing &&
+          buffered >= position + const Duration(milliseconds: 150)) {
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+    }
+    return false;
+  }
+
+  Future<void> _rampHandoff(
+    FadeablePlayer from,
+    FadeablePlayer to,
+    double peak,
+  ) async {
+    _handoffEngine?.cancel();
+    if (peak <= 0.001) {
+      await from.setVolume(0);
+      await to.setVolume(0);
+      return;
+    }
+    final engine = CrossfadeEngine(
+      out: from,
+      inPlayer: to,
+      tick: const Duration(milliseconds: 20),
+    )..peakVolume = peak;
+    _handoffEngine = engine;
+    final done = Completer<void>();
+    await engine.start(handoffRampDuration, onDone: () {
+      if (!done.isCompleted) done.complete();
+    });
+    // A lost platform callback must not hang the play request.
+    await done.future
+        .timeout(const Duration(milliseconds: 700), onTimeout: () {});
+    engine.dispose();
+    if (identical(_handoffEngine, engine)) _handoffEngine = null;
+  }
 
   void _listenToCurrentPosition() {
     _player.positionStream.listen((position) {
@@ -364,61 +429,66 @@ class MediaPlayer extends ChangeNotifier {
   /// Automatic queue advance: when the current track is within the crossfade
   /// window of its end and a next track is queued, overlap them using a
   /// dedicated outgoing player + equal-power ramp instead of a hard cut.
-  Future<void> _maybePreArmQueueCrossfade(Duration position) async {
-    final settings = GetIt.I<SettingsManager>();
-    if (!settings.crossfadeEnabled) return;
-    final idx = _player.currentIndex;
-    if (idx == null) return;
-    if (_xfadeArmedIndex == idx) return; // already armed for this track
-    final nextIdx = idx + 1;
-    final hasNext = nextIdx < _songList.length;
-    final decision = QueueEndCrossfade.evaluate(
-      position: position,
-      duration: _player.duration,
-      crossfade: Duration(
-          milliseconds: (settings.crossfadeDuration * 1000).round()),
-      enabled: settings.crossfadeEnabled,
-      hasNext: hasNext,
-      alreadyArmed: _xfadeArmedIndex == idx,
-    );
-    // Adaptive pre-arm: also fire when buffering is thin near the end, even
-    // if crossfade itself is off (Android AdaptivePreArmManager).
-    final cutoffArm = PlaybackCutoffGuard.shouldPreArm(
-      positionMs: position.inMilliseconds,
-      durationMs: (_player.duration ?? Duration.zero).inMilliseconds,
-      bufferedMs: _player.bufferedPosition.inMilliseconds,
-      baseLeadMs: (settings.crossfadeDuration * 1000).round(),
-    );
-    if (!decision.shouldArm && !cutoffArm) return;
-    _xfadeArmed = true;
-    _xfadeArmedIndex = idx;
+  /// Cancels an in-progress pre-arm (user seeked, paused or picked a song).
+  Future<void> _cancelCrossfadePreArm() async {
+    _xfade?.cancel();
+    _handoffEngine?.cancel();
+    _xfadeArmed = false;
+    _xfadeArmedIndex = null;
+    _xfadeTriggered = false;
+    final out = _xfadeOutPlayer;
+    if (out != null) {
+      await out.pause();
+      await out.setVolume(0);
+    }
+  }
 
+  /// Port of Android `StandbyCrossfadeScheduler`: prepare the standby player
+  /// early and wait until it is really ready (STATE_READY equivalent) instead
+  /// of assuming a freshly created source can start instantly.
+  Future<bool> _prepareStandby(Duration position, int idx) async {
+    final started = DateTime.now();
     try {
       final currentTag = _songList[idx].tag;
-      final nextTag = _songList[nextIdx].tag;
-      if (currentTag is! MediaItem || nextTag is! MediaItem) return;
+      if (currentTag is! MediaItem) return false;
+      await _cancelCrossfadePreArm();
       final outPlayer = _xfadeOutPlayer ??= AudioPlayer();
-      _xfade?.dispose();
-      // A previous fade may have left the outgoing player paused at the end.
-      // Rewind it before attaching a new source.
-      await outPlayer.pause();
-      final peak = _dspTargetGain; // captured while the user volume is intact
-      _xfade = QueueCrossfadeController(makePlayer: () => AudioPlayerAdapter(outPlayer));
+      _xfade = QueueCrossfadeController(
+        makePlayer: () => AudioPlayerAdapter(outPlayer),
+      );
       final outSource = await _getAudioSource(currentTag.extras ?? {});
       await outPlayer.setAudioSource(outSource);
       await outPlayer.seek(position);
-      // Warm the decoder while the main player is still audible, but keep the
-      // outgoing player silent until the handoff. Starting it at full volume
-      // here doubled the signal and sounded like a click.
       await outPlayer.setVolume(0);
       await outPlayer.play();
+      final ready = await _waitForOutgoingReady(outPlayer, position);
+      // Android's AdaptivePreArmManager uses this to expand/decay the lead.
+      _preArm.recordPreparationDuration(DateTime.now().difference(started));
+      return ready;
+    } catch (e) {
+      debugPrint('Crossfade pre-arm failed: $e');
+      return false;
+    }
+  }
 
-      // Swap levels in the same event-loop turn: no silence gap, no bump.
-      await Future.wait([
-        _player.setVolume(0),
-        outPlayer.setVolume(peak),
-      ]);
-      // Seek the main player to the next track (queue preserved) and ramp it in.
+  Future<void> _triggerQueueCrossfade(
+    int idx,
+    int nextIdx,
+    Duration position,
+  ) async {
+    if (_xfadeTriggered) return;
+    _xfadeTriggered = true;
+    final outPlayer = _xfadeOutPlayer;
+    final nextTag = _songList[nextIdx].tag;
+    if (outPlayer == null || !_xfadeArmed || nextTag is! MediaItem) return;
+    final peak = _dspTargetGain; // captured before the main player is muted
+    final settings = GetIt.I<SettingsManager>();
+    try {
+      await _rampHandoff(
+        AudioPlayerAdapter(_player),
+        AudioPlayerAdapter(outPlayer),
+        peak,
+      );
       await _player.seek(Duration.zero, index: nextIdx);
       _currentSongNotifier.value = nextTag;
       _currentIndex.value = nextIdx;
@@ -426,14 +496,16 @@ class MediaPlayer extends ChangeNotifier {
 
       await _xfade!.start(
         incoming: AudioPlayerAdapter(_player),
-        duration: Duration(milliseconds: (settings.crossfadeDuration * 1000).round()),
+        duration:
+            Duration(milliseconds: (settings.crossfadeDuration * 1000).round()),
         peakVolume: peak,
         startOutgoing: (_) async {},
         onDone: () {
           outPlayer.pause();
-          // Restore the volume captured before the fade. Recomputing
-          // _dspTargetGain here sees volume 0 and resets to 100% (a jump).
           _player.setVolume(peak);
+          _xfadeArmed = false;
+          _xfadeArmedIndex = null;
+          _xfadeTriggered = false;
         },
       );
     } catch (e) {
@@ -441,6 +513,46 @@ class MediaPlayer extends ChangeNotifier {
       _xfade?.cancel();
       _xfadeArmed = false;
       _xfadeArmedIndex = null;
+      _xfadeTriggered = false;
+    }
+  }
+
+  /// Android Echo arms the standby player with a 20s (up to 35s adaptive)
+  /// lead, then starts the blend only once the remaining time equals the
+  /// crossfade duration. Preparing inside the fade window caused the stall.
+  Future<void> _maybePreArmQueueCrossfade(Duration position) async {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.crossfadeEnabled) return;
+    final idx = _player.currentIndex;
+    if (idx == null) return;
+    final nextIdx = idx + 1;
+    if (nextIdx >= _songList.length) return;
+    final duration = _player.duration;
+    if (duration == null) return;
+    final crossfade = Duration(
+        milliseconds: (settings.crossfadeDuration * 1000).round());
+    if (duration <= crossfade) return;
+
+    final remaining = duration - position;
+    final lead = _preArm.currentLeadTime;
+    final prepared = _xfadeArmed && _xfadeArmedIndex == idx;
+    if (!prepared) {
+      final cutoffArm = PlaybackCutoffGuard.shouldPreArm(
+        positionMs: position.inMilliseconds,
+        durationMs: duration.inMilliseconds,
+        bufferedMs: _player.bufferedPosition.inMilliseconds,
+        baseLeadMs: lead.inMilliseconds,
+      );
+      if (remaining > lead && !cutoffArm) return;
+      // Too late to prepare a standby: better a clean cut than a frozen fade.
+      if (remaining <= crossfade) return;
+      final ready = await _prepareStandby(position, idx);
+      if (!ready) return;
+      _xfadeArmed = true;
+      _xfadeArmedIndex = idx;
+    }
+    if (remaining <= crossfade) {
+      await _triggerQueueCrossfade(idx, nextIdx, position);
     }
   }
 
@@ -685,6 +797,8 @@ class MediaPlayer extends ChangeNotifier {
 
   Future<void> playSong(Map<String, dynamic> song) async {
     if (song['videoId'] == null) return;
+    // A user-initiated switch invalidates any standby prepared by the queue.
+    await _cancelCrossfadePreArm();
 
     // Generate a new request ID (monotonic: two taps in the same millisecond
   // used to get the same id and both continued playing).
@@ -774,6 +888,7 @@ class MediaPlayer extends ChangeNotifier {
     required Duration duration,
   }) async {
     _xfade?.dispose();
+    _handoffEngine?.cancel();
     final outPlayer = _xfadeOutPlayer ??= AudioPlayer();
     await outPlayer.pause(); // reset any previous handoff
     _xfade = QueueCrossfadeController(
@@ -791,11 +906,15 @@ class MediaPlayer extends ChangeNotifier {
     await outPlayer.play(); // decoded and running, but still silent
     if (_lastPlayRequestId != requestId) return;
 
-    // Hand off at the same instant: mute main, unmute outgoing.
-    await Future.wait([
-      _player.setVolume(0),
-      outPlayer.setVolume(peakVolume),
-    ]);
+    // Ramp from the still-audible main player to the muted outgoing player.
+    // Setting the outgoing volume from 0 straight to peak was the audible
+    // click right when the crossfade began.
+    await _rampHandoff(
+      AudioPlayerAdapter(_player),
+      AudioPlayerAdapter(outPlayer),
+      peakVolume,
+    );
+    if (_lastPlayRequestId != requestId) return;
 
     // Now it is safe to stop/replace the main source (already silent).
     await _player.pause();

@@ -16,6 +16,7 @@ import 'google_login_service.dart';
 import 'home_sections.dart';
 import 'media_player.dart';
 import 'monochrome_service.dart';
+import 'settings_manager.dart';
 import '../screens/home/cubit/home_cubit.dart';
 import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
@@ -604,6 +605,43 @@ class RuntimeProbeService {
         'visitorLen': hdrs['X-Goog-Visitor-Id']?.length,
         'contextUser': (yt.context['user'] as Map?)?['onBehalfOfUser'],
         'results': results,
+      });
+      return;
+    }
+    if (path == '/crossfade/test' && request.method == 'POST') {
+      final settings = GetIt.I<SettingsManager>();
+      settings.crossfadeEnabled = true;
+      settings.crossfadeDuration = 3;
+      final player = GetIt.I<MediaPlayer>();
+      await player.playSong({
+        'videoId': 'dQw4w9WgXcQ',
+        'title': 'Crossfade A',
+        'artists': [
+          {'name': 'Probe'}
+        ],
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      await player.playSong({
+        'videoId': '2Vv-BfVoq4g',
+        'title': 'Crossfade B',
+        'artists': [
+          {'name': 'Probe'}
+        ],
+      });
+      final samples = <Map<String, dynamic>>[];
+      for (var i = 0; i < 16; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        samples.add({
+          't': (i + 1) * 150,
+          'main': player.player.volume.round().toDouble() / 100,
+          'out': (player.diagnosticOutVolume * 100).round().toDouble() / 100,
+          'handoff': player.diagnosticHandoffRunning,
+          'fade': player.diagnosticCrossfading,
+        });
+      }
+      _json(request.response, 200, {
+        'enabled': settings.crossfadeEnabled,
+        'samples': samples,
       });
       return;
     }
