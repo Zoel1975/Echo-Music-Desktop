@@ -695,7 +695,7 @@ class RuntimeProbeService {
       await player.addToQueue(song('2Vv-BfVoq4g', 'Probe B'));
       await Future<void>.delayed(const Duration(seconds: 2));
       final duration = player.player.duration ?? const Duration(seconds: 210);
-      final target = duration - const Duration(seconds: 9);
+      final target = duration - const Duration(seconds: 30);
       await player.player.seek(target > Duration.zero ? target : Duration.zero);
       _json(request.response, 200, {
         'durationMs': duration.inMilliseconds,
@@ -723,6 +723,28 @@ class RuntimeProbeService {
       _json(request.response, 200, AutomixDebug.instance.toJson());
       return;
     }
+    if (path == '/beat/analyze-song' && request.method == 'POST') {
+      final id = request.uri.queryParameters['id'] ?? 'dQw4w9WgXcQ';
+      try {
+        final result = await BeatAnalyzerService.analyzeSong({
+          'videoId': id,
+          'title': 'Probe',
+          'duration': 210000,
+        });
+        _json(request.response, 200, {
+          'bpm': result?.bpm,
+          'key': result?.keyLabel,
+          'mixInMs': result?.mixInMs,
+          'mixOutMs': result?.mixOutMs,
+          'confidence': result?.confidence,
+          'headBytes': BeatAnalyzerService.lastHeadBytes,
+          'headError': BeatAnalyzerService.lastHeadError,
+        });
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
+      return;
+    }
     if (path == '/beat/analyze' && request.method == 'POST') {
       final dir = Directory.systemTemp;
       final wav = '${dir.path}${Platform.pathSeparator}echo_beat_probe.wav';
@@ -740,6 +762,8 @@ class RuntimeProbeService {
           'mixInMs': beat?.mixInMs,
           'mixOutMs': beat?.mixOutMs,
           'key': beat?.keyLabel,
+          'headBytes': BeatAnalyzerService.lastHeadBytes,
+          'headError': BeatAnalyzerService.lastHeadError,
           'tailBytes': BeatAnalyzerService.lastTailBytes,
           'tailError': BeatAnalyzerService.lastTailError,
         });

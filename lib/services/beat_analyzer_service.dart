@@ -3,9 +3,9 @@ import 'dart:typed_data';
 
 import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
-import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
 
+import 'automix_debug.dart';
 import 'beat_analysis.dart';
 import 'stream_resolver.dart';
 
@@ -21,9 +21,11 @@ class BeatAnalyzerService {
 
   static const _boxName = 'BEAT_ANALYSIS';
 
-  /// Last tail decode stats, surfaced by the diagnostic probe.
+  /// Last decode stats, surfaced by the diagnostic probe.
   static int lastTailBytes = 0;
   static String? lastTailError;
+  static int lastHeadBytes = 0;
+  static String? lastHeadError;
 
   static BeatAnalysisResult? cached(String key) => _cached(key);
 
@@ -97,6 +99,8 @@ class BeatAnalyzerService {
             if (fromEnd) '-sseof' else '-t',
             if (fromEnd) '-$windowSeconds' else '$windowSeconds',
             if (headerValue != null) ...['-headers', headerValue],
+            '-user_agent',
+            YtPlayerClient.visionOs.userAgent,
             '-i',
             input,
             '-vn',
@@ -110,9 +114,21 @@ class BeatAnalyzerService {
           ];
       final args = decodeArgs(path, pcmPath);
       final session = await FFmpegKit.executeWithArguments(args);
-      if (!ReturnCode.isSuccess(await session.getReturnCode())) return null;
+      final headCode = await session.getReturnCode();
+      if (!ReturnCode.isSuccess(headCode)) {
+        final logs = await session.getLogsAsString();
+        lastHeadError = 'exit=$headCode '
+            '${logs.length > 300 ? logs.substring(logs.length - 300) : logs}';
+        AutomixDebug.instance.log(
+          'beat decode HEAD fallito: $lastHeadError',
+          level: 'ERROR',
+        );
+        return null;
+      }
       final file = File(pcmPath);
       if (!await file.exists()) return null;
+      final headBytes = await file.readAsBytes();
+      lastHeadBytes = headBytes.length;
 
       // Tail window for the energy-based mix-out point. `-sseof` seeks from
       // the end, so it also works for long tracks without decoding all of it.
@@ -138,7 +154,7 @@ class BeatAnalyzerService {
       }
 
       final result = analyzeBytes(
-        await file.readAsBytes(),
+        headBytes,
         tailBytes: tailBytes,
         durationMs: durationMs,
       );
@@ -172,18 +188,25 @@ class BeatAnalyzerService {
         : null;
     final path = song['path']?.toString();
     if (path != null && File(path).existsSync()) {
+      AutomixDebug.instance.log('beat analysis: file locale $id');
       return analyzePath(id, path, durationMs: durationMs);
     }
-    if (!GetIt.I.isRegistered<StreamResolver>()) return null;
+    // StreamResolver is a static singleton, not a GetIt registration.
     try {
       final stream = await StreamResolver.instance.resolve(id);
+      AutomixDebug.instance.log(
+        'beat analysis: stream $id headers=${stream.headers.length} '
+        'client=${stream.client}',
+      );
       return analyzePath(
         id,
         stream.url,
         headers: stream.headers,
         durationMs: durationMs,
       );
-    } catch (_) {
+    } catch (e) {
+      AutomixDebug.instance.log('beat analysis: resolve fallito $id: $e',
+          level: 'WARN');
       return null;
     }
   }

@@ -368,6 +368,7 @@ class MediaPlayer extends ChangeNotifier {
   int? _xfadeArmedIndex;
   bool _xfadeTriggered = false;
   bool _xfadePreparing = false;
+  int? _tooLateLoggedIndex;
 
   /// Short equal-power ramp used before the crossfade itself: the outgoing
   /// player starts muted, so jumping straight to full volume would click.
@@ -686,11 +687,14 @@ class MediaPlayer extends ChangeNotifier {
       if (remaining > lead && !cutoffArm) return;
       // Too late to prepare a standby: better a clean cut than a frozen fade.
       if (remaining.inMilliseconds <= triggerMs) {
-        AutomixDebug.instance.log(
-          'pre-arm troppo tardivo (remaining=${remaining.inMilliseconds}ms '
-          'trigger=$triggerMs) → nessun crossfade',
-          level: 'WARN',
-        );
+        if (_tooLateLoggedIndex != idx) {
+          AutomixDebug.instance.log(
+            'pre-arm troppo tardivo (remaining=${remaining.inMilliseconds}ms '
+            'trigger=$triggerMs) → nessun crossfade',
+            level: 'WARN',
+          );
+          _tooLateLoggedIndex = idx;
+        }
         return;
       }
       AutomixDebug.instance.log(

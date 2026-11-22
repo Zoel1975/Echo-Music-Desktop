@@ -38,8 +38,14 @@ Port dell'Automix di Echo Android. Questa build contiene la fase 3.
 - Switch **Mostra overlay nel player** riproduce l'overlay monospace di Android
   (stato, BPM in/out, chiave, prossimo mix).
 - Con `ECHO_DIAG=1`: `GET /automix/state` restituisce tutto lo stato in JSON,
-  `POST /settings/crossfade?enabled=1&seconds=5` abilita il crossfade e
-  `POST /queue/crossfade-test` simula un passaggio automatico a fine traccia.
+  `POST /settings/crossfade?enabled=1&seconds=5` abilita il crossfade,
+  `POST /beat/analyze-song?id=VIDEO_ID` analizza un brano senza coda (verifica
+  IN/OUT) e `POST /queue/crossfade-test` simula un passaggio automatico.
+
+L'analisi non partiva perché `StreamResolver` è un singleton statico e il
+service controllava `GetIt.I.isRegistered<StreamResolver>()`, sempre falso.
+Ora usa direttamente `StreamResolver.instance`; il decode FFmpeg include lo
+User-Agent di YouTube e registra exit code/log in caso di fallimento.
 
 Il pre-arm usa un guard contro le chiamate concorrenti del position stream e,
 se media_kit non espone `bufferedPosition`, procede comunque riprovando `play()`
