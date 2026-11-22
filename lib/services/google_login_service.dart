@@ -461,6 +461,63 @@ class GoogleLoginService {
   /// So: only a youtube.com auth cookie (or a page that exposes
   /// `DATASYNC_ID`) counts as signed in. [verifySession] optionally confirms the
   /// session with a real API call, useful if Google changes auth cookie names.
+  /// Opens the age-gated video in the signed-in login browser and captures the
+  /// googlevideo URL Chrome obtains after the user confirms their age. YouTube
+  /// ties that URL to a PoToken from the browser session, which a desktop HTTP
+  /// client cannot synthesize — so this is the only reliable fallback.
+  Future<({String url, Map<String, String> headers})?> captureStreamUrl(
+    String videoId, {
+    Duration timeout = const Duration(minutes: 3),
+  }) async {
+    final profile = await profileDirectory();
+    final url = 'https://music.youtube.com/watch?v=$videoId';
+    await openBrowser(profileDir: profile.path, url: url);
+    final completer = Completer<({String url, Map<String, String> headers})?>();
+    for (var i = 0; i < 40 && !await isCdpUp(port); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    final wsUrl = await _browserWebSocketUrl();
+    if (wsUrl == null) return null;
+    WebSocket? ws;
+    StreamSubscription<dynamic>? sub;
+    try {
+      ws = await WebSocket.connect(wsUrl).timeout(const Duration(seconds: 5));
+      sub = ws.listen((message) {
+        try {
+          final decoded = jsonDecode(message as String) as Map<String, dynamic>;
+          final method = decoded['method']?.toString() ?? '';
+          if (method != 'Network.requestWillBeSent') return;
+          final params = decoded['params'] as Map<String, dynamic>? ?? {};
+          final request = params['request'] as Map<String, dynamic>? ?? {};
+          final found = request['url']?.toString() ?? '';
+          if (!found.contains('googlevideo.com/videoplayback')) return;
+          final headers = <String, String>{};
+          final raw = request['headers'];
+          if (raw is Map) {
+            raw.forEach((k, v) => headers[k.toString()] = v.toString());
+          }
+          if (!completer.isCompleted) {
+            completer.complete((url: found, headers: headers));
+          }
+        } catch (_) {}
+      });
+      ws.add(jsonEncode({'id': 901, 'method': 'Network.enable'}));
+      // Re-navigate in case the first tab missed the event.
+      ws.add(jsonEncode({
+        'id': 902,
+        'method': 'Target.createTarget',
+        'params': {'url': url},
+      }));
+      return await completer.future.timeout(timeout, onTimeout: () => null);
+    } catch (e) {
+      debugPrint('[google-login] stream capture failed: $e');
+      return null;
+    } finally {
+      await sub?.cancel();
+      await ws?.close();
+    }
+  }
+
   Future<LoginCapture?> waitForSignIn({
     required Duration timeout,
     required Future<bool> Function() cancelled,

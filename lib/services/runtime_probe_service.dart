@@ -9,6 +9,7 @@ import 'account_refresh.dart';
 import 'audio_fallback.dart';
 import 'cast/cast_device.dart';
 import 'cast/cast_service.dart';
+import 'google_login_service.dart';
 import 'home_sections.dart';
 import 'media_player.dart';
 import '../screens/home/cubit/home_cubit.dart';
@@ -509,6 +510,17 @@ class RuntimeProbeService {
         'length': body.length,
         'matches': matches,
         'head': body.substring(0, body.length.clamp(0, 600)),
+      });
+      return;
+    }
+    if (path == '/age-capture' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final seconds = int.tryParse(request.uri.queryParameters['seconds'] ?? '20') ?? 20;
+      final captured = await GoogleLoginService()
+          .captureStreamUrl(id, timeout: Duration(seconds: seconds));
+      _json(request.response, 200, {
+        'captured': captured != null,
+        'url': captured?.url.substring(0, captured.url.length.clamp(0, 80)),
       });
       return;
     }

@@ -8,6 +8,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_explode_dart/src/reverse_engineering/challenges/js_challenge.dart';
 
 import 'cookie_store.dart';
+import 'google_login_service.dart';
 import 'youtube_explode_client.dart';
 import 'youtube_explode_solver.dart';
 
@@ -689,6 +690,34 @@ class StreamResolver {
       errors
         ..clear()
         ..addAll(roundErrors);
+    }
+    // Age gate: YouTube ties the playable URL to a PoToken generated in the
+    // signed-in browser. Open the video there, let the user confirm their age,
+    // then reuse the stream Chrome obtained.
+    if (errors.any((e) {
+      final lower = e.toLowerCase();
+      return lower.contains('age') ||
+          lower.contains('inappropriate') ||
+          lower.contains('unavailable');
+    })) {
+      final captured = await GoogleLoginService().captureStreamUrl(videoId);
+      if (captured != null) {
+        final stream = ResolvedStream(
+          url: captured.url,
+          mimeType: 'audio/mpeg',
+          contentLength: 0,
+          bitrate: 0,
+          client: 'BROWSER',
+          headers: captured.headers,
+        );
+        if (await _validate(stream)) {
+          _cache[key] = (
+            stream: stream,
+            expiry: DateTime.now().add(const Duration(minutes: 30)),
+          );
+          return stream;
+        }
+      }
     }
     final deciphered = await _resolveWithCipher(videoId);
     final exploded = deciphered ?? await _resolveWithExplode(videoId, quality);

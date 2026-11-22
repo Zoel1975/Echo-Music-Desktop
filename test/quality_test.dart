@@ -139,6 +139,12 @@ void main() {
         File('lib/services/youtube_explode_solver.dart').existsSync(), isTrue);
     expect(
         File('lib/services/youtube_explode_client.dart').existsSync(), isTrue);
+    expect(resolver, contains('captureStreamUrl'),
+        reason: 'age-gated videos need the signed-in browser PoToken');
+    final login =
+        File('lib/services/google_login_service.dart').readAsStringSync();
+    expect(login, contains('Network.requestWillBeSent'));
+    expect(login, contains('googlevideo.com/videoplayback'));
 
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));
