@@ -41,6 +41,8 @@ class _SettingsPageState extends State<SettingsPage> {
     ('Brani bloccati', 'Contenuti', '/settings/content/blocked_artists'),
     ('Brani non graditi', 'Contenuti', '/settings/content/disliked_songs'),
     ('Qualità streaming', 'Riproduttore', '/settings/player'),
+    ('FLAC', 'Riproduttore', '/settings/player'),
+    ('Monochrome', 'Riproduttore', '/settings/player'),
     ('Loudness', 'Riproduttore', '/settings/player'),
     ('Crossfade', 'Riproduttore', '/settings/player'),
     ('Equalizzatore', 'Riproduttore', '/settings/player/equalizer'),

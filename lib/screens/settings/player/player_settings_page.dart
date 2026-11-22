@@ -49,14 +49,15 @@ class PlayerSettingsPage extends StatelessWidget {
                         value: s.streamingQuality,
                         underline: const SizedBox(),
                         items: [
-                          DropdownMenuItem(
-                            value: AudioQuality.high,
-                            child: const Text('HIGH'),
-                          ),
-                          DropdownMenuItem(
-                            value: AudioQuality.low,
-                            child: const Text('LOW'),
-                          ),
+                          for (final q in cubit.audioQualities)
+                            DropdownMenuItem(
+                              value: q,
+                              child: Text(
+                                q == AudioQuality.flac
+                                    ? 'FLAC (Monochrome)'
+                                    : q.name.toUpperCase(),
+                              ),
+                            ),
                         ],
                         onChanged: (v) {
                           if (v != null) cubit.setStreamingQuality(v);

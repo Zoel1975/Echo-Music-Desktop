@@ -14,6 +14,8 @@ import 'package:Echo/services/queue_crossfade.dart';
 import 'package:Echo/services/sponsor_block_service.dart';
 import 'package:Echo/services/stream_resolver.dart';
 import 'package:Echo/services/extension_quality.dart';
+import 'package:Echo/services/monochrome_audio_source.dart';
+import 'package:Echo/services/monochrome_service.dart';
 import 'package:Echo/services/yt_audio_stream.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -540,6 +542,19 @@ class MediaPlayer extends ChangeNotifier {
         highQuality: settings.extra<bool>('highQuality', false),
         configured: settings.streamingQuality.name.toLowerCase(),
       );
+      // FLAC quality (Monochrome public API): find a lossless match for the
+      // current song and stream it with seekable range requests. If Monochrome
+      // has no match (or is rate-limited/unavailable), fall back to YouTube.
+      if (quality == 'flac') {
+        final track = await MonochromeService.findBySong(song);
+        if (track != null) {
+          return MonochromeAudioSource(
+            track: track,
+            fallbackVideoId: song['videoId']?.toString() ?? '',
+            tag: tag,
+          );
+        }
+      }
       // Use direct URL approach for macOS for better compatibility with AVFoundation
       if (Platform.isMacOS) {
         return await getDirectUrlAudioSource(song['videoId'], quality, tag);

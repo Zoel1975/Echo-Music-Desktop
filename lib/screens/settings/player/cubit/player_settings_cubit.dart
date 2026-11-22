@@ -117,6 +117,9 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
 
   void setDataSaver(bool value) => _settings.dataSaver = value;
 
+  /// Includes the Monochrome FLAC option alongside HIGH/LOW.
+  List<AudioQuality> get audioQualities => _settings.audioQualities;
+
   void setStreamingQuality(dynamic value) => _settings.streamingQuality = value;
 
   Future<void> setAudioNormalization(bool value) async {

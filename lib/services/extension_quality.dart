@@ -10,7 +10,10 @@ class ExtensionQuality {
     required bool highQuality,
     required String configured,
   }) {
+    // Data Saver is an explicit bandwidth preference and always wins, even
+    // over the Monochrome FLAC option.
     if (dataSaver) return 'low';
+    if (configured == 'flac') return 'flac';
     if (highQuality) return 'high';
     return configured;
   }

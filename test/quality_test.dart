@@ -169,6 +169,12 @@ void main() {
     expect(mainSrc, contains('ErrorWidget.builder'));
     expect(mainSrc, contains('PlatformDispatcher.instance.onError'));
 
+    final flacDoc = File('docs/MONOCHROME_FLAC.md').readAsStringSync();
+    expect(flacDoc, contains('tracks.monochrome.st'));
+    final settingsPageSrc =
+        File('lib/screens/settings/settings_page.dart').readAsStringSync();
+    expect(settingsPageSrc, contains("('FLAC', 'Riproduttore'"));
+
     final audit = File('docs/UI_PARITY_AUDIT.md').readAsStringSync();
     for (final area in [
       'HomeScreen.kt',

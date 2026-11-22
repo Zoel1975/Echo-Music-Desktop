@@ -19,7 +19,9 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool _autofetchSongs = true;
   final List<AudioQuality> _audioQualities = [
     AudioQuality.high,
-    AudioQuality.low
+    AudioQuality.low,
+    // Monochrome lossless FLAC (https://monochrome.st/).
+    AudioQuality.flac,
   ];
 
   AudioQuality _streamingQuality = AudioQuality.high;
@@ -661,7 +663,8 @@ bool getDarkness(int themeMode) {
   return false;
 }
 
-enum AudioQuality { high, low }
+/// `flac` resolves through the Monochrome public API (lossless, no account).
+enum AudioQuality { high, low, flac }
 
 List<Map<String, String>> _countries = [
   {"name": "Algeria", "value": "DZ"},

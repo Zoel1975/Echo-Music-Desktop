@@ -490,7 +490,13 @@ class _PlayerPageState extends State<PlayerPage> {
                       child: Text(
                         currentSong?.extras?['status']?.toString() == 'LOCAL'
                             ? 'Local file'
-                            : 'AAC · ${GetIt.I<SettingsManager>().streamingQuality.name.toUpperCase()}',
+                            : () {
+                                final q = GetIt.I<SettingsManager>()
+                                    .streamingQuality;
+                                return q == AudioQuality.flac
+                                    ? 'FLAC · Monochrome'
+                                    : 'AAC · ${q.name.toUpperCase()}';
+                              }(),
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.5),

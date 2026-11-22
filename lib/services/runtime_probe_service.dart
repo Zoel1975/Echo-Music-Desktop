@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
 import 'package:hive/hive.dart';
 
 import 'account_refresh.dart';
@@ -13,6 +14,7 @@ import 'cast/cast_service.dart';
 import 'google_login_service.dart';
 import 'home_sections.dart';
 import 'media_player.dart';
+import 'monochrome_service.dart';
 import '../screens/home/cubit/home_cubit.dart';
 import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
@@ -84,6 +86,45 @@ class RuntimeProbeService {
         'results': results
             .map((p) => {'name': p.name, 'source': p.source})
             .toList(),
+      });
+      return;
+    }
+    if (path == '/monochrome/search' && request.method == 'GET') {
+      final q = request.uri.queryParameters['q'] ?? '';
+      final tracks = await MonochromeService.search(q, limit: 5);
+      _json(request.response, 200, {
+        'query': q,
+        'count': tracks.length,
+        'tracks': tracks
+            .map((t) => {
+                  'id': t.id,
+                  'title': t.title,
+                  'artist': t.artist,
+                  'isrc': t.isrc,
+                  'url': t.streamUrl,
+                })
+            .toList(),
+      });
+      return;
+    }
+    if (path == '/monochrome/stream' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final req = http.Request('GET', Uri.parse('${MonochromeService.base}/track/$id'))
+        ..headers.addAll({
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+              'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+          'Referer': 'https://monochrome.st/',
+          'Range': 'bytes=0-1023',
+        });
+      final res = await http.Client().send(req).timeout(const Duration(seconds: 30));
+      final bytes = await res.stream.toList();
+      final first = bytes.isEmpty ? <int>[] : bytes.first.sublist(0, 4);
+      _json(request.response, 200, {
+        'id': id,
+        'status': res.statusCode,
+        'contentRange': res.headers[HttpHeaders.contentRangeHeader],
+        'firstBytes': String.fromCharCodes(first),
+        'isFlac': first.length == 4 && String.fromCharCodes(first) == 'fLaC',
       });
       return;
     }
