@@ -26,16 +26,22 @@ class SilenceFilter {
   }
 
   /// Pure: assemble the combined lavfi chain.
+  /// Low-shelf cut used only on the outgoing player during a DJ blend, so two
+  /// basslines don't sum into mud (port of AutomixDuckAudioProcessor's intent).
+  static const duck = 'bass=f=150:g=-8';
+
   static String buildChain({
     required bool skipSilence,
     List<double>? eqGains,
     bool eqEnabled = false,
+    bool duckOutgoing = false,
   }) {
     final parts = <String>[];
     if (skipSilence) parts.add(silence);
     if (eqEnabled && eqGains != null && eqGains.length >= 10) {
       parts.add(eqFilter(eqGains));
     }
+    if (duckOutgoing) parts.add(duck);
     if (parts.isEmpty) return '';
     return 'lavfi=[${parts.join(',')}]';
   }
@@ -48,12 +54,14 @@ class SilenceFilter {
     required bool enabled,
     List<double>? eqGains,
     bool eqEnabled = false,
+    bool duckOutgoing = false,
   }) {
     if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) return;
     JustAudioMediaKit.audioFilter = buildChain(
       skipSilence: enabled,
       eqGains: eqGains,
       eqEnabled: eqEnabled,
+      duckOutgoing: duckOutgoing,
     );
   }
 

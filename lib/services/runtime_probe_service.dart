@@ -693,6 +693,7 @@ class RuntimeProbeService {
           'confidence': beat?.confidence,
           'mixInMs': beat?.mixInMs,
           'mixOutMs': beat?.mixOutMs,
+          'key': beat?.keyLabel,
           'tailBytes': BeatAnalyzerService.lastTailBytes,
           'tailError': BeatAnalyzerService.lastTailError,
         });

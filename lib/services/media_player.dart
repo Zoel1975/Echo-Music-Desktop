@@ -10,6 +10,7 @@ import 'package:Echo/services/beat_analyzer_service.dart';
 import 'package:Echo/services/crossfade_engine.dart';
 import 'package:Echo/services/crossfade_prearm.dart';
 import 'package:Echo/services/desktop_dsp.dart';
+import 'package:Echo/services/eq_settings.dart';
 import 'package:Echo/services/playback_cutoff.dart';
 import 'package:Echo/services/scrobble_service.dart';
 import 'package:Echo/services/discord_rpc_service.dart';
@@ -450,6 +451,33 @@ class MediaPlayer extends ChangeNotifier {
     }
   }
 
+  /// Creates the outgoing player with a temporary low-shelf duck filter: mpv
+  /// snapshots `af` at player construction, so the duck applies only to this
+  /// player while the main player keeps the normal EQ chain.
+  Future<AudioPlayer> _createDuckedOutPlayer() async {
+    final settings = GetIt.I<SettingsManager>();
+    final old = _xfadeOutPlayer;
+    EqSettings.apply(settings, duckOutgoing: true);
+    final player = AudioPlayer();
+    EqSettings.apply(settings); // restore before any other player is created
+    _xfadeOutPlayer = player;
+    if (old != null && old != player) {
+      try {
+        await old.pause();
+        await old.dispose();
+      } catch (_) {}
+    }
+    return player;
+  }
+
+  /// DJ blend length: 16 beats of the outgoing track when Automix is active.
+  Duration _automixDuration(SettingsManager settings) {
+    if (settings.automixBeatAlign && _beat != null) {
+      return Duration(milliseconds: djBlendDurationMs(_beat!));
+    }
+    return Duration(milliseconds: (settings.crossfadeDuration * 1000).round());
+  }
+
   /// Port of Android `StandbyCrossfadeScheduler`: prepare the standby player
   /// early and wait until it is really ready (STATE_READY equivalent) instead
   /// of assuming a freshly created source can start instantly.
@@ -459,7 +487,7 @@ class MediaPlayer extends ChangeNotifier {
       final currentTag = _songList[idx].tag;
       if (currentTag is! MediaItem) return false;
       await _cancelCrossfadePreArm();
-      final outPlayer = _xfadeOutPlayer ??= AudioPlayer();
+      final outPlayer = await _createDuckedOutPlayer();
       _xfade = QueueCrossfadeController(
         makePlayer: () => AudioPlayerAdapter(outPlayer),
       );
@@ -498,12 +526,10 @@ class MediaPlayer extends ChangeNotifier {
       );
       // Phase 2: enter the incoming track at the offset whose beat grid lines
       // up with the fade end, instead of always starting at 0:00.
+      final blendMs = _automixDuration(settings).inMilliseconds;
       var startMs = 0;
       if (settings.automixBeatAlign && _nextBeat != null) {
-        startMs = beatAlignedStartMs(
-          _nextBeat!,
-          (settings.crossfadeDuration * 1000).round(),
-        );
+        startMs = beatAlignedStartMs(_nextBeat!, blendMs);
       }
       await _player.seek(Duration(milliseconds: startMs), index: nextIdx);
       _currentSongNotifier.value = nextTag;
@@ -512,8 +538,7 @@ class MediaPlayer extends ChangeNotifier {
 
       await _xfade!.start(
         incoming: AudioPlayerAdapter(_player),
-        duration:
-            Duration(milliseconds: (settings.crossfadeDuration * 1000).round()),
+        duration: Duration(milliseconds: blendMs),
         peakVolume: peak,
         startOutgoing: (_) async {},
         onDone: () {
@@ -545,8 +570,7 @@ class MediaPlayer extends ChangeNotifier {
     if (nextIdx >= _songList.length) return;
     final duration = _player.duration;
     if (duration == null) return;
-    final crossfade = Duration(
-        milliseconds: (settings.crossfadeDuration * 1000).round());
+    final crossfade = _automixDuration(settings);
     if (duration <= crossfade) return;
 
     final remaining = duration - position;
@@ -926,8 +950,7 @@ class MediaPlayer extends ChangeNotifier {
           previousSong: Map<String, dynamic>.from(previousSong as Map),
           previousPosition: previousPosition,
           peakVolume: decision.peakVolume,
-          duration: Duration(
-              milliseconds: (settings.crossfadeDuration * 1000).round()),
+          duration: _automixDuration(settings),
         );
         return;
       }
@@ -967,8 +990,7 @@ class MediaPlayer extends ChangeNotifier {
   }) async {
     _xfade?.dispose();
     _handoffEngine?.cancel();
-    final outPlayer = _xfadeOutPlayer ??= AudioPlayer();
-    await outPlayer.pause(); // reset any previous handoff
+    final outPlayer = await _createDuckedOutPlayer();
     _xfade = QueueCrossfadeController(
       makePlayer: () => AudioPlayerAdapter(outPlayer),
     );

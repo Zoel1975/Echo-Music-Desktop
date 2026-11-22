@@ -1,6 +1,6 @@
-# Automix — fase 2 (beat-matching)
+# Automix — fase 3 (DJ blend + ducking)
 
-Port parziale dell'Automix di Echo Android. Questa build contiene la fase 2.
+Port dell'Automix di Echo Android. Questa build contiene la fase 3.
 
 ## Cosa c'è
 
@@ -22,12 +22,18 @@ Port parziale dell'Automix di Echo Android. Questa build contiene la fase 2.
 - Sonda diagnostica `POST /beat/analyze` (con `ECHO_DIAG=1`) che genera un
   click track a 120 BPM e verifica decoding + analisi end-to-end.
 
-## Cosa non c'è ancora (fase 3)
+- **fase 3**: DJ blend di **16 beat** (`djBlendDurationMs`, clamp 4-15 s) al
+  posto della durata fissa; **ducking low-shelf** sulla traccia in uscita
+  (`bass=f=150:g=-8`) applicato solo al momento della creazione del player
+  di standby, poiché la catena `af` di mpv è uno snapshot per player;
+  rilevamento chiave (Krumhansl-Schmuckler) disponibile come `keyLabel`.
 
-- blend DJ di 16 beat con scelta musicale del punto di mix;
-- ducking low-shelf per-sample (`AutomixDuckAudioProcessor`) durante
-  l'overlap, per evitare il "mud" delle due linee di basso;
-- rilevamento chiave musicale (già presente in Android ma non ancora usato).
+## Limiti della fase 3
+
+- il ducking di Android è per-sample con rampa (nessun "zipper noise"): qui è
+  un filtro statico sul player di uscita, mascherato dalla fade-in della nuova
+  traccia. Non è un IIR per-sample, ma evita il mud dei due bassi;
+- la chiave viene rilevata ma non ancora usata per filtrare o scegliere i brani.
 
 ## Test
 

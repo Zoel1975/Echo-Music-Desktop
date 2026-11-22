@@ -26,11 +26,15 @@ class EqSettings {
     return null;
   }
 
-  static void apply(SettingsManager settings) {
+  static void apply(
+    SettingsManager settings, {
+    bool duckOutgoing = false,
+  }) {
     SilenceFilter.apply(
       enabled: settings.skipSilence,
       eqGains: savedGains(settings),
       eqEnabled: settings.equalizerEnabled,
+      duckOutgoing: duckOutgoing,
     );
   }
 }

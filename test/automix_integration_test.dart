@@ -28,6 +28,14 @@ void main() {
     expect(player, contains('beatAlignedStartMs('));
     expect(player, contains('mixOutMs: _beat!.mixOutMs'));
     expect(player, contains('_maybeAnalyzeNextBeat(nextIdx)'));
+    expect(player, contains('djBlendDurationMs('));
+    expect(player, contains('_createDuckedOutPlayer()'));
+    expect(player, contains('EqSettings.apply(settings, duckOutgoing: true)'));
+
+    final silence =
+        File('lib/services/silence_filter.dart').readAsStringSync();
+    expect(silence, contains("bass=f=150:g=-8"));
+    expect(silence, contains('duckOutgoing'));
     expect(player, contains('settings.automixBeatAlign'));
 
     final main = src('lib/main.dart');
@@ -38,6 +46,6 @@ void main() {
     expect(analyzer, contains("Hive.box(_boxName).put"));
 
     final doc = src('docs/AUTOMIX.md');
-    expect(doc, contains('beat-matching'));
+    expect(doc, contains('DJ blend'));
   });
 }

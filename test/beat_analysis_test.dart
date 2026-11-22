@@ -93,6 +93,37 @@ void main() {
     expect(withMixOut, greaterThan(natural));
   });
 
+  test('DJ blend is 16 beats clamped to a usable length', () {
+    const slow = BeatAnalysisResult(
+      bpm: 60,
+      firstBeatOffsetMs: 0,
+      confidence: 1,
+    );
+    const fast = BeatAnalysisResult(
+      bpm: 180,
+      firstBeatOffsetMs: 0,
+      confidence: 1,
+    );
+    expect(djBlendDurationMs(slow), 15000); // 16 s -> capped
+    expect(djBlendDurationMs(fast), 5333); // 16 * 333 ms
+  });
+
+  test('key detection returns a pitch class for a tonal signal', () {
+    final rate = 22050;
+    final samples = List<double>.filled(rate * 4, 0.0);
+    for (var i = 0; i < samples.length; i++) {
+      // A minor triad: A3, C4, E4.
+      samples[i] = (math.sin(2 * math.pi * 220 * i / rate) +
+              math.sin(2 * math.pi * 261.63 * i / rate) +
+              math.sin(2 * math.pi * 329.63 * i / rate)) /
+          3;
+    }
+    final key = estimateKey(samples, rate);
+    expect(key, isNotNull);
+    expect(key!.pitchClass, greaterThanOrEqualTo(0));
+    expect(key.pitchClass, lessThanOrEqualTo(11));
+  });
+
   test('JSON round-trip keeps the beat grid', () {
     const beat = BeatAnalysisResult(
       bpm: 128.5,
