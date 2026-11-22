@@ -162,10 +162,9 @@ void main() {
             .allMatches(routesFile),
         isEmpty,
         reason: 'every route must tolerate a null extra');
+    final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('error.log'),
         reason: 'runtime errors must be logged for diagnosis');
-
-    final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));
     expect(mainSrc, contains('ErrorWidget.builder'));
     expect(mainSrc, contains('PlatformDispatcher.instance.onError'));
