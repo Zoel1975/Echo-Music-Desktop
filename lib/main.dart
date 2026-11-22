@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 
 import 'generated/l10n.dart';
 import 'services/audio_fallback.dart';
+import 'services/error_log.dart';
 import 'services/cast/cast_service.dart';
 import 'services/download_manager.dart';
 import 'services/file_storage.dart';
@@ -46,19 +47,7 @@ RandomAccessFile? _instanceLock;
 
 /// Keep the app usable when a single widget/network callback throws: log the
 /// error and show a recoverable card instead of Flutter's red error screen.
-void _writeErrorLog(String text) {
-  try {
-    final dir = Directory(
-      '${Platform.environment['LOCALAPPDATA'] ?? Directory.systemTemp.path}'
-      r'\com.echo\Echo Music',
-    );
-    if (!dir.existsSync()) dir.createSync(recursive: true);
-    File('${dir.path}\\error.log').writeAsStringSync(
-      '${DateTime.now().toIso8601String()} $text\n---\n',
-      mode: FileMode.append,
-    );
-  } catch (_) {}
-}
+void _writeErrorLog(String text) => ErrorLog.write(text);
 
 void _installErrorHandlers() {
   FlutterError.onError = (details) {

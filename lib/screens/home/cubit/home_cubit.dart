@@ -4,6 +4,7 @@ import 'package:Echo/services/account_refresh.dart';
 import 'package:Echo/services/charts_service.dart';
 import 'package:Echo/services/chart_model.dart';
 import 'package:Echo/services/cookie_store.dart';
+import 'package:Echo/services/error_log.dart';
 import 'package:Echo/services/home_sections.dart';
 import 'package:Echo/utils/safe_cast.dart';
 import 'package:meta/meta.dart';
@@ -62,10 +63,16 @@ class HomeCubit extends Cubit<HomeState> {
             : Future<Map>.value(<String, dynamic>{}),
       ]);
 
-      final feed = results[0] as Map<String, dynamic>;
-      final charts = results[1] as List<ChartURL>;
-      final liked = results[2] as Map;
-      final playlists = results[3] as Map;
+      // Never hard-cast here: a null/empty response from any of the four
+      // endpoints used to surface as "type 'Null' is not a subtype of
+      // type 'Map<dynamic, dynamic>'" on the Home screen.
+      final feed = results[0] is Map
+          ? Map<String, dynamic>.from(results[0] as Map)
+          : <String, dynamic>{};
+      final charts =
+          results[1] is List<ChartURL> ? results[1] as List<ChartURL> : <ChartURL>[];
+      final liked = results[2] is Map ? results[2] as Map : const {};
+      final playlists = results[3] is Map ? results[3] as Map : const {};
 
       final likedItems = safeMapList(liked['contents']);
       final playlistItems = safeMapList(playlists['contents']);
@@ -104,6 +111,7 @@ class HomeCubit extends Cubit<HomeState> {
         loadingMore: false,
       ));
     } catch (e, st) {
+      ErrorLog.write('Home fetch failed: $e\n$st');
       emit(HomeError(e.toString(), st.toString()));
     }
   }

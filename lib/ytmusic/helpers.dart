@@ -79,6 +79,20 @@ dynamic nav(dynamic root, List<dynamic> items, {bool noneIfAbsent = false}) {
   }
 }
 
+/// First `Map` found among [paths] inside [root], or an empty map.
+///
+/// Library endpoints sometimes omit the expected renderer (empty library,
+/// changed response). The old `Map x = nav(...) ?? nav(...)` assigned `null`
+/// to a non-nullable `Map` and threw
+/// `type 'Null' is not a subtype of type 'Map<dynamic, dynamic>'`.
+Map firstMapOrEmpty(dynamic root, List<List<dynamic>> paths) {
+  for (final path in paths) {
+    final value = nav(root, path);
+    if (value is Map) return value;
+  }
+  return {};
+}
+
 String getContinuationString(dynamic ctoken) {
   return "&ctoken=$ctoken&continuation=$ctoken";
 }

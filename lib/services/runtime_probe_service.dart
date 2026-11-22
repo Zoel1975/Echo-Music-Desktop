@@ -157,7 +157,7 @@ class RuntimeProbeService {
     if (path == '/library/playlists' && request.method == 'GET') {
       final res = await GetIt.I<YTMusic>().getLibraryPlaylists();
       final items = (res['contents'] as List? ?? const [])
-          .whereType<Map<String, dynamic>>()
+          .whereType<Map>()
           .map((p) => {
                 'id': p['playlistId'] ?? p['browseId'],
                 'title': p['title'],
@@ -506,6 +506,72 @@ class RuntimeProbeService {
         'filteredForeignRaw': BrowsingMixin.lastFilteredForeign,
         'ms': sw.elapsedMilliseconds,
         'forced': force,
+      });
+      return;
+    }
+    if (path == '/probe/auth' && request.method == 'GET') {
+      final yt = GetIt.I<YTMusic>();
+      await yt.refreshHeaders();
+      final hdrs = Map<String, String>.from(yt.headers);
+      final cookie = hdrs['cookie'] ?? hdrs['Cookie'] ?? '';
+      final cookieNames = cookie
+          .split('; ')
+          .where((p) => p.contains('='))
+          .map((p) => p.substring(0, p.indexOf('=')))
+          .toList();
+      final body = jsonEncode({
+        ...yt.context,
+        'browseId': 'FEmusic_liked_playlists',
+      });
+      final uri = Uri.parse(
+        'https://music.youtube.com/youtubei/v1/browse?alt=json'
+        '&key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      );
+      Future<Map<String, dynamic>> trial(
+          String label, Map<String, String> h) async {
+        try {
+          final res = await http.post(uri, headers: h, body: body);
+          final text = res.body;
+          return {
+            'label': label,
+            'status': res.statusCode,
+            'grid': text.contains('gridRenderer'),
+            'shelf': text.contains('musicShelfRenderer'),
+            'signIn': text.contains('signInEndpoint'),
+            'len': text.length,
+          };
+        } catch (e) {
+          return {'label': label, 'error': e.toString()};
+        }
+      }
+
+      final results = <Map<String, dynamic>>[];
+      results.add(await trial('current', hdrs));
+      results.add(await trial('noSecure',
+          {...hdrs, 'cookie': cookie.split('; ').where((p) => !p.startsWith('__')).join('; ')}));
+      results.add(await trial(
+          'xOrigin', {...hdrs, 'X-Origin': 'https://music.youtube.com'}));
+      results.add(await trial('noAuth', {...hdrs}..remove('Authorization')));
+      final authCookies = cookie
+          .split('; ')
+          .where((p) {
+            final name = p.split('=').first;
+            return const {'SID', 'HSID', 'SSID', 'APISID', 'SAPISID'}
+                .contains(name);
+          })
+          .join('; ');
+      results.add(await trial('authCookiesOnly', {...hdrs, 'cookie': authCookies}));
+
+      _json(request.response, 200, {
+        'headerNames': hdrs.keys.toList()..sort(),
+        'cookieCount': cookieNames.length,
+        'cookieNames': cookieNames..sort(),
+        'authPrefix': hdrs['Authorization']?.substring(
+            0, hdrs['Authorization']!.length.clamp(0, 24)),
+        'authUser': hdrs['X-Goog-AuthUser'],
+        'visitorLen': hdrs['X-Goog-Visitor-Id']?.length,
+        'contextUser': (yt.context['user'] as Map?)?['onBehalfOfUser'],
+        'results': results,
       });
       return;
     }

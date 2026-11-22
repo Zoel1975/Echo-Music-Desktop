@@ -163,8 +163,12 @@ void main() {
         isEmpty,
         reason: 'every route must tolerate a null extra');
     final mainSrc = File('lib/main.dart').readAsStringSync();
-    expect(mainSrc, contains('error.log'),
+    // The log path now lives in ErrorLog, which main.dart delegates to.
+    final errorLogSrc =
+        File('lib/services/error_log.dart').readAsStringSync();
+    expect(errorLogSrc, contains('error.log'),
         reason: 'runtime errors must be logged for diagnosis');
+    expect(mainSrc, contains('ErrorLog.write'));
     expect(mainSrc, contains('_installErrorHandlers'));
     expect(mainSrc, contains('ErrorWidget.builder'));
     expect(mainSrc, contains('PlatformDispatcher.instance.onError'));

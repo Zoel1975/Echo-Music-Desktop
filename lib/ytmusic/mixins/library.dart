@@ -13,7 +13,8 @@ mixin LibraryMixin on YTClient {
     Map outerContents = {};
     if (continuationParams != null) {
       outerContents =
-          nav(response, ['continuationContents', 'musicShelfContinuation']);
+          nav(response, ['continuationContents', 'musicShelfContinuation']) ??
+              {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -26,8 +27,10 @@ mixin LibraryMixin on YTClient {
         'contents',
         0,
       ]) ?? {};
-      outerContents = nav(contents, ['musicShelfRenderer']) ??
-          nav(contents, ['itemSectionRenderer']);
+      outerContents = firstMapOrEmpty(contents, [
+        ['musicShelfRenderer'],
+        ['itemSectionRenderer'],
+      ]);
     }
 
     String? continuation = nav(outerContents,
@@ -49,7 +52,7 @@ mixin LibraryMixin on YTClient {
     Map outerContents = {};
     if (continuationParams != null) {
       outerContents =
-          nav(response, ['continuationContents', 'gridContinuation']);
+          nav(response, ['continuationContents', 'gridContinuation']) ?? {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -62,12 +65,10 @@ mixin LibraryMixin on YTClient {
         'contents',
         0,
       ]) ?? {};
-      outerContents = nav(contents, [
-            'gridRenderer',
-          ]) ??
-          nav(contents, [
-            'itemSectionRenderer',
-          ]);
+      outerContents = firstMapOrEmpty(contents, [
+        ['gridRenderer'],
+        ['itemSectionRenderer'],
+      ]);
     }
     String? continuation = nav(outerContents,
         ['continuations', 0, 'nextContinuationData', 'continuation']);
@@ -93,7 +94,8 @@ mixin LibraryMixin on YTClient {
     Map outerContents = {};
     if (continuationParams != null) {
       outerContents =
-          nav(response, ['continuationContents', 'musicShelfContinuation']);
+          nav(response, ['continuationContents', 'musicShelfContinuation']) ??
+              {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -106,12 +108,10 @@ mixin LibraryMixin on YTClient {
         'contents',
         0,
       ]) ?? {};
-      outerContents = nav(contents, [
-            'musicShelfRenderer',
-          ]) ??
-          nav(contents, [
-            'itemSectionRenderer',
-          ]);
+      outerContents = firstMapOrEmpty(contents, [
+        ['musicShelfRenderer'],
+        ['itemSectionRenderer'],
+      ]);
     }
     String? continuation = nav(outerContents,
         ['continuations', 0, 'nextContinuationData', 'continuation']);
@@ -133,7 +133,7 @@ mixin LibraryMixin on YTClient {
     Map outerContents = {};
     if (continuationParams != null) {
       outerContents =
-          nav(response, ['continuationContents', 'gridContinuation']);
+          nav(response, ['continuationContents', 'gridContinuation']) ?? {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -146,10 +146,10 @@ mixin LibraryMixin on YTClient {
         'contents',
         0,
       ]) ?? {};
-      outerContents = nav(contents, ['gridRenderer']) ??
-          nav(contents, [
-            'itemSectionRenderer',
-          ]);
+      outerContents = firstMapOrEmpty(contents, [
+        ['gridRenderer'],
+        ['itemSectionRenderer'],
+      ]);
     }
     String? continuation = nav(outerContents,
         ['continuations', 0, 'nextContinuationData', 'continuation']);
@@ -210,8 +210,9 @@ mixin LibraryMixin on YTClient {
         additionalParams: continuationParams ?? '');
     Map outerContents = {};
     if (continuationParams != null) {
-      outerContents = outerContents =
-          nav(response, ['continuationContents', 'musicShelfContinuation']);
+      outerContents =
+          nav(response, ['continuationContents', 'musicShelfContinuation']) ??
+              {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -224,12 +225,10 @@ mixin LibraryMixin on YTClient {
         'contents',
         0,
       ]) ?? {};
-      outerContents = nav(contents, [
-            'musicShelfRenderer',
-          ]) ??
-          nav(contents, [
-            'itemSectionRenderer',
-          ]);
+      outerContents = firstMapOrEmpty(contents, [
+        ['musicShelfRenderer'],
+        ['itemSectionRenderer'],
+      ]);
     }
     String? continuation = nav(outerContents,
         ['continuations', 0, 'nextContinuationData', 'continuation']);
@@ -247,7 +246,7 @@ mixin LibraryMixin on YTClient {
   Future<Map<String, dynamic>> importPlaylist(String browseId) async {
     Map<String, dynamic> body = {'browseId': browseId};
     var response = await sendRequest('browse', body);
-    Map<String, dynamic> header = nav(response, [
+    final rawHeader = nav(response, [
       'contents',
       'twoColumnBrowseResultsRenderer',
       'tabs',
@@ -259,6 +258,9 @@ mixin LibraryMixin on YTClient {
       0,
       'musicResponsiveHeaderRenderer'
     ]);
+    final Map<String, dynamic> header = rawHeader is Map
+        ? Map<String, dynamic>.from(rawHeader)
+        : <String, dynamic>{};
     Map<String, dynamic> result = handlePageHeader(header);
     if (result['endpoint'] == null) {
       result['endpoint'] = {"browseId": browseId};
