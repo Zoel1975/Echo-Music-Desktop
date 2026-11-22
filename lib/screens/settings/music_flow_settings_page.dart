@@ -3,6 +3,8 @@ import 'package:get_it/get_it.dart';
 
 import '../../core/widgets/back_button.dart';
 import '../../services/settings_manager.dart';
+import 'widgets/settings_list.dart';
+
 
 /// Port of Android `MusicFlowSettings.kt`: the same seven toggles, persisted
 /// through SettingsManager (Hive) instead of Android DataStore.
@@ -51,9 +53,13 @@ class _MusicFlowSettingsPageState extends State<MusicFlowSettingsPage> {
         leading: echoBackButton(context),
         title: const Text('Music Flow'),
       ),
-      body: ListView(
+      body: SettingsList(
         padding: const EdgeInsets.all(16),
         children: [
+          const SettingNoticeTile(
+            message: 'Le opzioni Music Flow sono state importate dall\'app '
+                'Android ma non sono ancora collegate al feed desktop.',
+          ),
           Text('Music Flow', style: Theme.of(context).textTheme.titleMedium),
           ..._general.map((s) => _toggle(s.$1, s.$2, s.$3, s.$4)),
           const SizedBox(height: 16),

@@ -160,6 +160,16 @@ class _LyricsBoxState extends State<LyricsBox> {
               child: IconButton(
                 tooltip: 'Translate lyrics',
                 onPressed: () {
+                  if (!GetIt.I<SettingsManager>().translateLyrics) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Abilita "Traduci testi" nelle impostazioni YT Music',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
                   final lyrics = _lyrics;
                   if (lyrics != null) _showTranslationDialog(lyrics);
                 },

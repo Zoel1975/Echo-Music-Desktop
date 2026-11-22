@@ -142,6 +142,27 @@ class _PlayerPageState extends State<PlayerPage> {
 
   @override
   Widget build(BuildContext context) {
+    // The player can be opened before anything is playing (e.g. from a deep
+    // link). The rest of the tree dereferences currentSong in many places.
+    if (currentSong == null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          leading: AdaptiveIconButton(
+            onPressed: () => context.pop(),
+            icon: const Icon(Icons.expand_more, color: Colors.white),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: const Center(
+          child: Text(
+            'Nessun brano in riproduzione',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
+      );
+    }
     return Theme(
       data: darkTheme(
         colorScheme: ColorScheme.fromSeed(

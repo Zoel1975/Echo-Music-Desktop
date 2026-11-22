@@ -234,7 +234,7 @@ class MediaPlayer extends ChangeNotifier {
       }
 
       notifyListeners();
-      unawaited(saveState());
+      if (GetIt.I<SettingsManager>().persistentQueue) unawaited(saveState());
     });
   }
 
@@ -260,7 +260,7 @@ class MediaPlayer extends ChangeNotifier {
       }
       if (processingState != ProcessingState.loading &&
           processingState != ProcessingState.buffering) {
-        unawaited(saveState());
+        if (GetIt.I<SettingsManager>().persistentQueue) unawaited(saveState());
       }
     });
   }
@@ -399,15 +399,26 @@ class MediaPlayer extends ChangeNotifier {
       if (currentTag is! MediaItem || nextTag is! MediaItem) return;
       final outPlayer = _xfadeOutPlayer ??= AudioPlayer();
       _xfade?.dispose();
+      // A previous fade may have left the outgoing player paused at the end.
+      // Rewind it before attaching a new source.
+      await outPlayer.pause();
+      final peak = _dspTargetGain; // captured while the user volume is intact
       _xfade = QueueCrossfadeController(makePlayer: () => AudioPlayerAdapter(outPlayer));
       final outSource = await _getAudioSource(currentTag.extras ?? {});
       await outPlayer.setAudioSource(outSource);
       await outPlayer.seek(position);
-      await outPlayer.setVolume(1.0);
+      // Warm the decoder while the main player is still audible, but keep the
+      // outgoing player silent until the handoff. Starting it at full volume
+      // here doubled the signal and sounded like a click.
+      await outPlayer.setVolume(0);
       await outPlayer.play();
 
+      // Swap levels in the same event-loop turn: no silence gap, no bump.
+      await Future.wait([
+        _player.setVolume(0),
+        outPlayer.setVolume(peak),
+      ]);
       // Seek the main player to the next track (queue preserved) and ramp it in.
-      await _player.setVolume(0);
       await _player.seek(Duration.zero, index: nextIdx);
       _currentSongNotifier.value = nextTag;
       _currentIndex.value = nextIdx;
@@ -416,11 +427,13 @@ class MediaPlayer extends ChangeNotifier {
       await _xfade!.start(
         incoming: AudioPlayerAdapter(_player),
         duration: Duration(milliseconds: (settings.crossfadeDuration * 1000).round()),
-        peakVolume: _dspTargetGain,
+        peakVolume: peak,
         startOutgoing: (_) async {},
         onDone: () {
-          outPlayer.stop();
-          _player.setVolume(_dspTargetGain);
+          outPlayer.pause();
+          // Restore the volume captured before the fade. Recomputing
+          // _dspTargetGain here sees volume 0 and resets to 100% (a jump).
+          _player.setVolume(peak);
         },
       );
     } catch (e) {
@@ -495,7 +508,7 @@ class MediaPlayer extends ChangeNotifier {
           addHistory(item.extras!);
         }
         notifyListeners();
-        unawaited(saveState());
+        if (GetIt.I<SettingsManager>().persistentQueue) unawaited(saveState());
       }
     });
   }
@@ -762,22 +775,33 @@ class MediaPlayer extends ChangeNotifier {
   }) async {
     _xfade?.dispose();
     final outPlayer = _xfadeOutPlayer ??= AudioPlayer();
+    await outPlayer.pause(); // reset any previous handoff
     _xfade = QueueCrossfadeController(
       makePlayer: () => AudioPlayerAdapter(outPlayer),
     );
 
+    // Prepare the outgoing track FIRST while the main player is still
+    // audible. Previously the main player was stopped before this await, so
+    // a network resolve left a silence gap followed by a click on restart.
+    final outSource = await _getAudioSource(previousSong);
+    if (_lastPlayRequestId != requestId) return;
+    await outPlayer.setAudioSource(outSource);
+    await outPlayer.seek(previousPosition);
+    await outPlayer.setVolume(0);
+    await outPlayer.play(); // decoded and running, but still silent
+    if (_lastPlayRequestId != requestId) return;
+
+    // Hand off at the same instant: mute main, unmute outgoing.
+    await Future.wait([
+      _player.setVolume(0),
+      outPlayer.setVolume(peakVolume),
+    ]);
+
+    // Now it is safe to stop/replace the main source (already silent).
     await _player.pause();
     await _player.stop();
     await _player.clearAudioSources();
     if (_lastPlayRequestId != requestId) return;
-
-    // Attach + position the outgoing track on the dedicated player.
-    final outSource = await _getAudioSource(previousSong);
-    await outPlayer.setAudioSource(outSource);
-    await outPlayer.seek(previousPosition);
-    await outPlayer.setVolume(peakVolume);
-
-    // Load the incoming track at silence and start the ramp.
     await _player.setAudioSource(source);
     if (_lastPlayRequestId != requestId) return;
     await _player.setVolume(0);
@@ -789,8 +813,7 @@ class MediaPlayer extends ChangeNotifier {
       peakVolume: peakVolume,
       startOutgoing: (_) async {}, // already attached/positioned above
       onDone: () {
-        outPlayer.stop();
-        // Restore normal volume for subsequent tracks.
+        outPlayer.pause();
         _player.setVolume(peakVolume);
       },
     );
@@ -1141,7 +1164,7 @@ class MediaPlayer extends ChangeNotifier {
 
   Future<void> stop() async {
     // Persist the track that was playing so the next launch can resume it.
-    await saveState();
+    if (GetIt.I<SettingsManager>().persistentQueue) await saveState();
     await _player.stop();
     await _player.clearAudioSources();
     await _player.seek(Duration.zero, index: 0);

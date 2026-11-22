@@ -20,6 +20,8 @@ import 'package:Echo/screens/import_dialog.dart';
 import '../generated/l10n.dart';
 import '../services/bottom_message.dart';
 import '../services/download_manager.dart';
+import '../services/audio_encoder.dart';
+import '../services/export_task_queue.dart';
 import '../services/library.dart';
 import '../services/media_player.dart';
 import '../services/settings_manager.dart';
@@ -2339,6 +2341,22 @@ errorWidget: (context, url, error) => const Icon(Icons.music_note),
             GetIt.I<DownloadManager>().downloadSong(song);
           },
         ),
+        if (song['status'] == 'DOWNLOADED')
+          _buildAction(
+            context,
+            icon: Icons.audiotrack,
+            title: 'Esporta in MP3',
+            onTap: () async {
+              Navigator.pop(context);
+              try {
+                await GetIt.I<ExportTaskQueue>()
+                    .enqueueSong(Map<String, dynamic>.from(song));
+                BottomMessage.showText(context, 'Esportazione MP3 avviata');
+              } on EncodeException catch (e) {
+                BottomMessage.showText(context, e.message);
+              }
+            },
+          ),
         _buildAction(
           context,
           icon: AdaptiveIcons.library_add,

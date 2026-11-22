@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 
 import 'account_refresh.dart';
 import 'audio_fallback.dart';
+import 'ffmpeg_audio_encoder.dart';
 import 'autoeq_service.dart';
 import 'cast/cast_device.dart';
 import 'cast/cast_service.dart';
@@ -55,6 +56,37 @@ class RuntimeProbeService {
     response.headers.contentType = ContentType.json;
     response.write(jsonEncode(body));
     response.close();
+  }
+
+  /// One second of silence in PCM WAV, for the real FFmpeg export probe.
+  static List<int> _probeWav() {
+    const rate = 44100;
+    const samples = rate;
+    final data = samples * 2;
+    final bytes = <int>[];
+    void ascii(String s) => bytes.addAll(s.codeUnits);
+    void word(int v) {
+      bytes.addAll([v & 0xff, (v >> 8) & 0xff]);
+    }
+
+    void dword(int v) {
+      bytes.addAll([v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff]);
+    }
+
+    ascii('RIFF');
+    dword(36 + data);
+    ascii('WAVEfmt ');
+    dword(16); // PCM chunk size
+    word(1); // PCM
+    word(1); // mono
+    dword(rate);
+    dword(rate * 2); // byte rate
+    word(2); // block align
+    word(16); // bits per sample
+    ascii('data');
+    dword(data);
+    bytes.addAll(List<int>.filled(data, 0));
+    return bytes;
   }
 
   static Map<String, dynamic> state() {
@@ -573,6 +605,35 @@ class RuntimeProbeService {
         'contextUser': (yt.context['user'] as Map?)?['onBehalfOfUser'],
         'results': results,
       });
+      return;
+    }
+    if (path == '/export/mp3' && request.method == 'POST') {
+      final dir = Directory.systemTemp;
+      final input = '${dir.path}${Platform.pathSeparator}echo_probe.wav';
+      final output = '${dir.path}${Platform.pathSeparator}echo_probe.mp3';
+      try {
+        File(input).writeAsBytesSync(_probeWav());
+        final bytes = <int>[];
+        await FfmpegAudioEncoder().encode(
+          inputPath: input,
+          outputPath: output,
+          bitrateKbps: 128,
+          durationMs: 1000,
+          onProgress: (p) {
+            if (p != null) bytes.add((p * 100).round());
+          },
+        );
+        final mp3 = File(output).readAsBytesSync();
+        _json(request.response, 200, {
+          'ok': true,
+          'size': mp3.length,
+          'magic': mp3.take(3).toList(),
+          'progressSamples':
+              bytes.length > 5 ? bytes.sublist(bytes.length - 5) : bytes,
+        });
+      } catch (e) {
+        _json(request.response, 500, {'ok': false, 'error': e.toString()});
+      }
       return;
     }
     if (path == '/home/state' && request.method == 'GET') {

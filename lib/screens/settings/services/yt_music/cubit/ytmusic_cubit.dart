@@ -74,11 +74,11 @@ class YTMusicCubit extends Cubit<YTMusicState> {
   }
 
   void setStreamingQuality(dynamic quality) {
-    _settings.streamingQuality = quality;
+    if (quality is AudioQuality) _settings.streamingQuality = quality;
   }
 
   void setDownloadQuality(dynamic quality) {
-    _settings.downloadQuality = quality;
+    if (quality is AudioQuality) _settings.downloadQuality = quality;
   }
 
   Future<void> setTranslateLyrics(bool value) async {

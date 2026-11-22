@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../../../services/audio_device_service.dart';
+import '../../../../../../services/eq_settings.dart';
 import '../../../../../../services/media_player.dart';
 import '../../../../../../services/remote_control_service.dart';
 import '../../../../../../services/settings_manager.dart';
@@ -104,7 +105,7 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
     await _player.skipSilence(value);
     // Desktop: update the mpv filter chain. mpv snapshots `af` at player
     // creation, so apply it and reload the current source to take effect.
-    SilenceFilter.apply(enabled: value);
+    EqSettings.apply(_settings);
     await _player.reloadCurrentSource();
   }
 
@@ -120,7 +121,9 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
   /// Includes the Monochrome FLAC option alongside HIGH/LOW.
   List<AudioQuality> get audioQualities => _settings.audioQualities;
 
-  void setStreamingQuality(dynamic value) => _settings.streamingQuality = value;
+  void setStreamingQuality(dynamic value) {
+    if (value is AudioQuality) _settings.streamingQuality = value;
+  }
 
   Future<void> setAudioNormalization(bool value) async {
     await _player.setLoudnessEnabled(value);

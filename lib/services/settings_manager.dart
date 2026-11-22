@@ -39,6 +39,7 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool _showSeekButtons = false;
   bool _crossfadeEnabled = false;
   double _crossfadeDuration = 5.0;
+  int _exportBitrateKbps = 192;
   bool _dataSaver = false;
   String _audioDeviceId = '';
   bool _castEnabled = true;
@@ -97,6 +98,10 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   AudioQuality get downloadQuality => _downloadQuality;
   bool get skipSilence => _skipSilence;
 
+  /// YT Music > "Translate lyrics": gates the player's translate button.
+  bool get translateLyrics =>
+      _box.get('TRANSLATE_LYRICS', defaultValue: false) == true;
+
   Color? get accentColor => _accentColor;
   bool get amoledBlack => _amoledBlack;
   bool get dynamicColors => _dynamicColors;
@@ -108,6 +113,7 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool get showSeekButtons => _showSeekButtons;
   bool get crossfadeEnabled => _crossfadeEnabled;
   double get crossfadeDuration => _crossfadeDuration;
+  int get exportBitrateKbps => _exportBitrateKbps;
   bool get dataSaver => _dataSaver;
   String get audioDeviceId => _audioDeviceId;
   bool get castEnabled => _castEnabled;
@@ -167,9 +173,13 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _init();
   }
   _init() {
-    _themeMode = _themeModes[_box.get('THEME_MODE', defaultValue: 0)];
-    _language = _languages.firstWhere((language) =>
-        language['value'] == _box.get('LANGUAGE', defaultValue: 'en-IN'));
+    _themeMode = _themeModes[
+        (_box.get('THEME_MODE', defaultValue: 0) as num).toInt().clamp(
+            0, _themeModes.length - 1)];
+    _language = _languages.firstWhere(
+        (language) =>
+            language['value'] == _box.get('LANGUAGE', defaultValue: 'en-IN'),
+        orElse: () => _languages.first);
     _autofetchSongs = _box.get('AUTOFETCH_SONGS', defaultValue: true);
     _accentColor = _box.get('ACCENT_COLOR') != null
         ? Color(_box.get('ACCENT_COLOR'))
@@ -177,13 +187,16 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _amoledBlack = _box.get('AMOLED_BLACK', defaultValue: true);
     _dynamicColors = _box.get('DYNAMIC_COLORS', defaultValue: false);
 
-    _location = _countries.firstWhere((country) =>
-        country['value'] == _box.get('LOCATION', defaultValue: 'IN'));
+    _location = _countries.firstWhere(
+        (country) => country['value'] == _box.get('LOCATION', defaultValue: 'IN'),
+        orElse: () => _countries.first);
 
-    _streamingQuality =
-        _audioQualities[_box.get('STREAMING_QUALITY', defaultValue: 0)];
-    _downloadQuality =
-        _audioQualities[_box.get('DOWNLOAD_QUALITY', defaultValue: 0)];
+    _streamingQuality = _audioQualities[
+        (_box.get('STREAMING_QUALITY', defaultValue: 0) as num).toInt().clamp(
+            0, _audioQualities.length - 1)];
+    _downloadQuality = _audioQualities[
+        (_box.get('DOWNLOAD_QUALITY', defaultValue: 0) as num).toInt().clamp(
+            0, _audioQualities.length - 1)];
     _skipSilence = _box.get('SKIP_SILENCE', defaultValue: false);
     _equalizerEnabled = _box.get('EQUALIZER_ENABLED', defaultValue: false);
     _loudnessEnabled = _box.get('LOUDNESS_ENABLED', defaultValue: false);
@@ -195,6 +208,8 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _crossfadeEnabled = _box.get('CROSSFADE_ENABLED', defaultValue: false);
     _crossfadeDuration =
         (_box.get('CROSSFADE_DURATION', defaultValue: 5.0) as num).toDouble();
+    _exportBitrateKbps =
+        (_box.get('EXPORT_BITRATE_KBPS', defaultValue: 192) as num).toInt();
     _dataSaver = _box.get('DATA_SAVER', defaultValue: false);
     _audioDeviceId = _box.get('AUDIO_DEVICE_ID', defaultValue: '');
     _castEnabled = _box.get('CAST_ENABLED', defaultValue: true);
@@ -377,6 +392,12 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   }
 
   Future<void> setEqualizerBandsGain(int index, double value) async {
+    if (index < 0) return;
+    // A fresh profile has an empty band list; writing to it used to throw a
+    // RangeError before the value could ever be persisted.
+    if (_equalizerBandsGain.length <= index) {
+      _equalizerBandsGain = List<double>.filled(index + 1, 0.0);
+    }
     _equalizerBandsGain[index] = value;
     await _box.put('EQUALIZER_BANDS_GAIN', equalizerBandsGain);
     notifyListeners();
@@ -409,6 +430,13 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   set crossfadeDuration(double value) {
     _box.put('CROSSFADE_DURATION', value);
     _crossfadeDuration = value;
+    notifyListeners();
+  }
+
+  set exportBitrateKbps(int value) {
+    final bitrate = value.clamp(64, 320);
+    _box.put('EXPORT_BITRATE_KBPS', bitrate);
+    _exportBitrateKbps = bitrate;
     notifyListeners();
   }
 

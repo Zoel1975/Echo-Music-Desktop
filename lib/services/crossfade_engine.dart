@@ -63,11 +63,17 @@ class CrossfadeEngine {
   bool _running = false;
   bool get isRunning => _running;
 
+  /// Incremented by [cancel]/[start] so an async tick from an old fade cannot
+  /// write volumes over a newer one (that produced audible volume jumps).
+  int _generation = 0;
+  bool _updating = false;
+
   /// Peak volume each player is ramped toward (usually 1.0, or lower when
   /// loudness normalization applies a gain).
   double peakVolume = 1.0;
 
   void cancel() {
+    _generation++;
     _timer?.cancel();
     _timer = null;
     _running = false;
@@ -85,16 +91,27 @@ class CrossfadeEngine {
     }
 
     _running = true;
+    final generation = _generation;
     final sw = _stopwatchFactory()..start();
     _timer = Timer.periodic(tick, (timer) async {
-      final t = (sw.elapsedMicroseconds / duration.inMicroseconds).clamp(0.0, 1.0);
-      await out.setVolume(peakVolume * CrossfadeCurve.fadeOut(t));
-      await inPlayer.setVolume(peakVolume * CrossfadeCurve.fadeIn(t));
-      if (t >= 1.0) {
-        timer.cancel();
-        _timer = null;
-        _running = false;
-        onDone?.call();
+      // setVolume() is async on Windows. Overlapping ticks would apply stale
+      // volumes out of order, audible as a stutter/click near the handoff.
+      if (_updating || generation != _generation) return;
+      _updating = true;
+      try {
+        final t =
+            (sw.elapsedMicroseconds / duration.inMicroseconds).clamp(0.0, 1.0);
+        await out.setVolume(peakVolume * CrossfadeCurve.fadeOut(t));
+        await inPlayer.setVolume(peakVolume * CrossfadeCurve.fadeIn(t));
+        if (generation != _generation) return;
+        if (t >= 1.0) {
+          timer.cancel();
+          _timer = null;
+          _running = false;
+          onDone?.call();
+        }
+      } finally {
+        _updating = false;
       }
     });
   }

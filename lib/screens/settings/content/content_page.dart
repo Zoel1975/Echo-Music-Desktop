@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
 import '../widgets/setting_item.dart';
+import '../widgets/settings_list.dart';
 import '../../../../core/widgets/back_button.dart';
 
 /// Real port of Android `ContentSettings.kt` (General + Lyrics groups):
@@ -25,6 +26,10 @@ class ContentPage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             children: [
+              const SettingNoticeTile(
+                message: 'Filtri contenuto, romanizzazione e lingua sono importati '
+                    'dall\'app Android e non filtrano ancora i risultati desktop.',
+              ),
               const GroupTitle(title: 'Privacy'),
               SettingTile(
                 title: 'Blocked Artists',

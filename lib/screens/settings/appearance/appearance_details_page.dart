@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
 import '../widgets/setting_item.dart';
+import '../widgets/settings_list.dart';
 import '../../../../core/widgets/back_button.dart';
 
 /// Fine-grained appearance options from Android `AppearanceSettings.kt`,
@@ -20,9 +21,9 @@ class AppearanceDetailsPage extends StatelessWidget {
       appBar: AppBar(
         leading: echoBackButton(context),
         title: const Text('Appearance details')),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      body: SettingsList(
         children: [
+          const SettingNoticeTile(),
           const GroupTitle(title: 'Theme'),
           _dropdown(
             context,

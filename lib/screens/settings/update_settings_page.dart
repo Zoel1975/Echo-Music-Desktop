@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/widgets/back_button.dart';
 import '../../services/update_service/update_service.dart';
 import '../../services/update_service/models/update_info.dart';
+import 'widgets/settings_list.dart';
 
 /// Port of Android `UpdateSettings.kt`: current version, manual check and a
 /// clear status line instead of a one-shot dialog with no screen behind it.
@@ -55,7 +56,7 @@ class _UpdateSettingsPageState extends State<UpdateSettingsPage> {
         leading: echoBackButton(context),
         title: const Text('App updates'),
       ),
-      body: ListView(
+      body: SettingsList(
         padding: const EdgeInsets.all(16),
         children: [
           Card(

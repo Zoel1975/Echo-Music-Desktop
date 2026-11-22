@@ -1,40 +1,122 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Echo/services/audio_encoder.dart';
 import 'package:Echo/services/export_task_queue.dart';
 import 'package:Echo/services/playback_cutoff.dart';
 import 'package:Echo/screens/coming_soon/coming_soon_catalog.dart';
 
-void main() {
-  group('ExportTaskQueue (real export queue)', () {
-    test('enqueues, processes and completes a file copy', () async {
-      final dir = Directory(
-          '${Directory.systemTemp.path}/echo_export_${DateTime.now().microsecondsSinceEpoch}');
-      final out = Directory('${dir.path}/out');
-      out.createSync(recursive: true);
-      addTearDown(() {
-        if (dir.existsSync()) dir.deleteSync(recursive: true);
-      });
-      final src = File('${dir.path}/song.mp3');
-      src.writeAsBytesSync(List<int>.filled(2048, 7));
+class FakeAudioEncoder implements AudioEncoder {
+  int calls = 0;
+  String? lastInput;
+  String? lastOutput;
+  int? cancelledSession;
+  bool pauseBeforeFinish = false;
+  Completer<void>? _pause;
 
-      final queue = ExportTaskQueue(exportDir: out);
+  @override
+  Future<void> encode({
+    required String inputPath,
+    required String outputPath,
+    required int bitrateKbps,
+    int? durationMs,
+    Map<String, String> tags = const {},
+    void Function(double? progress)? onProgress,
+    void Function(int sessionId)? onSession,
+  }) async {
+    calls++;
+    lastInput = inputPath;
+    lastOutput = outputPath;
+    onSession?.call(42);
+    onProgress?.call(0.5);
+    if (pauseBeforeFinish) {
+      _pause = Completer<void>();
+      await _pause!.future;
+    }
+    File(outputPath).writeAsBytesSync(const [0x49, 0x44, 0x33]);
+    onProgress?.call(1.0);
+  }
+
+  void allowFinish() {
+    if (_pause != null && !_pause!.isCompleted) _pause!.complete();
+  }
+
+  @override
+  Future<void> cancel(int sessionId) async {
+    cancelledSession = sessionId;
+    allowFinish();
+  }
+}
+
+void main() {
+  group('ExportTaskQueue (real MP3 transcoding)', () {
+    late Directory dir;
+    late Directory out;
+    late FakeAudioEncoder encoder;
+
+    setUp(() {
+      dir = Directory(
+          '${Directory.systemTemp.path}/echo_export_${DateTime.now().microsecondsSinceEpoch}');
+      out = Directory('${dir.path}/out')..createSync(recursive: true);
+      encoder = FakeAudioEncoder();
+    });
+    tearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+
+    test('transcodes via the encoder and writes an atomic .mp3', () async {
+      final src = File('${dir.path}/song.m4a')..writeAsBytesSync([1, 2, 3]);
+      final queue = ExportTaskQueue(exportDir: out, encoder: encoder);
       final task = await queue.enqueue(src.path);
-      // Allow the serial drain to finish.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       final updated = queue.tasks.firstWhere((t) => t.id == task.id);
       expect(updated.status, ExportStatus.done);
+      expect(updated.progress, 1.0);
+      expect(updated.targetPath, endsWith('.mp3'));
       expect(File(updated.targetPath).existsSync(), isTrue);
-      expect(File(updated.targetPath).lengthSync(), 2048);
+      expect(encoder.calls, 1);
+      expect(encoder.lastInput, src.path);
+      expect(encoder.lastOutput, endsWith('.mp3.part'));
+      expect(File('${updated.targetPath}.part').existsSync(), isFalse);
     });
 
-    test('reports failure for a missing source file', () async {
-      final queue = ExportTaskQueue(exportDir: Directory.systemTemp);
+    test('uses Artist - Title naming and sanitizes Windows characters', () {
+      final name = exportFileNameFor('/tmp/a.m4a', {
+        'title': 'Bad: name?/song',
+        'artists': [
+          {'name': 'Some/Artist'}
+        ],
+      });
+      expect(name, 'SomeArtist - Bad namesong.mp3');
+    });
+
+    test('reports failure for a missing source file without encoding', () async {
+      final queue = ExportTaskQueue(exportDir: out, encoder: encoder);
       await queue.enqueue('/nonexistent/missing.mp3');
-      await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(queue.tasks.first.status, ExportStatus.failed);
+      expect(encoder.calls, 0);
+    });
+
+    test('cancel stops an active task and retry re-encodes it', () async {
+      final src = File('${dir.path}/song.m4a')..writeAsBytesSync([1, 2, 3]);
+      encoder.pauseBeforeFinish = true;
+      final queue = ExportTaskQueue(exportDir: out, encoder: encoder);
+      final future = queue.enqueue(src.path);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      final id = queue.tasks.first.id;
+      await queue.cancel(id);
+      encoder.allowFinish();
+      await future;
+      expect(queue.tasks.first.status, ExportStatus.cancelled);
+      expect(encoder.cancelledSession, isNotNull);
+
+      encoder.pauseBeforeFinish = false;
+      queue.retry(id);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(queue.tasks.first.status, ExportStatus.done);
+      expect(encoder.calls, 2);
     });
   });
 

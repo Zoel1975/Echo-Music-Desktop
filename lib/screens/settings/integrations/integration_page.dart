@@ -6,6 +6,7 @@ import '../../../services/settings_manager.dart';
 import '../../../services/cloud_service.dart';
 import '../../../services/song_dna_service.dart';
 import '../widgets/setting_item.dart';
+import '../widgets/settings_list.dart';
 import 'integration_catalog.dart';
 import '../../../../core/widgets/back_button.dart';
 
@@ -23,8 +24,7 @@ class IntegrationPage extends StatelessWidget {
       appBar: AppBar(
         leading: echoBackButton(context),
         title: Text(screen.title)),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      body: SettingsList(
         children: [
           Card(
             child: Padding(

@@ -6,6 +6,7 @@ import '../../../generated/l10n.dart';
 import '../../../services/audio_device_service.dart';
 import '../../../services/settings_manager.dart';
 import '../widgets/setting_item.dart';
+import '../widgets/settings_list.dart';
 import 'cubit/player_settings_cubit.dart';
 import '../../../../core/widgets/back_button.dart';
 
@@ -38,6 +39,10 @@ class PlayerSettingsPage extends StatelessWidget {
                     vertical: 8,
                   ),
                   children: [
+                    const SettingNoticeTile(
+                      message: 'Alcune opzioni Queue/Misc provengono dall\'app '
+                          'Android e non sono ancora applicate al player desktop.',
+                    ),
                     // -------------------------------------------------- Network
                     const GroupTitle(title: 'Network & quality'),
                     SettingTile(

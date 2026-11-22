@@ -22,6 +22,7 @@ import 'services/download_manager.dart';
 import 'services/file_storage.dart';
 import 'services/storage_service.dart';
 import 'services/content_filter_service.dart';
+import 'services/eq_settings.dart';
 import 'services/silence_filter.dart';
 import 'services/export_task_queue.dart';
 import 'services/scrobble_service.dart';
@@ -156,11 +157,18 @@ void main() async {
   GetIt.I.registerSingleton<SettingsManager>(settingsManager);
   // Genuine desktop skip-silence: apply mpv's silenceremove filter before any
   // AudioPlayer is created (players snapshot the filter at construction).
-  SilenceFilter.apply(enabled: settingsManager.skipSilence);
+  // Restore the saved AXION/EQ preset as well as skip-silence: applying only
+  // `enabled` used to wipe the equalizer from the filter chain on restart.
+  EqSettings.apply(settingsManager);
   GetIt.I.registerSingleton<StorageService>(StorageService());
   GetIt.I.registerSingleton<ContentFilterService>(ContentFilterService());
   GetIt.I.registerSingleton<ExportTaskQueue>(ExportTaskQueue());
-  GetIt.I.registerSingleton<AudioDeviceService>(AudioDeviceService());
+  final audioDevices = AudioDeviceService();
+  GetIt.I.registerSingleton<AudioDeviceService>(audioDevices);
+  // Restore the output device the user picked in a previous session.
+  if (settingsManager.audioDeviceId.isNotEmpty) {
+    unawaited(audioDevices.selectDevice(settingsManager.audioDeviceId));
+  }
   // Google Cast device picker (Android: CastButton + CastConnectionHandler).
   GetIt.I.registerSingleton<CastService>(CastService());
   GetIt.I.registerSingleton<ScrobbleService>(ScrobbleService());
@@ -201,7 +209,7 @@ void main() async {
   // Resume playback in the background: awaiting it before runApp() could
   // block the first Flutter frame (e.g. a slow/failed stream resolve), which
   // left the process alive with an invisible window.
-  if (!audioFallback.value) {
+  if (!audioFallback.value && settingsManager.persistentQueue) {
     unawaited(GetIt.I<MediaPlayer>().restoreLastPlayed());
   }
 
@@ -211,6 +219,10 @@ void main() async {
         ChangeNotifierProvider(create: (_) => settingsManager),
         ChangeNotifierProvider(create: (_) => mediaPlayer),
         ChangeNotifierProvider(create: (_) => libraryService),
+        // The export screen reads this with context.watch; registering only in
+        // GetIt made navigating to /export_queue throw ProviderNotFound.
+        ChangeNotifierProvider.value(
+            value: GetIt.I<ExportTaskQueue>()),
       ],
       child: const Echo(),
     ),

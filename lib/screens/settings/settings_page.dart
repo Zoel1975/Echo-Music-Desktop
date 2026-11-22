@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:Echo/services/account_refresh.dart';
 import 'package:Echo/services/cookie_store.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -86,9 +87,21 @@ class _SettingsPageState extends State<SettingsPage> {
         pendingGroup = widget;
         continue;
       }
-      if (widget is SettingTile &&
-          (widget.title.toLowerCase().contains(q) ||
-              (widget.subtitle ?? '').toLowerCase().contains(q))) {
+      // Switches are settings too: the old filter only saw SettingTile, so
+      // searching e.g. "Data Saver" returned the empty state.
+      final String? title = switch (widget) {
+        SettingTile() => widget.title,
+        SettingSwitchTile() => widget.title,
+        _ => null,
+      };
+      final String? subtitle = switch (widget) {
+        SettingTile() => widget.subtitle,
+        SettingSwitchTile() => widget.subtitle,
+        _ => null,
+      };
+      if (title != null &&
+          (title.toLowerCase().contains(q) ||
+              (subtitle ?? '').toLowerCase().contains(q))) {
         if (pendingGroup != null) {
           result.add(pendingGroup);
           pendingGroup = null;
@@ -150,20 +163,26 @@ class _SettingsPageState extends State<SettingsPage> {
                     // routes where a desktop implementation exists; explicit
                     // "coming in a future update" placeholders otherwise.
                     GroupTitle(title: "Account"),
-                    SettingTile(
-                      title: 'Account',
-                      subtitle: () {
+                    // The shell keeps this page alive, so a plain build-time
+                    // read left the old account name after sign-out.
+                    ValueListenableBuilder<int>(
+                      valueListenable: accountEpoch,
+                      builder: (context, _, __) {
                         final account = CookieStore.instance.account;
                         final name = account['name']?.toString();
                         final signedIn = name != null &&
                             name.isNotEmpty &&
                             CookieStore.instance.cookieHeader != null;
-                        return signedIn ? name : 'Manage login and integrations';
-                      }(),
-                      leading: const Icon(Icons.account_circle_outlined),
-                      isFirst: true,
-                      isLast: true,
-                      onTap: () => context.go('/account'),
+                        return SettingTile(
+                          title: 'Account',
+                          subtitle:
+                              signedIn ? name : 'Manage login and integrations',
+                          leading: const Icon(Icons.account_circle_outlined),
+                          isFirst: true,
+                          isLast: true,
+                          onTap: () => context.go('/account'),
+                        );
+                      },
                     ),
 
                     GroupTitle(title: "Smart features"),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Echo/services/crossfade_engine.dart';
@@ -91,5 +93,51 @@ void main() {
     expect(out.volume, closeTo(0.0, 1e-6));
     expect(inn.volume, closeTo(1.0, 1e-6));
     engine.dispose();
+  });
+
+  test('cancelled fades cannot write stale volumes', () async {
+    final out = FakePlayer();
+    final inn = FakePlayer();
+    final sw = ManualStopwatch();
+    final engine = CrossfadeEngine(
+      out: out,
+      inPlayer: inn,
+      tick: const Duration(milliseconds: 5),
+      stopwatchFactory: () => sw,
+    );
+    await engine.start(const Duration(milliseconds: 100));
+    engine.cancel();
+    sw.micros = 100000;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    // No tick from the cancelled fade may touch the players afterwards.
+    expect(out.setVolumeCalls, 0);
+    expect(inn.setVolumeCalls, 0);
+    expect(engine.isRunning, isFalse);
+    engine.dispose();
+  });
+
+  test('player crossfade prepares the outgoing source before stopping main',
+      () {
+    final src = File('lib/services/media_player.dart').readAsStringSync();
+    final start = src.indexOf('Future<void> _crossfadeTo');
+    final crossfadeTo = src.substring(
+      start,
+      src.indexOf('/// Re-attach the current audio source', start),
+    );
+    final handoff = crossfadeTo.indexOf('outPlayer.play()');
+    final stopMain = crossfadeTo.indexOf('_player.stop()');
+    expect(handoff, greaterThan(0));
+    expect(stopMain, greaterThan(handoff),
+        reason: 'outgoing track must be running before main is stopped');
+    expect(crossfadeTo, contains('await Future.wait(['));
+    expect(crossfadeTo, isNot(contains('_player.setVolume(_dspTargetGain)')));
+
+    final arm = src.substring(
+      src.indexOf('Future<void> _maybePreArmQueueCrossfade'),
+      src.indexOf('void _maybeSkipSponsor'),
+    );
+    expect(arm, contains('await outPlayer.setVolume(0)'));
+    expect(arm, contains('final peak = _dspTargetGain'));
+    expect(arm, contains('_player.setVolume(peak)'));
   });
 }

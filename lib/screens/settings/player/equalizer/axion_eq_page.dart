@@ -5,7 +5,8 @@ import '../../../../core/widgets/back_button.dart';
 import '../../../../services/autoeq_service.dart';
 import '../../../../services/axion_eq_service.dart';
 import '../../../../services/settings_manager.dart';
-import '../../../../services/silence_filter.dart';
+import '../../../../services/eq_settings.dart';
+import '../../widgets/settings_list.dart';
 
 /// AXION / AutoEq equalizer with the full AutoEq database searchable inline:
 /// type a headphone name, tap a result, the 10 bands are applied immediately.
@@ -85,12 +86,11 @@ class _AxionEqPageState extends State<AxionEqPage> {
     final s = GetIt.I<SettingsManager>();
     s.setExtra<String>(
         'axionEQGains', AxionEqService.encodePreset(EqPreset(_presetName, _gains)));
+    // Keep the 10-band sliders in sync so later edits don't restore stale
+    // gains (EqSettings prefers this list).
+    s.equalizerBandsGain = List<double>.from(_gains);
     s.equalizerEnabled = true;
-    SilenceFilter.apply(
-      enabled: s.skipSilence,
-      eqGains: _gains,
-      eqEnabled: true,
-    );
+    EqSettings.apply(s);
   }
 
   void _applyPreset(EqPreset p) {
@@ -121,7 +121,7 @@ class _AxionEqPageState extends State<AxionEqPage> {
           ),
         ],
       ),
-      body: ListView(
+      body: SettingsList(
         padding: const EdgeInsets.all(16),
         children: [
           Text('Presets', style: Theme.of(context).textTheme.titleMedium),
