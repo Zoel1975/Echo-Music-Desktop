@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/widgets/back_button.dart';
+import '../../../../services/autoeq_service.dart';
 import '../../../../services/axion_eq_service.dart';
 import '../../../../services/settings_manager.dart';
 import '../../../../services/silence_filter.dart';
@@ -19,6 +20,10 @@ class AxionEqPage extends StatefulWidget {
 class _AxionEqPageState extends State<AxionEqPage> {
   late List<double> _gains;
   String _presetName = 'Custom';
+  final _searchController = TextEditingController();
+  List<AutoEqProfile> _autoEqResults = const [];
+  bool _autoEqLoading = false;
+  String? _autoEqError;
 
   @override
   void initState() {
@@ -60,6 +65,40 @@ class _AxionEqPageState extends State<AxionEqPage> {
     _save();
   }
 
+  Future<void> _searchAutoEq(String query) async {
+    setState(() {
+      _autoEqLoading = true;
+      _autoEqError = null;
+    });
+    final profiles = await AutoEqService.loadProfiles();
+    if (!mounted) return;
+    setState(() {
+      _autoEqResults = AutoEqService.search(profiles, query);
+      _autoEqLoading = false;
+      if (profiles.isEmpty) {
+        _autoEqError = 'Database AutoEq non disponibile offline.';
+      }
+    });
+  }
+
+  Future<void> _applyAutoEq(AutoEqProfile profile) async {
+    setState(() => _autoEqLoading = true);
+    final gains = await AutoEqService.gainsFor(profile);
+    if (!mounted) return;
+    setState(() => _autoEqLoading = false);
+    if (gains == null) {
+      setState(() => _autoEqError = 'Profilo non scaricabile.');
+      return;
+    }
+    _applyPreset(EqPreset(profile.name, gains));
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,6 +128,35 @@ class _AxionEqPageState extends State<AxionEqPage> {
                     ))
                 .toList(),
           ),
+          const SizedBox(height: 24),
+          Text('AutoEq · cerca il tuo modello',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _searchController,
+            onChanged: _searchAutoEq,
+            decoration: const InputDecoration(
+              hintText: 'Es. AKG K371, Sony XM5, 7Hz Zero…',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (_autoEqLoading) const LinearProgressIndicator(minHeight: 2),
+          if (_autoEqError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_autoEqError!,
+                  style: const TextStyle(color: Colors.orange)),
+            ),
+          ..._autoEqResults.take(8).map(
+                (p) => ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.headphones),
+                  title: Text(p.displayName),
+                  subtitle: Text(p.source),
+                  onTap: () => _applyAutoEq(p),
+                ),
+              ),
           const SizedBox(height: 20),
           Text('10-band equalizer',
               style: Theme.of(context).textTheme.titleMedium),

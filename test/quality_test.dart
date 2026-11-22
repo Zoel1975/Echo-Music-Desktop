@@ -146,6 +146,14 @@ void main() {
     expect(login, contains('Network.requestWillBeSent'));
     expect(login, contains('googlevideo.com/videoplayback'));
 
+    expect(File('lib/services/autoeq_service.dart').existsSync(), isTrue);
+    final eqPage = File(
+      'lib/screens/settings/player/equalizer/axion_eq_page.dart',
+    ).readAsStringSync();
+    expect(eqPage, contains("hintText: 'Es. AKG K371"));
+    expect(eqPage, contains('_searchAutoEq'));
+    expect(eqPage, contains('_applyAutoEq'));
+
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));
     expect(mainSrc, contains('ErrorWidget.builder'));
