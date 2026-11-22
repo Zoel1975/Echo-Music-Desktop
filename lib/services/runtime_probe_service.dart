@@ -494,6 +494,42 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/watch-page' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final body = await StreamResolver.instance.debugWatchPage(id);
+      final matches = <String>[];
+      for (final r in [
+        r'PLAYER_JS_URL.{0,120}',
+        r'jsUrl.{0,120}',
+        r'player[^" ]{0,80}\.js',
+      ]) {
+        matches.addAll(RegExp(r).allMatches(body).take(3).map((m) => m.group(0) ?? ''));
+      }
+      _json(request.response, 200, {
+        'length': body.length,
+        'matches': matches,
+        'head': body.substring(0, body.length.clamp(0, 600)),
+      });
+      return;
+    }
+    if (path == '/player-raw' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      final raw = await StreamResolver.instance.debugPlayer(id);
+      final formats = raw['streamingData']?['adaptiveFormats'] as List? ?? const [];
+      _json(request.response, 200, {
+        'status': raw['playabilityStatus']?['status'],
+        'reason': raw['playabilityStatus']?['reason'],
+        'assetsJs': raw['assets']?['js'],
+        'playerJsUrl': raw['streamingData']?['playerUrl'],
+        'formatCount': formats.length,
+        'firstFormatKeys': formats.isEmpty || formats.first is! Map
+            ? const []
+            : (formats.first as Map).keys.toList(),
+        'hasCipher': formats.any((f) => f is Map && f['signatureCipher'] != null),
+        'hasUrl': formats.any((f) => f is Map && f['url'] != null),
+      });
+      return;
+    }
     if (path == '/resolve' && request.method == 'GET') {
       final id = request.uri.queryParameters['id'] ??
           GetIt.I<MediaPlayer>().currentSongNotifier.value?.id ??

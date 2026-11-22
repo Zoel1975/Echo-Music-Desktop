@@ -131,6 +131,14 @@ void main() {
         File('lib/services/stream_resolver.dart').readAsStringSync();
     expect(resolver, contains('for (var attempt = 0; attempt < 2; attempt++)'),
         reason: 'transient resolution failures must be retried');
+    expect(resolver, contains('_resolveWithCipher'),
+        reason: 'age-gated formats with signatureCipher must be deciphered');
+    expect(resolver, contains('_resolveWithExplode'),
+        reason: 'a second resolver is needed for restricted videos');
+    expect(
+        File('lib/services/youtube_explode_solver.dart').existsSync(), isTrue);
+    expect(
+        File('lib/services/youtube_explode_client.dart').existsSync(), isTrue);
 
     final mainSrc = File('lib/main.dart').readAsStringSync();
     expect(mainSrc, contains('_installErrorHandlers'));

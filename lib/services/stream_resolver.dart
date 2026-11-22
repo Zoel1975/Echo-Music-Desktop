@@ -1,10 +1,15 @@
 ﻿import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:hive/hive.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:youtube_explode_dart/src/reverse_engineering/challenges/js_challenge.dart';
 
 import 'cookie_store.dart';
+import 'youtube_explode_client.dart';
+import 'youtube_explode_solver.dart';
 
 /// Resolved, playable audio stream, with the identity (headers) its media
 /// fetch must wear. Port of Android `playback/ResolvedStream.kt`.
@@ -135,6 +140,21 @@ class YtPlayerClient {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
   );
 
+  /// WEB_REMIX with the embedded-player context: age-gated Music tracks are
+  /// often only playable when the request carries `clientScreen=EMBED` and a
+  /// thirdParty embedUrl, exactly like the (YouTube) Music web player does.
+  static const webRemixEmbedded = YtPlayerClient(
+    name: 'WEB_REMIX',
+    version: '1.20260213.01.00',
+    id: '67',
+    userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
+    extra: {
+      'clientScreen': 'EMBED',
+      'thirdParty': {'embedUrl': 'https://music.youtube.com/'},
+    },
+  );
+
   /// The embedded player used by the Music web app. With the signed-in
   /// context it is the client that answers age-gated tracks instead of
   /// "Sign in to confirm your age".
@@ -170,6 +190,7 @@ class YtPlayerClient {
   /// Ordered by measured ability to serve a complete audio file.
   static const fallbackOrder = [
     visionOs,
+    webRemixEmbedded,
     androidTestsuite,
     webEmbedded,
     android,
@@ -212,6 +233,9 @@ class StreamResolver {
   final Map<String, double?> _loudness = {};
 
   double? loudnessFor(String videoId) => _loudness[videoId];
+
+  /// Public visitor token for the youtube_explode fallback client.
+  String? get visitorData => _visitorData;
 
   void clearCache() {
     _cache.clear();
@@ -434,6 +458,168 @@ class StreamResolver {
     return true;
   }
 
+  /// Diagnostic: signed-in Music watch page for player-JS extraction checks.
+  Future<String> debugWatchPage(String videoId) async {
+    final page = await _client.get(
+      Uri.parse('https://music.youtube.com/watch?v=$videoId'),
+      headers: _headers(YtPlayerClient.webRemix, music: true),
+    );
+    return page.body;
+  }
+
+  /// Diagnostic: raw WEB_REMIX player response for age-gated investigations.
+  Future<Map<String, dynamic>> debugPlayer(String videoId) async {
+    final client = YtPlayerClient.webRemix;
+    final response = await _client.post(
+      Uri.parse(_musicPlayerUrl),
+      headers: _headers(client, music: true),
+      body: jsonEncode(_body(client, videoId,
+          visitorData: _signedInVisitor ?? await _getVisitorData())),
+    );
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Decipher the `signatureCipher` fields returned by WEB_REMIX for
+  /// age-restricted tracks, using the same JS challenge solver as
+  /// youtube_explode_dart but with our signed-in Music context.
+  Future<ResolvedStream?> _resolveWithCipher(String videoId) async {
+    if (!NodeEJSSolver.isNodeAvailable) return null;
+    try {
+      final raw = await debugPlayer(videoId);
+      final formats = (raw['streamingData']?['adaptiveFormats'] as List? ??
+              const [])
+          .whereType<Map>()
+          .where((f) =>
+              (f['mimeType'] as String? ?? '').startsWith('audio/') &&
+              f['signatureCipher'] is String)
+          .toList()
+        ..sort((a, b) => _asNum(b['bitrate']).compareTo(_asNum(a['bitrate'])));
+      if (formats.isEmpty) return null;
+
+      final page = await _client.get(
+        Uri.parse('https://music.youtube.com/watch?v=$videoId'),
+        headers: _headers(YtPlayerClient.webRemix, music: true),
+      );
+      String? playerJs;
+      final jsMatch = RegExp(r'"PLAYER_JS_URL":"([^"]+)"').firstMatch(page.body);
+      if (jsMatch != null) {
+        playerJs = jsonDecode('"${jsMatch.group(1)}"') as String;
+      }
+      // YouTube Music embeds the player path as "jsUrl" in its ytcfg.
+      final jsUrlMatch = RegExp(r'"jsUrl":"([^"]+)"').firstMatch(page.body);
+      if (jsUrlMatch != null) {
+        playerJs = jsonDecode('"${jsUrlMatch.group(1)}"') as String;
+      }
+      playerJs ??= RegExp(r'/s/player/[A-Za-z0-9_./*\-]+\.js')
+          .firstMatch(page.body)
+          ?.group(0);
+      if (playerJs != null && playerJs.startsWith('/')) {
+        playerJs = 'https://www.youtube.com$playerJs';
+      }
+      if (playerJs == null) {
+        debugPrint('[cipher] no player js in watch page (${page.body.length} bytes)');
+        return null;
+      }
+      final solver = await NodeEJSSolver.create();
+      for (final format in formats.take(3)) {
+        final params = Uri.splitQueryString(format['signatureCipher'] as String);
+        final base = Uri.parse(params['url'] ?? '');
+        final sig = params['s'];
+        final sigKey = params['sp'] ?? 'sig';
+        final n = base.queryParameters['n'];
+        if (base.toString().isEmpty || sig == null || sig.isEmpty) continue;
+        final solved = await solver.solveBulk(
+          playerJs,
+          {
+            JSChallengeType.sig: [sig],
+            if (n != null && n.isNotEmpty) JSChallengeType.n: [n],
+          },
+        );
+        final newSig = solved[sig];
+        if (newSig == null || newSig.isEmpty) continue;
+        final query = Map<String, String>.from(base.queryParameters);
+        query[sigKey] = newSig;
+        final newN = n == null ? null : solved[n];
+        if (n != null && newN != null) query['n'] = newN;
+        final stream = ResolvedStream(
+          url: base.replace(queryParameters: query).toString(),
+          mimeType: format['mimeType'] as String? ?? 'audio/mp4',
+          contentLength: _asNum(format['contentLength']).toInt(),
+          bitrate: _asNum(format['bitrate']).toInt(),
+          client: 'CIPHER',
+          headers: {'User-Agent': YtPlayerClient.webRemix.userAgent},
+        );
+        if (await _validate(stream)) return stream;
+        debugPrint('[cipher] format ${format['itag']} rejected');
+      }
+    } catch (e) {
+      debugPrint('[cipher] $videoId: $e');
+    }
+    return null;
+  }
+
+  /// Last-resort resolver for age-restricted videos: youtube_explode_dart
+  /// handles `signatureCipher` / `n` challenges that InnerTube leaves as
+  /// "no direct audio format". Uses the signed-in cookie jar and a Node-backed
+  /// JS solver when available.
+  Future<ResolvedStream?> _resolveWithExplode(
+    String videoId,
+    String quality,
+  ) async {
+    if (!NodeEJSSolver.isNodeAvailable) return null;
+    YoutubeExplode? yt;
+    try {
+      final solver = await NodeEJSSolver.create();
+      yt = YoutubeExplode(
+        httpClient: AuthYoutubeHttpClient(),
+        jsSolver: solver,
+      );
+      // Try clients separately: getManifest merges their streams and can pick
+      // a deciphered URL that mpv cannot actually read.
+      for (final apiClient in [
+        YoutubeApiClient.tvSimplyEmbedded,
+        YoutubeApiClient.webCreator,
+        YoutubeApiClient.mweb,
+        YoutubeApiClient.tv,
+        YoutubeApiClient.androidSdkless,
+        YoutubeApiClient.androidVr,
+        YoutubeApiClient.safari,
+      ]) {
+        try {
+          final manifest = await yt.videos.streamsClient.getManifest(
+            videoId,
+            requireWatchPage: false,
+            ytClients: [apiClient],
+          );
+          final infos = manifest.audioOnly.toList()
+            ..sort((a, b) => a.bitrate.compareTo(b.bitrate));
+          if (infos.isEmpty) continue;
+          final chosen = quality == 'low' ? infos.first : infos.last;
+          final stream = ResolvedStream(
+            url: chosen.url.toString(),
+            mimeType: chosen.codec.mimeType,
+            contentLength: chosen.size.totalBytes.toInt(),
+            bitrate: chosen.bitrate.bitsPerSecond.toInt(),
+            client: 'EXPLODE',
+            headers: {'User-Agent': YtPlayerClient.visionOs.userAgent},
+          );
+          if (!await _validate(stream)) {
+            debugPrint('[explode] tag ${chosen.tag} rejected by ranged GET');
+            continue;
+          }
+          return stream;
+        } catch (e) {
+          debugPrint('[explode] client failed: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('[explode] $videoId: $e');
+      return null;
+    } finally {
+      yt?.close();
+    }
+  }
+
   Future<ResolvedStream> resolve(String videoId, {String quality = 'high'}) async {
     final key = '$videoId:$quality';
     final cached = _cache[key];
@@ -503,6 +689,16 @@ class StreamResolver {
       errors
         ..clear()
         ..addAll(roundErrors);
+    }
+    final deciphered = await _resolveWithCipher(videoId);
+    final exploded = deciphered ?? await _resolveWithExplode(videoId, quality);
+    if (exploded != null) {
+      _loudness[videoId] = exploded.loudnessDb;
+      _cache[key] = (
+        stream: exploded,
+        expiry: DateTime.now().add(const Duration(hours: 1)),
+      );
+      return exploded;
     }
     throw StreamResolutionException(
       'No playable audio stream for $videoId. ${errors.join(' | ')}',
