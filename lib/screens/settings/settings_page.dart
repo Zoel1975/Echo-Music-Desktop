@@ -13,8 +13,106 @@ import 'widgets/color_icon.dart';
 import 'widgets/setting_item.dart';
 import 'cubit/settings_system_cubit.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  final _search = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  /// Android SearchableSettings: matches top-level entries and common
+  /// sub-settings, navigating straight to the right screen.
+  static const _searchableSubs = <(String, String, String)>[
+    ('Tema', 'Aspetto', '/settings/appearance'),
+    ('Colori', 'Aspetto', '/settings/appearance'),
+    ('Lingua', 'Contenuti', '/settings/content'),
+    ('Paese', 'Contenuti', '/settings/content'),
+    ('SponsorBlock', 'Contenuti', '/settings/content'),
+    ('Brani bloccati', 'Contenuti', '/settings/content/blocked_artists'),
+    ('Brani non graditi', 'Contenuti', '/settings/content/disliked_songs'),
+    ('Qualità streaming', 'Riproduttore', '/settings/player'),
+    ('Loudness', 'Riproduttore', '/settings/player'),
+    ('Crossfade', 'Riproduttore', '/settings/player'),
+    ('Equalizzatore', 'Riproduttore', '/settings/player/equalizer'),
+    ('AutoEq', 'Riproduttore', '/settings/player/axion'),
+    ('Sincronizzazione testi', 'AI', '/settings/ai'),
+    ('Traduzione', 'AI', '/settings/ai'),
+    ('Cache', 'Archiviazione', '/settings/storage'),
+    ('Backup', 'Backup', '/settings/backup_storage'),
+  ];
+
+  Widget _searchField() => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        child: TextField(
+          controller: _search,
+          onChanged: (value) => setState(() => _query = value),
+          decoration: InputDecoration(
+            hintText: 'Cerca nelle impostazioni',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _search.clear();
+                      setState(() => _query = '');
+                    },
+                  ),
+            border: const OutlineInputBorder(),
+            isDense: true,
+          ),
+        ),
+      );
+
+  List<Widget> _filter(List<Widget> children) {
+    final q = _query.toLowerCase().trim();
+    if (q.isEmpty) return [_searchField(), ...children];
+    final result = <Widget>[_searchField()];
+    GroupTitle? pendingGroup;
+    for (final widget in children) {
+      if (widget is GroupTitle) {
+        pendingGroup = widget;
+        continue;
+      }
+      if (widget is SettingTile &&
+          (widget.title.toLowerCase().contains(q) ||
+              (widget.subtitle ?? '').toLowerCase().contains(q))) {
+        if (pendingGroup != null) {
+          result.add(pendingGroup);
+          pendingGroup = null;
+        }
+        result.add(widget);
+      }
+    }
+    for (final sub in _searchableSubs) {
+      if (sub.$1.toLowerCase().contains(q) ||
+          sub.$2.toLowerCase().contains(q)) {
+        result.add(SettingTile(
+          title: sub.$1,
+          subtitle: sub.$2,
+          leading: const Icon(Icons.subdirectory_arrow_right),
+          onTap: () => context.go(sub.$3),
+        ));
+      }
+    }
+    if (result.length == 1) {
+      result.add(const Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(child: Text('Nessuna impostazione trovata.')),
+      ));
+    }
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +140,7 @@ class SettingsPage extends StatelessWidget {
                     horizontal: 16,
                     vertical: 8,
                   ),
-                  children: [
+                  children: _filter([
                     if (Platform.isAndroid && batteryDisabled != true)
                       _BatteryWarningTile(),
 
@@ -268,7 +366,7 @@ class SettingsPage extends StatelessWidget {
                       },
                     ),
                     const SizedBox(height: 100), // Extra padding for miniplayer
-                  ],
+                  ]),
                 ),
               ),
             );
@@ -279,7 +377,7 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-extension _SettingsPageHelpers on SettingsPage {
+extension _SettingsPageHelpers on _SettingsPageState {
   Widget _integrationTile(
     BuildContext context, {
     required String title,

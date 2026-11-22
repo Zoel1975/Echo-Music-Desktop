@@ -23,6 +23,34 @@ void main() {
     }
   });
 
+  testWidgets('global settings search filters entries and sub-settings',
+      (tester) async {
+    tester.view.physicalSize = const Size(1000, 4000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          S.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: S.delegate.supportedLocales,
+        home: const SettingsPage(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(TextField), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Cache');
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Cache'), findsWidgets);
+    expect(find.text('Account'), findsNothing,
+        reason: 'non-matching entries must be hidden while searching');
+  });
+
   test('Android settings screens all have a desktop route', () {
     final router = File('lib/utils/router.dart').readAsStringSync();
     for (final path in [
