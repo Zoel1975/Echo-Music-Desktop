@@ -29,6 +29,9 @@ class LyricsBox extends StatefulWidget {
 
 class _LyricsBoxState extends State<LyricsBox> {
   Future<Lyrics>? _fetchLyricsFuture;
+  /// Invalidates results from a previous track: a slow provider could otherwise
+  /// overwrite the current song's lyrics after a quick track change.
+  int _fetchGeneration = 0;
   bool _lyricsLoaded = false;
   List<String>? _translatedLines;
   Lyrics? _lyrics;
@@ -68,30 +71,32 @@ class _LyricsBoxState extends State<LyricsBox> {
   }
 
   void _fetchLyrics() {
-    if (context.mounted) {
-      setState(() {
-        _translatedLines = null;
-        _fetchLyricsFuture = GetIt.I<LyricsService>().getLyrics(
-          title: widget.currentSong.title,
-          artist: widget.currentSong.artist,
-          album: widget.currentSong.album,
-          duration: widget.currentSong.duration?.inSeconds.toString(),
-        );
-        _lyricsLoaded = false;
-        _fetchLyricsFuture!.then((lyrics) {
-          _lyrics = lyrics;
-          _lyricsLoaded =
-              (lyrics.parsedLyrics?.lyrics.isNotEmpty ?? false) ||
-                  lyrics.lyricsPlain.isNotEmpty;
-          widget.onLyricsFound?.call(_lyricsLoaded);
-          _updateWakelock();
-        }).catchError((_) {
-          _lyricsLoaded = false;
-          widget.onLyricsFound?.call(false);
-          _updateWakelock();
-        });
-      });
-    }
+    if (!mounted) return;
+    final generation = ++_fetchGeneration;
+    setState(() {
+      _translatedLines = null;
+      _lyrics = null;
+      _lyricsLoaded = false;
+      _fetchLyricsFuture = GetIt.I<LyricsService>().getLyrics(
+        title: widget.currentSong.title,
+        artist: widget.currentSong.artist,
+        album: widget.currentSong.album,
+        duration: widget.currentSong.duration?.inSeconds.toString(),
+      );
+    });
+    _fetchLyricsFuture!.then((lyrics) {
+      if (!mounted || generation != _fetchGeneration) return;
+      _lyrics = lyrics;
+      _lyricsLoaded = (lyrics.parsedLyrics?.lyrics.isNotEmpty ?? false) ||
+          lyrics.lyricsPlain.isNotEmpty;
+      widget.onLyricsFound?.call(_lyricsLoaded);
+      _updateWakelock();
+    }).catchError((_) {
+      if (!mounted || generation != _fetchGeneration) return;
+      _lyricsLoaded = false;
+      widget.onLyricsFound?.call(false);
+      _updateWakelock();
+    });
   }
 
   @override
@@ -422,76 +427,73 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
               // Only apply blur if not current and not too close to current (optional optimization)
               // For now, simpler is better: Opacity handle focus
               
+              // Geometry must NOT change when the active line changes:
+              // animating fontSize/weight/letterSpacing made every item
+              // re-measure and the list re-paginate ("justified" look).
+              final settings = GetIt.I<SettingsManager>();
+              const baseSize = 32.0;
+              final fontSize = baseSize + (settings.lyricsTextSize - 18) / 2;
+              final height = 1.3 + settings.extra<double>('lyricsLineSpacing', 8) / 40;
+              TextStyle style(double glow) => TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w700,
+                    height: height,
+                    letterSpacing: 0.0,
+                    color: isCurrent
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.35),
+                    shadows: isCurrent
+                        ? [
+                            Shadow(
+                              color: Colors.white.withValues(alpha: glow * 0.8),
+                              blurRadius: 15,
+                            ),
+                            Shadow(
+                              color: Colors.white.withValues(alpha: glow * 0.4),
+                              blurRadius: 30,
+                            ),
+                            Shadow(
+                              color: Colors.blueAccent.withValues(alpha: glow * 0.3),
+                              blurRadius: 50,
+                            ),
+                          ]
+                        : const [],
+                  );
+              Widget lyricLine(double glow) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(lyricText, textAlign: TextAlign.center, style: style(glow)),
+                      if (widget.translatedLines != null &&
+                          index < widget.translatedLines!.length)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            widget.translatedLines![index],
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white
+                                  .withValues(alpha: isCurrent ? 0.85 : 0.4),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+
               return GestureDetector(
                 onTap: () => _seekToLyric(index),
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(vertical: 16.0, horizontal: 32),
-                  child: AnimatedBuilder(
-                    animation: _glowAnimation,
-                    builder: (context, child) {
-                      return AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeOutCubic,
-                        style: TextStyle(
-                          fontSize: (isCurrent ? 38 : 28) +
-                              (GetIt.I<SettingsManager>().lyricsTextSize - 18) / 2,
-                          fontWeight:
-                              isCurrent ? FontWeight.w900 : FontWeight.w600,
-                          color: isCurrent
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.35), // Transparent inactive
-                          height: 1.3 + GetIt.I<SettingsManager>().extra<double>('lyricsLineSpacing', 8) / 40,
-                          letterSpacing: isCurrent ? 0.5 : -0.3,
-                          shadows: isCurrent
-                              ? [
-                                  // Spicy Lyrics Glow Effect
-                                  Shadow(
-                                    color: Colors.white.withValues(
-                                        alpha: _glowAnimation.value * 0.8),
-                                    blurRadius: 15,
-                                  ),
-                                  Shadow(
-                                    color: Colors.white.withValues(
-                                        alpha: _glowAnimation.value * 0.4),
-                                    blurRadius: 30,
-                                  ),
-                                  Shadow(
-                                    color: Colors.blueAccent.withValues(
-                                        alpha: _glowAnimation.value * 0.3),
-                                    blurRadius: 50,
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              lyricText,
-                              textAlign: TextAlign.center,
-                            ),
-                            if (widget.translatedLines != null &&
-                                index < widget.translatedLines!.length)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  widget.translatedLines![index],
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: isCurrent ? 18 : 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white
-                                        .withValues(alpha: isCurrent ? 0.85 : 0.4),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                  // Only the active line rebuilds on the glow tick.
+                  child: isCurrent
+                      ? AnimatedBuilder(
+                          animation: _glowAnimation,
+                          builder: (context, _) => lyricLine(_glowAnimation.value),
+                        )
+                      : lyricLine(0),
                 ),
               );
             },

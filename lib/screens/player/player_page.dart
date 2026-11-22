@@ -337,46 +337,17 @@ class _PlayerPageState extends State<PlayerPage> {
                                             child: Padding(
                                               padding:
                                                   const EdgeInsets.all(40.0),
-                                              child: _hasLyrics
-                                                  ? LyricsBox(
-                                                      key: _lyricsBoxKey,
-                                                      currentSong: currentSong!,
-                                                      size: Size(
-                                                          constraints.maxWidth / 2,
-                                                          constraints.maxHeight),
-                                                      onLyricsFound: (found) {
-                                                        if (mounted) {
-                                                          setState(() {
-                                                            _hasLyrics = found;
-                                                            _lyricsLoading = false;
-                                                          });
-                                                        }
-                                                      },
-                                                    )
-                                                  : Center(
-                                                      child: _lyricsLoading
-                                                          ? const CircularProgressIndicator(
-                                                              color: Colors.white,
-                                                            )
-                                                          : Text(
-                                                              'No Lyrics',
-                                                              style: TextStyle(
-                                                                fontSize: 24,
-                                                                fontWeight: FontWeight.w600,
-                                                                color: Colors.white.withValues(alpha: 0.5),
-                                                              ),
-                                                            ),
-                                                    ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (!_hasLyrics)
-                                        Offstage(
+                                              // One stable instance: swapping between
+                                          // two differently-keyed branches recreated
+                                          // the State, re-fetched lyrics and made them
+                                          // flash/disappear on every status change.
                                           child: LyricsBox(
                                             key: _lyricsBoxKey,
                                             currentSong: currentSong!,
-                                            size: Size.zero,
+                                            size: Size(
+                                              constraints.maxWidth / 2,
+                                              constraints.maxHeight,
+                                            ),
                                             onLyricsFound: (found) {
                                               if (mounted) {
                                                 setState(() {
@@ -387,6 +358,9 @@ class _PlayerPageState extends State<PlayerPage> {
                                             },
                                           ),
                                         ),
+                                      ),
+                                    ],
+                                  ),
                                     ],
                                   );
                                 } else {
