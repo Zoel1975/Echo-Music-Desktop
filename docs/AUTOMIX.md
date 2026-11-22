@@ -28,6 +28,24 @@ Port dell'Automix di Echo Android. Questa build contiene la fase 3.
   di standby, poiché la catena `af` di mpv è uno snapshot per player;
   rilevamento chiave (Krumhansl-Schmuckler) disponibile come `keyLabel`.
 
+## Diagnostica (port del debug overlay Android)
+
+- **Impostazioni → Riproduttore → Diagnostica Automix** mostra stato (IDLE,
+  MONITOR, ARMED, HANDOFF, FADING), crossfade/automix attivi, lead/blend/trigger,
+  volumi, BPM/chiave/mix point di uscita e ingresso, tempo ratio e il log degli
+  eventi (ultimi 150).
+- Il log viene scritto anche in `%LOCALAPPDATA%\com.echo\Echo Music\automix.log`.
+- Switch **Mostra overlay nel player** riproduce l'overlay monospace di Android
+  (stato, BPM in/out, chiave, prossimo mix).
+- Con `ECHO_DIAG=1`: `GET /automix/state` restituisce tutto lo stato in JSON,
+  `POST /settings/crossfade?enabled=1&seconds=5` abilita il crossfade e
+  `POST /queue/crossfade-test` simula un passaggio automatico a fine traccia.
+
+Il pre-arm usa un guard contro le chiamate concorrenti del position stream e,
+se media_kit non espone `bufferedPosition`, procede comunque riprovando `play()`
+al trigger: prima di questa correzione ogni pre-arm veniva annullato e il
+crossfade automatico non partiva mai.
+
 ## Limiti della fase 3
 
 - il ducking di Android è per-sample con rampa (nessun "zipper noise"): qui è

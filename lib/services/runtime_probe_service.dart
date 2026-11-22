@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 
 import 'account_refresh.dart';
 import 'audio_fallback.dart';
+import 'automix_debug.dart';
 import 'ffmpeg_audio_encoder.dart';
 import 'autoeq_service.dart';
 import 'beat_analyzer_service.dart';
@@ -675,6 +676,51 @@ class RuntimeProbeService {
       } catch (e) {
         _json(request.response, 500, {'error': e.toString()});
       }
+      return;
+    }
+    if (path == '/queue/crossfade-test' && request.method == 'POST') {
+      final settings = GetIt.I<SettingsManager>();
+      settings.crossfadeEnabled = true;
+      settings.automixBeatAlign = true;
+      final player = GetIt.I<MediaPlayer>();
+      Map<String, dynamic> song(String id, String title) => {
+            'videoId': id,
+            'title': title,
+            'artists': [
+              {'name': 'Probe'}
+            ],
+            'duration': 210000,
+          };
+      await player.playSong(song('dQw4w9WgXcQ', 'Probe A'));
+      await player.addToQueue(song('2Vv-BfVoq4g', 'Probe B'));
+      await Future<void>.delayed(const Duration(seconds: 2));
+      final duration = player.player.duration ?? const Duration(seconds: 210);
+      final target = duration - const Duration(seconds: 9);
+      await player.player.seek(target > Duration.zero ? target : Duration.zero);
+      _json(request.response, 200, {
+        'durationMs': duration.inMilliseconds,
+        'seekMs': target.inMilliseconds,
+        'queueLength': player.player.sequence.length,
+      });
+      return;
+    }
+    if (path == '/settings/crossfade' && request.method == 'POST') {
+      final enabled = request.uri.queryParameters['enabled'] != '0';
+      final settings = GetIt.I<SettingsManager>();
+      settings.crossfadeEnabled = enabled;
+      settings.automixBeatAlign = enabled;
+      final seconds = num.tryParse(
+          request.uri.queryParameters['seconds'] ?? '')?.toDouble();
+      if (seconds != null) settings.crossfadeDuration = seconds;
+      _json(request.response, 200, {
+        'crossfadeEnabled': settings.crossfadeEnabled,
+        'automixBeatAlign': settings.automixBeatAlign,
+        'duration': settings.crossfadeDuration,
+      });
+      return;
+    }
+    if (path == '/automix/state' && request.method == 'GET') {
+      _json(request.response, 200, AutomixDebug.instance.toJson());
       return;
     }
     if (path == '/beat/analyze' && request.method == 'POST') {

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/services/audio_source_info.dart';
+import 'package:Echo/services/automix_debug.dart';
 import 'package:Echo/services/beat_analysis.dart';
 import 'package:Echo/services/beat_analyzer_service.dart';
 import 'package:Echo/services/crossfade_engine.dart';
@@ -366,6 +367,7 @@ class MediaPlayer extends ChangeNotifier {
   bool _xfadeArmed = false;
   int? _xfadeArmedIndex;
   bool _xfadeTriggered = false;
+  bool _xfadePreparing = false;
 
   /// Short equal-power ramp used before the crossfade itself: the outgoing
   /// player starts muted, so jumping straight to full volume would click.
@@ -379,16 +381,38 @@ class MediaPlayer extends ChangeNotifier {
     Duration position,
   ) async {
     const maxWait = Duration(milliseconds: 2500);
-    final deadline = DateTime.now().add(maxWait);
-    while (DateTime.now().isBefore(deadline)) {
+    final started = DateTime.now();
+    var lastBuffered = Duration.zero;
+    while (DateTime.now().difference(started) < maxWait) {
       final buffered = outgoing.bufferedPosition;
+      lastBuffered = buffered;
       if (outgoing.playing &&
           buffered >= position + const Duration(milliseconds: 150)) {
         return true;
       }
+      // media_kit does not always expose bufferedPosition for a fresh
+      // StreamAudioSource. If the player is running, proceed instead of
+      // silently aborting every crossfade.
+      if (outgoing.playing &&
+          DateTime.now().difference(started) >= const Duration(milliseconds: 1200)) {
+        AutomixDebug.instance.log(
+          'standby playing, buffered=${lastBuffered.inMilliseconds}ms '
+          '(richiesto ${position.inMilliseconds}ms) → procedo comunque',
+          level: 'WARN',
+        );
+        return true;
+      }
       await Future<void>.delayed(const Duration(milliseconds: 40));
     }
-    return false;
+    // media_kit may never report bufferedPosition for a freshly seeked
+    // StreamAudioSource. Don't abort the whole crossfade: proceed and retry
+    // play() at the trigger instant (the source is already attached).
+    AutomixDebug.instance.log(
+      'standby buffered non disponibile: playing=${outgoing.playing} '
+      'buffered=${lastBuffered.inMilliseconds}ms → procedo',
+      level: 'WARN',
+    );
+    return true;
   }
 
   Future<void> _rampHandoff(
@@ -397,6 +421,9 @@ class MediaPlayer extends ChangeNotifier {
     double peak,
   ) async {
     _handoffEngine?.cancel();
+    AutomixDebug.instance
+        .set(handoffRunning: true, status: 'HANDOFF');
+    AutomixDebug.instance.log('handoff start peak=${peak.toStringAsFixed(2)}');
     if (peak <= 0.001) {
       await from.setVolume(0);
       await to.setVolume(0);
@@ -417,6 +444,8 @@ class MediaPlayer extends ChangeNotifier {
         .timeout(const Duration(milliseconds: 700), onTimeout: () {});
     engine.dispose();
     if (identical(_handoffEngine, engine)) _handoffEngine = null;
+    AutomixDebug.instance.set(handoffRunning: false);
+    AutomixDebug.instance.log('handoff fine');
   }
 
   void _listenToCurrentPosition() {
@@ -496,6 +525,11 @@ class MediaPlayer extends ChangeNotifier {
       await outPlayer.seek(position);
       await outPlayer.setVolume(0);
       await outPlayer.play();
+      AutomixDebug.instance.log(
+        'standby avviato: playing=${outPlayer.playing} '
+        'buffered=${outPlayer.bufferedPosition.inMilliseconds}ms '
+        'pos=${outPlayer.position.inMilliseconds}ms seek=${position.inMilliseconds}ms',
+      );
       final ready = await _waitForOutgoingReady(outPlayer, position);
       // Android's AdaptivePreArmManager uses this to expand/decay the lead.
       _preArm.recordPreparationDuration(DateTime.now().difference(started));
@@ -515,10 +549,26 @@ class MediaPlayer extends ChangeNotifier {
     _xfadeTriggered = true;
     final outPlayer = _xfadeOutPlayer;
     final nextTag = _songList[nextIdx].tag;
-    if (outPlayer == null || !_xfadeArmed || nextTag is! MediaItem) return;
+    if (outPlayer == null || !_xfadeArmed || nextTag is! MediaItem) {
+      AutomixDebug.instance.log(
+        'trigger annullato: out=${outPlayer != null} armed=$_xfadeArmed '
+        'nextTag=${nextTag.runtimeType}',
+        level: 'ERROR',
+      );
+      _xfadeTriggered = false;
+      return;
+    }
     final peak = _dspTargetGain; // captured before the main player is muted
     final settings = GetIt.I<SettingsManager>();
     try {
+      // Some media_kit sources only start after the trigger seek; retry here
+      // so the outgoing track is audible when the handoff begins.
+      if (!outPlayer.playing) {
+        await outPlayer.play();
+        AutomixDebug.instance.log(
+          'standby riavviato al trigger: playing=${outPlayer.playing}',
+        );
+      }
       await _rampHandoff(
         AudioPlayerAdapter(_player),
         AudioPlayerAdapter(outPlayer),
@@ -531,6 +581,20 @@ class MediaPlayer extends ChangeNotifier {
       if (settings.automixBeatAlign && _nextBeat != null) {
         startMs = beatAlignedStartMs(_nextBeat!, blendMs);
       }
+      AutomixDebug.instance.set(
+        status: 'FADING',
+        fading: true,
+        blendMs: blendMs,
+        incomingStartMs: startMs,
+        tempoRatio: (_beat != null && _nextBeat != null)
+            ? _nextBeat!.bpm / _beat!.bpm
+            : null,
+        inBeat: _nextBeat,
+      );
+      AutomixDebug.instance.log(
+        'CROSSFADE AVVIATO: blend=${blendMs}ms peak=${peak.toStringAsFixed(2)} '
+        'incomingStart=${startMs}ms inBpm=${_nextBeat?.bpm.toStringAsFixed(1) ?? '?'}',
+      );
       await _player.seek(Duration(milliseconds: startMs), index: nextIdx);
       _currentSongNotifier.value = nextTag;
       _currentIndex.value = nextIdx;
@@ -547,9 +611,17 @@ class MediaPlayer extends ChangeNotifier {
           _xfadeArmed = false;
           _xfadeArmedIndex = null;
           _xfadeTriggered = false;
+          AutomixDebug.instance.set(
+            status: 'IDLE',
+            fading: false,
+            handoffRunning: false,
+          );
+          AutomixDebug.instance.log('crossfade completato');
         },
       );
     } catch (e) {
+      AutomixDebug.instance.log('crossfade ERROR: $e', level: 'ERROR');
+      AutomixDebug.instance.set(status: 'ERROR', lastError: e.toString());
       debugPrint('Queue-end crossfade failed: $e');
       _xfade?.cancel();
       _xfadeArmed = false;
@@ -563,7 +635,13 @@ class MediaPlayer extends ChangeNotifier {
   /// crossfade duration. Preparing inside the fade window caused the stall.
   Future<void> _maybePreArmQueueCrossfade(Duration position) async {
     final settings = GetIt.I<SettingsManager>();
-    if (!settings.crossfadeEnabled) return;
+    if (!settings.crossfadeEnabled) {
+      if (AutomixDebug.instance.crossfadeEnabled) {
+        AutomixDebug.instance.log('crossfade disabilitato', level: 'WARN');
+      }
+      AutomixDebug.instance.set(crossfadeEnabled: false, status: 'IDLE');
+      return;
+    }
     final idx = _player.currentIndex;
     if (idx == null) return;
     final nextIdx = idx + 1;
@@ -584,7 +662,20 @@ class MediaPlayer extends ChangeNotifier {
       );
     }
     final lead = _preArm.currentLeadTime;
+    AutomixDebug.instance.set(
+      status: _xfadeTriggered
+          ? 'FADING'
+          : (_xfadeArmed && _xfadeArmedIndex == idx ? 'ARMED' : 'MONITOR'),
+      leadMs: lead.inMilliseconds,
+      blendMs: crossfade.inMilliseconds,
+      triggerTimeMs: duration.inMilliseconds - triggerMs,
+      outBeat: _beat,
+      inBeat: _nextBeat,
+      mainVolume: _player.volume,
+      outVolume: _xfadeOutPlayer?.volume ?? 0,
+    );
     final prepared = _xfadeArmed && _xfadeArmedIndex == idx;
+    if (_xfadePreparing) return;
     if (!prepared) {
       final cutoffArm = PlaybackCutoffGuard.shouldPreArm(
         positionMs: position.inMilliseconds,
@@ -594,9 +685,27 @@ class MediaPlayer extends ChangeNotifier {
       );
       if (remaining > lead && !cutoffArm) return;
       // Too late to prepare a standby: better a clean cut than a frozen fade.
-      if (remaining.inMilliseconds <= triggerMs) return;
+      if (remaining.inMilliseconds <= triggerMs) {
+        AutomixDebug.instance.log(
+          'pre-arm troppo tardivo (remaining=${remaining.inMilliseconds}ms '
+          'trigger=$triggerMs) → nessun crossfade',
+          level: 'WARN',
+        );
+        return;
+      }
+      AutomixDebug.instance.log(
+        'pre-arm idx=$idx remaining=${remaining.inMilliseconds}ms '
+        'lead=${lead.inMilliseconds}ms blend=${crossfade.inMilliseconds}ms '
+        'outBpm=${_beat?.bpm.toStringAsFixed(1) ?? '?'}',
+      );
+      _xfadePreparing = true;
       final ready = await _prepareStandby(position, idx);
-      if (!ready) return;
+      _xfadePreparing = false;
+      if (!ready) {
+        AutomixDebug.instance.log('pre-arm FALLITO (standby non pronto)',
+            level: 'WARN');
+        return;
+      }
       _maybeAnalyzeNextBeat(nextIdx);
       _xfadeArmed = true;
       _xfadeArmedIndex = idx;
@@ -737,8 +846,18 @@ class MediaPlayer extends ChangeNotifier {
         .then((_) => BeatAnalyzerService.analyzeSong(
             Map<String, dynamic>.from(extras)))
         .then((result) {
-      if (result != null && _currentSongNotifier.value?.id == id) {
+      if (result == null) {
+        AutomixDebug.instance.log('analisi OUT non riuscita', level: 'WARN');
+        return;
+      }
+      if (_currentSongNotifier.value?.id == id) {
         _beat = result;
+        AutomixDebug.instance.set(outBeat: result);
+        AutomixDebug.instance.log(
+          'analisi OUT: bpm=${result.bpm.toStringAsFixed(1)} '
+          'key=${result.keyLabel ?? '?'} conf=${result.confidence.toStringAsFixed(2)} '
+          'mixIn=${result.mixInMs} mixOut=${result.mixOutMs}',
+        );
       }
     }));
   }
@@ -757,8 +876,17 @@ class MediaPlayer extends ChangeNotifier {
     unawaited(BeatAnalyzerService.analyzeSong(Map<String, dynamic>.from(
       tag.extras ?? const <String, dynamic>{},
     )).then((result) {
-      if (result != null && _player.currentIndex == nextIdx - 1) {
+      if (result == null) {
+        AutomixDebug.instance.log('analisi IN non riuscita', level: 'WARN');
+        return;
+      }
+      if (_player.currentIndex == nextIdx - 1) {
         _nextBeat = result;
+        AutomixDebug.instance.set(inBeat: result);
+        AutomixDebug.instance.log(
+          'analisi IN: bpm=${result.bpm.toStringAsFixed(1)} '
+          'key=${result.keyLabel ?? '?'} mixIn=${result.mixInMs}',
+        );
       }
     }));
   }
@@ -920,6 +1048,15 @@ class MediaPlayer extends ChangeNotifier {
           ? (settings.loudnessTargetGain / 20).clamp(0.3, 1.0)
           : 1.0,
     );
+    AutomixDebug.instance.set(
+      crossfadeEnabled: settings.crossfadeEnabled,
+      automixEnabled: settings.automixBeatAlign,
+      mainVolume: _player.volume,
+    );
+    AutomixDebug.instance.log(
+      'play ${song['videoId']}: wasPlaying=$wasPlaying '
+      'crossfade=${decision.enabled} peak=${decision.peakVolume.toStringAsFixed(2)}',
+    );
 
     // OPTIMISTIC UPDATE: Show miniplayer immediately with loading state
     MediaItem tempTag = MediaItem(
@@ -990,6 +1127,10 @@ class MediaPlayer extends ChangeNotifier {
   }) async {
     _xfade?.dispose();
     _handoffEngine?.cancel();
+    AutomixDebug.instance.log(
+      'crossfade utente: ${previousPosition.inMilliseconds}ms → '
+      '${duration.inMilliseconds}ms peak=${peakVolume.toStringAsFixed(2)}',
+    );
     final outPlayer = await _createDuckedOutPlayer();
     _xfade = QueueCrossfadeController(
       makePlayer: () => AudioPlayerAdapter(outPlayer),

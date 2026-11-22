@@ -48,6 +48,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ('Crossfade', 'Riproduttore', '/settings/player'),
     ('Equalizzatore', 'Riproduttore', '/settings/player/equalizer'),
     ('AutoEq', 'Riproduttore', '/settings/player/axion'),
+    ('Automix', 'Riproduttore', '/settings/player/automix_debug'),
     ('Sincronizzazione testi', 'AI', '/settings/ai'),
     ('Traduzione', 'AI', '/settings/ai'),
     ('Cache', 'Archiviazione', '/settings/storage'),

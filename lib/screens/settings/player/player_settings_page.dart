@@ -145,6 +145,13 @@ class PlayerSettingsPage extends StatelessWidget {
                           ),
                         ),
                       ),
+                    SettingTile(
+                      title: 'Diagnostica Automix',
+                      subtitle: 'Stato, analisi beat, mix point e log eventi',
+                      leading: const Icon(Icons.monitor_heart_outlined),
+                      onTap: () =>
+                          context.go('/settings/player/automix_debug'),
+                    ),
                     SettingSwitchTile(
                       title: 'Show 10-second seek buttons',
                       leading: const Icon(Icons.replay_10),

@@ -19,6 +19,7 @@ import 'package:palette_generator/palette_generator.dart';
 import 'widgets/animated_gradient_bg.dart';
 
 import '../../services/audio_source_info.dart';
+import '../../services/automix_debug.dart';
 import '../../services/media_player.dart';
 import '../../services/player_layout.dart';
 import '../../services/settings_manager.dart';
@@ -28,6 +29,8 @@ import '../../utils/bottom_modals.dart';
 import '../../ytmusic/ytmusic.dart';
 import 'widgets/lyrics_box.dart';
 import 'widgets/queue_list.dart';
+
+String _fmtMs(int? ms) => ms == null ? '—' : '${(ms / 1000).toStringAsFixed(1)}s';
 
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key, this.videoId});
@@ -198,6 +201,42 @@ class _PlayerPageState extends State<PlayerPage> {
                               ],
                       ),
                     ),
+
+                    // Optional Automix debug overlay (Android parity).
+                    if (GetIt.I<SettingsManager>()
+                        .extra<bool>('automixOverlay', false))
+                      Positioned(
+                        top: 54,
+                        right: 16,
+                        child: IgnorePointer(
+                          child: ListenableBuilder(
+                            listenable: AutomixDebug.instance,
+                            builder: (context, _) {
+                              final d = AutomixDebug.instance;
+                              return Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'AUTOMIX ${d.status}\n'
+                                  'out ${d.outBeat?.bpm.toStringAsFixed(1) ?? '—'} '
+                                  '${d.outBeat?.keyLabel ?? ''}\n'
+                                  'in  ${d.inBeat?.bpm.toStringAsFixed(1) ?? '—'} '
+                                  '${d.inBeat?.keyLabel ?? ''}\n'
+                                  'mix ${_fmtMs(d.triggerTimeMs)}',
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
 
                     // MAIN CONTENT
                     SafeArea(
