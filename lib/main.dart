@@ -149,6 +149,8 @@ void main() async {
   );
 
   final GlobalKey<NavigatorState> panelKey = GlobalKey<NavigatorState>();
+  // Restore per-video PoTokens captured from the signed-in browser.
+  StreamResolver.instance.loadPoTokens();
 
   await FileStorage.initialise();
   FileStorage fileStorage = FileStorage();
@@ -309,4 +311,5 @@ Future<void> initialiseHive() async {
   await Hive.openBox('BLOCKED_ARTISTS');
   await Hive.openBox('DISLIKED_SONGS');
   await Hive.openBox('BEAT_ANALYSIS');
+  await Hive.openBox('POTOKENS');
 }

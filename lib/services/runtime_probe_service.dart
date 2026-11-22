@@ -648,6 +648,35 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/potoken/capture' && request.method == 'POST') {
+      final id = request.uri.queryParameters['id'] ?? '';
+      try {
+        final captured =
+            await GoogleLoginService().capturePoToken(id);
+        if (captured == null) {
+          _json(request.response, 200, {'captured': false});
+          return;
+        }
+        if ((captured.poToken ?? '').isNotEmpty ||
+            (captured.gvsToken ?? '').isNotEmpty) {
+          StreamResolver.instance.savePoToken(
+            id,
+            player: captured.poToken,
+            gvs: captured.gvsToken,
+          );
+        }
+        _json(request.response, 200, {
+          'captured': true,
+          'playerToken': (captured.poToken ?? '').isNotEmpty,
+          'gvsToken': (captured.gvsToken ?? '').isNotEmpty,
+          'streamUrl': captured.streamUrl != null,
+          'headers': captured.headers.length,
+        });
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
+      return;
+    }
     if (path == '/beat/analyze' && request.method == 'POST') {
       final dir = Directory.systemTemp;
       final wav = '${dir.path}${Platform.pathSeparator}echo_beat_probe.wav';

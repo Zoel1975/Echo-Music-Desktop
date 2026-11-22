@@ -465,57 +465,121 @@ class GoogleLoginService {
   /// googlevideo URL Chrome obtains after the user confirms their age. YouTube
   /// ties that URL to a PoToken from the browser session, which a desktop HTTP
   /// client cannot synthesize — so this is the only reliable fallback.
-  Future<({String url, Map<String, String> headers})?> captureStreamUrl(
+  /// Pure parsers for the CDP payloads, kept separate for unit tests.
+  static String? poTokenFromPlayerRequest(String? postData) {
+    if (postData == null || postData.isEmpty) return null;
+    try {
+      final body = jsonDecode(postData) as Map<String, dynamic>;
+      final token = body['playbackContext']
+              ?['contentPlaybackContext']?['poToken']
+          ?.toString();
+      return (token ?? '').isEmpty ? null : token;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String? gvsTokenFromUrl(String url) {
+    final value = Uri.tryParse(url)?.queryParameters['pot']?.toString();
+    return (value ?? '').isEmpty ? null : value;
+  }
+
+  /// Captures the per-video Proof-of-Origin tokens the signed-in Chrome
+  /// profile generates for an age-gated track (the same approach as yt-dlp's
+  /// `getpot-wpc` provider): the player request carries `poToken`, the
+  /// googlevideo request carries the `pot` query parameter.
+  Future<({
+    String? poToken,
+    String? gvsToken,
+    String? streamUrl,
+    Map<String, String> headers,
+  })?> capturePoToken(
     String videoId, {
-    Duration timeout = const Duration(minutes: 3),
+    Duration timeout = const Duration(minutes: 2),
   }) async {
     final profile = await profileDirectory();
     final url = 'https://music.youtube.com/watch?v=$videoId';
     await openBrowser(profileDir: profile.path, url: url);
-    final completer = Completer<({String url, Map<String, String> headers})?>();
     for (var i = 0; i < 40 && !await isCdpUp(port); i++) {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
-    final wsUrl = await _browserWebSocketUrl();
+    // Network events are emitted by the page target, not the browser
+    // endpoint: attach to the page websocket before navigating.
+    final wsUrl = await _waitForPageTarget() ?? await _browserWebSocketUrl();
     if (wsUrl == null) return null;
     WebSocket? ws;
     StreamSubscription<dynamic>? sub;
+    Timer? playerOnlyTimer;
+    String? playerToken;
+    String? gvsToken;
+    String? streamUrl;
+    final headers = <String, String>{};
+    final completer = Completer<void>();
+    void finish() {
+      if (!completer.isCompleted) completer.complete();
+    }
+
     try {
       ws = await WebSocket.connect(wsUrl).timeout(const Duration(seconds: 5));
       sub = ws.listen((message) {
         try {
           final decoded = jsonDecode(message as String) as Map<String, dynamic>;
-          final method = decoded['method']?.toString() ?? '';
-          if (method != 'Network.requestWillBeSent') return;
+          if (decoded['method']?.toString() != 'Network.requestWillBeSent') {
+            return;
+          }
           final params = decoded['params'] as Map<String, dynamic>? ?? {};
           final request = params['request'] as Map<String, dynamic>? ?? {};
           final found = request['url']?.toString() ?? '';
-          if (!found.contains('googlevideo.com/videoplayback')) return;
-          final headers = <String, String>{};
-          final raw = request['headers'];
-          if (raw is Map) {
-            raw.forEach((k, v) => headers[k.toString()] = v.toString());
-          }
-          if (!completer.isCompleted) {
-            completer.complete((url: found, headers: headers));
+          if (found.contains('youtubei/v1/player')) {
+            final pot = poTokenFromPlayerRequest(request['postData']?.toString());
+            if (pot != null && playerToken == null) {
+              playerToken = pot;
+              playerOnlyTimer ??= Timer(const Duration(seconds: 8), finish);
+            }
+          } else if (found.contains('googlevideo.com/videoplayback')) {
+            gvsToken = gvsTokenFromUrl(found);
+            streamUrl = found;
+            final raw = request['headers'];
+            if (raw is Map) {
+              raw.forEach((k, v) => headers[k.toString()] = v.toString());
+            }
+            finish();
           }
         } catch (_) {}
       });
-      ws.add(jsonEncode({'id': 901, 'method': 'Network.enable'}));
-      // Re-navigate in case the first tab missed the event.
+      ws.add(jsonEncode({'id': 911, 'method': 'Network.enable'}));
+      ws.add(jsonEncode({'id': 912, 'method': 'Page.enable'}));
+      // Navigate (again) while already listening, so all player requests are
+      // observed even if the browser opened the page before CDP attached.
       ws.add(jsonEncode({
-        'id': 902,
-        'method': 'Target.createTarget',
+        'id': 913,
+        'method': 'Page.navigate',
         'params': {'url': url},
       }));
-      return await completer.future.timeout(timeout, onTimeout: () => null);
+      await completer.future.timeout(timeout, onTimeout: finish);
+      return (
+        poToken: playerToken,
+        gvsToken: (gvsToken ?? '').isEmpty ? null : gvsToken,
+        streamUrl: streamUrl,
+        headers: headers,
+      );
     } catch (e) {
-      debugPrint('[google-login] stream capture failed: $e');
+      debugPrint('[google-login] PoToken capture failed: $e');
       return null;
     } finally {
+      playerOnlyTimer?.cancel();
       await sub?.cancel();
       await ws?.close();
     }
+  }
+
+  Future<({String url, Map<String, String> headers})?> captureStreamUrl(
+    String videoId, {
+    Duration timeout = const Duration(minutes: 3),
+  }) async {
+    final captured = await capturePoToken(videoId, timeout: timeout);
+    if (captured == null || captured.streamUrl == null) return null;
+    return (url: captured.streamUrl!, headers: captured.headers);
   }
 
   Future<LoginCapture?> waitForSignIn({

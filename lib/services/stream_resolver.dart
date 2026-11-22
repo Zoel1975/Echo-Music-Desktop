@@ -171,6 +171,16 @@ class YtPlayerClient {
     },
   );
 
+  /// yt-dlp uses WEB_CREATOR for age-restricted videos when the account needs
+  /// age verification. It requires sign-in cookies and a per-video PoToken.
+  static const webCreator = YtPlayerClient(
+    name: 'WEB_CREATOR',
+    version: '1.20260213.01.00',
+    id: '62',
+    userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+  );
+
   /// Plain ANDROID still answers `status=OK` without a login when other
   /// clients are bot-blocked. Kept as a last resort; with a visitor token it
   /// can serve a full file, otherwise the deep-probe validation rejects it.
@@ -192,6 +202,7 @@ class YtPlayerClient {
   static const fallbackOrder = [
     visionOs,
     webRemixEmbedded,
+    webCreator,
     androidTestsuite,
     webEmbedded,
     android,
@@ -234,6 +245,58 @@ class StreamResolver {
   final Map<String, double?> _loudness = {};
 
   double? loudnessFor(String videoId) => _loudness[videoId];
+
+  /// Per-video Proof-of-Origin tokens captured from the signed-in browser.
+  /// Web PoTokens are bound to the video id and expire in hours.
+  final Map<String, ({String player, String? gvs, DateTime expiry})> _poTokens =
+      {};
+
+  String? poTokenFor(String videoId, {bool gvs = false}) {
+    final cached = _poTokens[videoId];
+    if (cached == null) return null;
+    if (DateTime.now().isAfter(cached.expiry)) {
+      _poTokens.remove(videoId);
+      return null;
+    }
+    return gvs ? cached.gvs : cached.player;
+  }
+
+  void savePoToken(
+    String videoId, {
+    String? player,
+    String? gvs,
+    Duration ttl = const Duration(hours: 12),
+  }) {
+    final old = _poTokens[videoId];
+    _poTokens[videoId] = (
+      player: player ?? old?.player ?? '',
+      gvs: gvs ?? old?.gvs,
+      expiry: DateTime.now().add(ttl),
+    );
+    if (Hive.isBoxOpen('POTOKENS')) {
+      Hive.box('POTOKENS').put(videoId, {
+        'player': player ?? old?.player ?? '',
+        'gvs': gvs ?? old?.gvs,
+        'expiry': DateTime.now().add(ttl).toIso8601String(),
+      });
+    }
+  }
+
+  /// Loads persisted PoTokens once; the browser capture writes them later.
+  void loadPoTokens() {
+    if (!Hive.isBoxOpen('POTOKENS')) return;
+    for (final entry in Hive.box('POTOKENS').toMap().entries) {
+      if (entry.value is! Map) continue;
+      final map = Map<String, dynamic>.from(entry.value as Map);
+      final expiry = DateTime.tryParse(map['expiry']?.toString() ?? '');
+      if (expiry == null || DateTime.now().isAfter(expiry)) continue;
+      _poTokens[entry.key.toString()] = (
+        player: map['player']?.toString() ?? '',
+        gvs: map['gvs']?.toString(),
+        expiry: expiry,
+      );
+    }
+  }
 
   /// Public visitor token for the youtube_explode fallback client.
   String? get visitorData => _visitorData;
@@ -336,6 +399,24 @@ class StreamResolver {
     );
   }
 
+  /// GVS (googlevideo) PoTokens travel as the `pot` query parameter. YouTube
+  /// binds them to the video id, so they are captured per track.
+  static ResolvedStream withGvsPot(ResolvedStream stream, String? pot) {
+    if (pot == null || pot.isEmpty) return stream;
+    final uri = Uri.tryParse(stream.url);
+    if (uri == null) return stream;
+    final params = Map<String, String>.from(uri.queryParameters)..['pot'] = pot;
+    return ResolvedStream(
+      url: uri.replace(queryParameters: params).toString(),
+      mimeType: stream.mimeType,
+      contentLength: stream.contentLength,
+      bitrate: stream.bitrate,
+      client: stream.client,
+      headers: stream.headers,
+      loudnessDb: stream.loudnessDb,
+    );
+  }
+
   bool _statusOk(Map<String, dynamic> response) =>
       response['playabilityStatus']?['status'] == 'OK';
 
@@ -364,7 +445,8 @@ class StreamResolver {
     // ANDROID were the clients that served complete files before; adding the
     // web auth header to them made YouTube answer HTTP 400 for every track.
     final webClient = client.name == 'WEB_REMIX' ||
-        client.name == 'WEB_EMBEDDED_PLAYER';
+        client.name == 'WEB_EMBEDDED_PLAYER' ||
+        client.name == 'WEB_CREATOR';
     if (webClient) {
       final auth = CookieStore.instance.authorizationHeaderFor(
         music ? 'https://music.youtube.com' : 'https://www.youtube.com',
@@ -414,7 +496,8 @@ class StreamResolver {
         if (dataSyncId != null &&
             dataSyncId.isNotEmpty &&
             (client.name == 'WEB_REMIX' ||
-                client.name == 'WEB_EMBEDDED_PLAYER'))
+                client.name == 'WEB_EMBEDDED_PLAYER' ||
+                client.name == 'WEB_CREATOR'))
           'user': {'onBehalfOfUser': dataSyncId},
       },
       'videoId': videoId,
@@ -424,6 +507,8 @@ class StreamResolver {
         'contentPlaybackContext': {
           'signatureTimestamp':
               DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(0)).inDays - 1,
+          if ((poTokenFor(videoId) ?? '').isNotEmpty)
+            'poToken': poTokenFor(videoId),
         },
       },
     };
@@ -621,7 +706,11 @@ class StreamResolver {
     }
   }
 
-  Future<ResolvedStream> resolve(String videoId, {String quality = 'high'}) async {
+  Future<ResolvedStream> resolve(
+    String videoId, {
+    String quality = 'high',
+    bool allowPoTokenCapture = true,
+  }) async {
     final key = '$videoId:$quality';
     final cached = _cache[key];
     if (cached != null && DateTime.now().isBefore(cached.expiry)) {
@@ -665,11 +754,15 @@ class StreamResolver {
                 .add('${client.name}: ${data['playabilityStatus']?['reason']}');
             continue;
           }
-          final stream = pick(audioFormats(data), quality, client.name);
-          if (stream == null) {
+          final picked = pick(audioFormats(data), quality, client.name);
+          if (picked == null) {
             roundErrors.add('${client.name}: no direct audio format');
             continue;
           }
+          final stream = withGvsPot(
+            picked,
+            poTokenFor(videoId, gvs: true),
+          );
           if (!await _validate(stream)) {
             roundErrors.add('${client.name}: stream URL rejected (403/429)');
             continue;
@@ -694,21 +787,47 @@ class StreamResolver {
     // Age gate: YouTube ties the playable URL to a PoToken generated in the
     // signed-in browser. Open the video there, let the user confirm their age,
     // then reuse the stream Chrome obtained.
-    if (errors.any((e) {
+    final ageGated = errors.any((e) {
       final lower = e.toLowerCase();
       return lower.contains('age') ||
           lower.contains('inappropriate') ||
-          lower.contains('unavailable');
-    })) {
-      final captured = await GoogleLoginService().captureStreamUrl(videoId);
-      if (captured != null) {
+          lower.contains('unavailable') ||
+          lower.contains('sign in');
+    });
+    if (ageGated && allowPoTokenCapture) {
+      // Use the signed-in browser as a PoToken provider (same approach as
+      // yt-dlp's getpot-wpc): capture the player/GVS tokens for this video,
+      // then retry the InnerTube clients with them before falling back to the
+      // raw googlevideo URL Chrome obtained.
+      final captured = await GoogleLoginService().capturePoToken(videoId);
+      if (captured != null &&
+          ((captured.poToken ?? '').isNotEmpty ||
+              (captured.gvsToken ?? '').isNotEmpty)) {
+        savePoToken(
+          videoId,
+          player: captured.poToken,
+          gvs: captured.gvsToken,
+        );
+        _cache.remove(key);
+        try {
+          return await resolve(
+            videoId,
+            quality: quality,
+            allowPoTokenCapture: false,
+          );
+        } on StreamResolutionException {
+          // Fall through to the direct browser stream below.
+        }
+      }
+      final streamUrl = captured?.streamUrl;
+      if (streamUrl != null) {
         final stream = ResolvedStream(
-          url: captured.url,
+          url: streamUrl,
           mimeType: 'audio/mpeg',
           contentLength: 0,
           bitrate: 0,
           client: 'BROWSER',
-          headers: captured.headers,
+          headers: captured?.headers ?? const {},
         );
         if (await _validate(stream)) {
           _cache[key] = (
