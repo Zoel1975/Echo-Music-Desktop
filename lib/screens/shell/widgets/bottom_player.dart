@@ -11,6 +11,18 @@ import 'package:Echo/utils/adaptive_widgets/progress_ring.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:provider/provider.dart';
 
+/// Palette colors extracted from album art can be almost white. Returned color
+/// is always dark enough for the white mini-player labels to stay readable.
+Color readableMiniPlayerBackground(Color source) {
+  double luminance(Color c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  var color = source;
+  for (var t = 0.0; t <= 1.0; t += 0.1) {
+    color = Color.lerp(source, Colors.black, t) ?? Colors.black;
+    if (luminance(color) <= 0.22) break;
+  }
+  return color;
+}
+
 class BottomPlayer extends StatefulWidget {
   const BottomPlayer({super.key});
 
@@ -28,13 +40,15 @@ class _BottomPlayerState extends State<BottomPlayer> {
       image,
       maximumColorCount: 20,
     );
-    if (mounted) {
-      if (palette.dominantColor != null &&
-          backgroundColor != palette.dominantColor!.color) {
-        setState(() {
-          backgroundColor = palette.dominantColor!.color;
-        });
-      }
+    if (!mounted) return;
+    final source = palette.darkVibrantColor?.color ??
+        palette.darkMutedColor?.color ??
+        palette.vibrantColor?.color ??
+        palette.dominantColor?.color;
+    if (source == null) return;
+    final readable = readableMiniPlayerBackground(source);
+    if (backgroundColor != readable) {
+      setState(() => backgroundColor = readable);
     }
   }
 
@@ -52,6 +66,9 @@ class _BottomPlayerState extends State<BottomPlayer> {
           if (currentSong == null) {
             return const SizedBox(); // or loading indicator
           }
+          // The palette is darkened before use, so white labels always have
+          // enough contrast even for very light album covers.
+          const foreground = Colors.white;
           return ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
             child: GestureDetector(
@@ -61,7 +78,8 @@ class _BottomPlayerState extends State<BottomPlayer> {
               child: Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
-                  color: (backgroundColor ?? const Color(0xFF202020)).withAlpha(255),
+                  color: (backgroundColor ?? const Color(0xFF202020))
+                      .withAlpha(255),
                   borderRadius: BorderRadius.circular(50),
                   boxShadow: [
                     BoxShadow(
@@ -110,7 +128,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
-                                          color: Colors.white,
+                                          color: foreground,
                                         ),
                                       ),
                                       if (currentSong.artist != null ||
@@ -125,7 +143,8 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                           style: TextStyle(
                                             fontSize: 12,
                                             color:
-                                                Colors.white.withValues(alpha: 0.8),
+                                                foreground
+                                                    .withValues(alpha: 0.8),
                                           ),
                                         ),
                                     ],
@@ -154,7 +173,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     icon: const Icon(
                                       Icons.skip_previous,
                                       size: 24,
-                                      color: Colors.white,
+                                      color: foreground,
                                     ),
                                   );
                                 },
@@ -188,7 +207,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                                 ? Icons.pause
                                                 : Icons.play_arrow,
                                             size: 30, // Slightly smaller play button
-                                            color: Colors.white,
+                                            color: foreground,
                                           ),
                                         );
                                 },
@@ -209,7 +228,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     icon: const Icon(
                                       Icons.skip_next,
                                       size: 24,
-                                      color: Colors.white,
+                                      color: foreground,
                                     ),
                                   );
                                 },
@@ -224,7 +243,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     device == null ? Icons.cast : Icons.cast_connected,
                                     size: 20,
                                     color: device == null
-                                        ? Colors.white.withValues(alpha: 0.7)
+                                        ? foreground.withValues(alpha: 0.7)
                                         : Colors.greenAccent,
                                   ),
                                 ),
