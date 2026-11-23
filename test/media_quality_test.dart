@@ -37,7 +37,9 @@ void main() {
     );
     final context = body['context'] as Map;
     expect((context['client'] as Map)['visitorData'], 'VISITOR-X');
-    expect((context['user'] as Map)['onBehalfOfUser'], 'DSYNC-X');
+    // onBehalfOfUser is intentionally omitted on /player: with our account id
+    // YouTube answers 401, so the age-gate flow relies on cookies + PoToken.
+    expect(context.containsKey('user'), isFalse);
     expect((context['client'] as Map)['thirdParty']['embedUrl'],
         'https://www.youtube.com/');
     expect(YtPlayerClient.fallbackOrder, contains(YtPlayerClient.webEmbedded));

@@ -19,6 +19,7 @@ import 'google_login_service.dart';
 import 'home_sections.dart';
 import 'media_player.dart';
 import 'monochrome_service.dart';
+import 'po_token_minter.dart';
 import 'settings_manager.dart';
 import '../screens/home/cubit/home_cubit.dart';
 import '../screens/shell/app_shell.dart';
@@ -649,6 +650,27 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/potoken/mint' && request.method == 'POST') {
+      final id = request.uri.queryParameters['id'] ?? 'esHBHhbDQh4';
+      try {
+        final token = await PoTokenMinter.instance.mint(id);
+        if (token != null) {
+          StreamResolver.instance.savePoToken(
+            id,
+            player: token,
+            gvs: token,
+          );
+        }
+        _json(request.response, 200, {
+          'ok': token != null,
+          'length': token?.length ?? 0,
+          'preview': token?.substring(0, 12) ?? '',
+        });
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
+      return;
+    }
     if (path == '/potoken/capture' && request.method == 'POST') {
       final id = request.uri.queryParameters['id'] ?? '';
       try {
@@ -745,6 +767,177 @@ class RuntimeProbeService {
         'automixBeatAlign': settings.automixBeatAlign,
         'duration': settings.crossfadeDuration,
       });
+      return;
+    }
+    if (path == '/player/debug-exact' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? 'esHBHhbDQh4';
+      final resolver = StreamResolver.instance;
+      final results = <Map<String, dynamic>>[];
+      final removeKeys = [
+        '',
+        'BODY_TOKEN',
+        'BODY_USER',
+        'X-Goog-Api-Format-Version',
+        'X-Origin',
+        'Authorization',
+        'Accept-Language',
+        'X-Goog-Visitor-Id',
+      ];
+      for (final remove in removeKeys) {
+        final headers = resolver.buildHeaders(YtPlayerClient.webRemix, music: true);
+        if (remove.isNotEmpty && !remove.startsWith('BODY_')) {
+          headers.remove(remove);
+        }
+        final body = resolver.buildBody(YtPlayerClient.webRemix, id);
+        if (remove == 'BODY_TOKEN') body.remove('serviceIntegrityDimensions');
+        if (remove == 'BODY_USER') {
+          (body['context'] as Map).remove('user');
+        }
+        try {
+          final r = await http
+              .post(
+                Uri.parse(
+                    'https://music.youtube.com/youtubei/v1/player?prettyPrint=false'),
+                headers: headers,
+                body: jsonEncode(body),
+              )
+              .timeout(const Duration(seconds: 20));
+          Map<String, dynamic>? decoded;
+          try {
+            decoded = jsonDecode(r.body) as Map<String, dynamic>;
+          } catch (_) {}
+          results.add({
+            'removed': remove.isEmpty ? 'none' : remove,
+            'status': r.statusCode,
+            'playability': decoded?['playabilityStatus']?['status'],
+            'reason': decoded?['playabilityStatus']?['reason'] ??
+                decoded?['error']?['message'],
+            'hasTopToken': body.containsKey('serviceIntegrityDimensions'),
+          });
+        } catch (e) {
+          results.add({'removed': remove, 'error': e.toString()});
+        }
+      }
+      _json(request.response, 200, {'results': results});
+      return;
+    }
+    if (path == '/player/debug-matrix' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? 'esHBHhbDQh4';
+      const oldVersion = '1.20260213.01.00';
+      const newVersion = '1.20260707.12.00';
+      const oldKey = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+      final results = <Map<String, dynamic>>[];
+      for (final version in [oldVersion, newVersion]) {
+        for (final useKey in [true, false]) {
+          for (final withAuth in [true, false]) {
+            final headers = <String, String>{
+              'Content-Type': 'application/json',
+              'User-Agent': YtPlayerClient.webRemix.userAgent,
+              'X-Youtube-Client-Name': '67',
+              'X-Youtube-Client-Version': version,
+              'Origin': 'https://music.youtube.com',
+              'Referer': 'https://music.youtube.com/',
+              'X-Goog-Visitor-Id':
+                  'CgtaUm9ja1ZpZGVvLXByb2JlGJexrYUFOgMI',
+            };
+            if (withAuth) {
+              final auth = CookieStore.instance
+                  .authorizationHeaderFor('https://music.youtube.com');
+              if (auth != null) headers['Authorization'] = auth;
+              headers['X-Goog-AuthUser'] = '0';
+            }
+            final cookie = CookieStore.instance.cookieHeader;
+            if (cookie != null) headers['Cookie'] = cookie;
+            final body = {
+              'context': {
+                'client': {
+                  'clientName': 'WEB_REMIX',
+                  'clientVersion': version,
+                  'hl': 'en',
+                  'gl': 'US',
+                  'visitorData': headers['X-Goog-Visitor-Id'],
+                },
+              },
+              'videoId': id,
+              'contentCheckOk': true,
+              'racyCheckOk': true,
+            };
+            final query = useKey ? '?alt=json&key=$oldKey' : '?prettyPrint=false';
+            try {
+              final r = await http
+                  .post(
+                    Uri.parse(
+                        'https://music.youtube.com/youtubei/v1/player$query'),
+                    headers: headers,
+                    body: jsonEncode(body),
+                  )
+                  .timeout(const Duration(seconds: 20));
+              Map<String, dynamic>? decoded;
+              try {
+                decoded = jsonDecode(r.body) as Map<String, dynamic>;
+              } catch (_) {}
+              results.add({
+                'version': version == oldVersion ? 'old' : 'new',
+                'key': useKey,
+                'auth': withAuth,
+                'status': r.statusCode,
+                'playability': decoded?['playabilityStatus']?['status'],
+                'reason': decoded?['playabilityStatus']?['reason'] ??
+                    decoded?['error']?['message'],
+              });
+            } catch (e) {
+              results.add({
+                'version': version == oldVersion ? 'old' : 'new',
+                'key': useKey,
+                'auth': withAuth,
+                'error': e.toString(),
+              });
+            }
+          }
+        }
+      }
+      _json(request.response, 200, {'results': results});
+      return;
+    }
+    if (path == '/player/debug-age' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? 'esHBHhbDQh4';
+      final resolver = StreamResolver.instance;
+      final out = <Map<String, dynamic>>[];
+      for (final client in [
+        YtPlayerClient.webRemix,
+        YtPlayerClient.webCreator,
+        YtPlayerClient.webEmbedded,
+      ]) {
+        final headers = resolver.buildHeaders(client);
+        final body = resolver.buildBody(client, id, visitorData: null);
+        final endpoint = client.name == 'WEB_CREATOR'
+            ? 'https://studio.youtube.com/youtubei/v1/player'
+            : client.name == 'WEB_REMIX'
+                ? 'https://music.youtube.com/youtubei/v1/player'
+                : 'https://www.youtube.com/youtubei/v1/player';
+        try {
+          final r = await http
+              .post(
+                Uri.parse('$endpoint?prettyPrint=false'),
+                headers: headers,
+                body: jsonEncode(body),
+              )
+              .timeout(const Duration(seconds: 20));
+          final preview = r.body.length > 400 ? r.body.substring(0, 400) : r.body;
+          out.add({
+            'client': client.name,
+            'status': r.statusCode,
+            'origin': headers['Origin'],
+            'auth': headers.containsKey('Authorization'),
+            'visitor': headers['X-Goog-Visitor-Id']?.toString().length ?? 0,
+            'token': body.containsKey('serviceIntegrityDimensions'),
+            'body': preview,
+          });
+        } catch (e) {
+          out.add({'client': client.name, 'error': e.toString()});
+        }
+      }
+      _json(request.response, 200, {'results': out});
       return;
     }
     if (path == '/automix/state' && request.method == 'GET') {

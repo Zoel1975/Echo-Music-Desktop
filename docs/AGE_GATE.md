@@ -1,6 +1,39 @@
 # Brani con blocco per età
 
-## Approccio
+## Aggiornamento: port del fix mobile (BotGuard locale)
+
+Il fix usato ora da Echo Android non è più il sniffing della rete di Chrome:
+genera un **PoToken BotGuard localmente** in una WebView nascosta e lo manda
+nel campo top-level `serviceIntegrityDimensions.poToken` di `/player`.
+
+Desktop ora fa la stessa cosa:
+
+- `lib/services/po_token_minter.dart` porta `PoTokenWebView.kt` +
+  `JavaScriptUtil.kt`: `Create` → descramble (+97 per byte) → esecuzione di
+  `po_token.html` nella pagina Chrome già usata per il login via CDP →
+  `GenerateIT` → creazione del minter → mint per sessione (visitorData /
+  dataSyncId), con 3 tentativi e ricreazione in caso di challenge invalida;
+- `assets/po/po_token.html` è copiato dal reference Android;
+- il body `/player` ora ha `serviceIntegrityDimensions` in alto (non più
+  dentro `playbackContext`, dove YouTube lo ignorava), niente `key=` ma
+  `prettyPrint=false`, versioni client aggiornate, `WEB_CREATOR` su
+  `studio.youtube.com`, header `X-Goog-Api-Format-Version`/`X-Origin`/
+  `X-Goog-Visitor-Id` e `pot=` + `cpn` sull'URL googlevideo;
+- **rimosso `context.user.onBehalfOfUser` dal player**: con il nostro id
+  YouTube rispondeva HTTP 401 (verificato con matrice di probe).
+
+## Limite reale
+
+Con l'account di test, i client web ora rispondono 200 ma
+`playabilityStatus = LOGIN_REQUIRED / "Sign in to confirm your age"`: YouTube
+richiede che **l'account sia verificato come maggiorenne**, e questo non è
+aggirabile né dal client né dal PoToken. Il PoToken locale viene generato
+(coverificato: token validi, 128-300 caratteri), ma non basta se l'account
+non è age-verified. Come ultima ratio resta il capture dell'URL che Chrome
+ottiene dal profilo autenticato (`capturePoToken`), che ha già funzionato
+quando il profilo era verificato.
+
+## Approccio storico (fallback)
 
 Non si "bypassa" la verifica dell'età: si usa la **sessione dell'account dell'utente**, esattamente come fa YouTube nel browser e come fa yt-dlp con i cookie importati.
 

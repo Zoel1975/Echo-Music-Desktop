@@ -356,6 +356,10 @@ class GoogleLoginService {
     }
   }
 
+  /// Public accessor used by the local BotGuard PoToken minter.
+  Future<String?> pageWebSocketUrl(String contains) =>
+      _pageWebSocketUrl(contains);
+
   /// WebSocket URL of the first page whose URL contains [contains].
   Future<String?> _pageWebSocketUrl(String contains) async {
     try {

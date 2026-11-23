@@ -9,6 +9,7 @@ import 'package:youtube_explode_dart/src/reverse_engineering/challenges/js_chall
 
 import 'cookie_store.dart';
 import 'google_login_service.dart';
+import 'po_token_minter.dart';
 import 'youtube_explode_client.dart';
 import 'youtube_explode_solver.dart';
 
@@ -135,7 +136,7 @@ class YtPlayerClient {
 
   static const webRemix = YtPlayerClient(
     name: 'WEB_REMIX',
-    version: '1.20260213.01.00',
+    version: '1.20260707.12.00',
     id: '67',
     userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
@@ -146,7 +147,7 @@ class YtPlayerClient {
   /// thirdParty embedUrl, exactly like the (YouTube) Music web player does.
   static const webRemixEmbedded = YtPlayerClient(
     name: 'WEB_REMIX',
-    version: '1.20260213.01.00',
+    version: '1.20260707.12.00',
     id: '67',
     userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
@@ -161,7 +162,7 @@ class YtPlayerClient {
   /// "Sign in to confirm your age".
   static const webEmbedded = YtPlayerClient(
     name: 'WEB_EMBEDDED_PLAYER',
-    version: '1.20260213.01.00',
+    version: '2.20260708.00.00',
     id: '56',
     userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
@@ -175,7 +176,7 @@ class YtPlayerClient {
   /// age verification. It requires sign-in cookies and a per-video PoToken.
   static const webCreator = YtPlayerClient(
     name: 'WEB_CREATOR',
-    version: '1.20260213.01.00',
+    version: '1.20260708.06.00',
     id: '62',
     userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
@@ -220,12 +221,19 @@ class StreamResolver {
   static final StreamResolver instance = StreamResolver._();
 
   static const _key = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
-  static const _playerUrl =
-      'https://www.youtube.com/youtubei/v1/player?alt=json&key=$_key';
+  // Mobile (InnerTubeX v0.7.0) sends no key and no alt=json on /player,
+  // only ?prettyPrint=false. The old key caused HTTP 401 with the new client
+  // versions used for age-gated playback.
+  static const _playerQuery = '?prettyPrint=false';
+  static const _playerUrl = 'https://www.youtube.com/youtubei/v1/player$_playerQuery';
   /// YouTube Music's own player endpoint: age-gated Music tracks are only
   /// unlocked by the signed-in WEB_REMIX context Android uses here.
   static const _musicPlayerUrl =
-      'https://music.youtube.com/youtubei/v1/player?alt=json&key=$_key';
+      'https://music.youtube.com/youtubei/v1/player$_playerQuery';
+  /// Mobile uses studio.youtube.com for WEB_CREATOR, with a studio-bound
+  /// SAPISIDHASH. The old desktop code sent it to www.youtube.com.
+  static const _studioPlayerUrl =
+      'https://studio.youtube.com/youtubei/v1/player$_playerQuery';
 
   final http.Client _client = http.Client();
 
@@ -406,6 +414,14 @@ class StreamResolver {
     final uri = Uri.tryParse(stream.url);
     if (uri == null) return stream;
     final params = Map<String, String>.from(uri.queryParameters)..['pot'] = pot;
+    // Mobile adds a fresh 16-char client playback nonce per extraction.
+    const alphabet =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
+    final random = math.Random();
+    params['cpn'] = List.generate(
+      16,
+      (_) => alphabet[random.nextInt(alphabet.length)],
+    ).join();
     return ResolvedStream(
       url: uri.replace(queryParameters: params).toString(),
       mimeType: stream.mimeType,
@@ -431,40 +447,47 @@ class StreamResolver {
   }
 
   Map<String, String> _headers(YtPlayerClient client, {bool music = false}) {
+    final studio = client.name == 'WEB_CREATOR';
+    final origin = studio
+        ? 'https://studio.youtube.com'
+        : music
+            ? 'https://music.youtube.com'
+            : 'https://www.youtube.com';
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'User-Agent': client.userAgent,
       'X-Youtube-Client-Name': client.id,
       'X-Youtube-Client-Version': client.version,
-      'Origin': music ? 'https://music.youtube.com' : 'https://www.youtube.com',
-      if (music) 'Referer': 'https://music.youtube.com/',
+      'X-Goog-Api-Format-Version': '1',
+      'X-Origin': origin,
+      'Origin': origin,
+      'Accept-Language': 'en-US,en;q=0.8',
+      'Referer': '$origin/',
     };
     final cookie = cookieHeaderProvider?.call();
     if (cookie != null) headers['Cookie'] = cookie;
-    // Only web-style clients accept a SAPISIDHASH on /player. VISIONOS and
-    // ANDROID were the clients that served complete files before; adding the
-    // web auth header to them made YouTube answer HTTP 400 for every track.
+    // Mobile sends the visitor id on EVERY client, incl. VISIONOS/ANDROID.
+    final visitor = music ? _signedInVisitor : (_visitorData ?? _signedInVisitor);
+    if (visitor != null && visitor.isNotEmpty) {
+      headers['X-Goog-Visitor-Id'] = visitor;
+    }
+    // Only web-style clients accept a SAPISIDHASH on /player.
     final webClient = client.name == 'WEB_REMIX' ||
         client.name == 'WEB_EMBEDDED_PLAYER' ||
-        client.name == 'WEB_CREATOR';
+        studio;
     if (webClient) {
-      final auth = CookieStore.instance.authorizationHeaderFor(
-        music ? 'https://music.youtube.com' : 'https://www.youtube.com',
-      );
+      final auth = CookieStore.instance.authorizationHeaderFor(origin);
       if (auth != null) {
         headers['Authorization'] = auth;
         headers['X-Goog-AuthUser'] = '0';
-      }
-      final visitor = music ? _signedInVisitor : (_visitorData ?? _signedInVisitor);
-      if (visitor != null && visitor.isNotEmpty) {
-        headers['X-Goog-Visitor-Id'] = visitor;
       }
     }
     return headers;
   }
 
   /// Testable wrappers for the request builders.
-  Map<String, String> buildHeaders(YtPlayerClient client) => _headers(client);
+  Map<String, String> buildHeaders(YtPlayerClient client, {bool music = false}) =>
+      _headers(client, music: music);
 
   Map<String, dynamic> buildBody(
     YtPlayerClient client,
@@ -493,22 +516,21 @@ class StreamResolver {
           else if (signedVisitor != null && signedVisitor.isNotEmpty)
             'visitorData': signedVisitor,
         },
-        if (dataSyncId != null &&
-            dataSyncId.isNotEmpty &&
-            (client.name == 'WEB_REMIX' ||
-                client.name == 'WEB_EMBEDDED_PLAYER' ||
-                client.name == 'WEB_CREATOR'))
-          'user': {'onBehalfOfUser': dataSyncId},
+        // NOTE: `user.onBehalfOfUser` is valid on /browse but makes /player
+        // answer HTTP 401 with our account id. Keep it out of player requests.
       },
       'videoId': videoId,
       'contentCheckOk': true,
       'racyCheckOk': true,
+      // Mobile (InnerTubeX v0.7.0) sends the BotGuard token as a TOP-LEVEL
+      // field. The old desktop code put it in playbackContext, where YouTube
+      // ignores it - that is why age-gated tracks never resolved.
+      if ((poTokenFor(videoId) ?? '').isNotEmpty)
+        'serviceIntegrityDimensions': {'poToken': poTokenFor(videoId)},
       'playbackContext': {
         'contentPlaybackContext': {
           'signatureTimestamp':
               DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(0)).inDays - 1,
-          if ((poTokenFor(videoId) ?? '').isNotEmpty)
-            'poToken': poTokenFor(videoId),
         },
       },
     };
@@ -733,9 +755,14 @@ class StreamResolver {
       for (final client in YtPlayerClient.fallbackOrder) {
         try {
           final music = client.name == 'WEB_REMIX';
+          final endpoint = client.name == 'WEB_CREATOR'
+              ? _studioPlayerUrl
+              : music
+                  ? _musicPlayerUrl
+                  : _playerUrl;
           final response = await _client
               .post(
-                Uri.parse(music ? _musicPlayerUrl : _playerUrl),
+                Uri.parse(endpoint),
                 headers: _headers(client, music: music),
                 body: jsonEncode(_body(
                   client,
@@ -795,19 +822,18 @@ class StreamResolver {
           lower.contains('sign in');
     });
     if (ageGated && allowPoTokenCapture) {
-      // Use the signed-in browser as a PoToken provider (same approach as
-      // yt-dlp's getpot-wpc): capture the player/GVS tokens for this video,
-      // then retry the InnerTube clients with them before falling back to the
-      // raw googlevideo URL Chrome obtained.
-      final captured = await GoogleLoginService().capturePoToken(videoId);
-      if (captured != null &&
-          ((captured.poToken ?? '').isNotEmpty ||
-              (captured.gvsToken ?? '').isNotEmpty)) {
-        savePoToken(
-          videoId,
-          player: captured.poToken,
-          gvs: captured.gvsToken,
-        );
+      // Mobile's fix: mint a BotGuard PoToken locally in a hidden browser page
+      // (no login, no user interaction) and retry with it. The token is bound
+      // to the session visitor id and reused for the session.
+      // Bind the token to the exact visitor id we send in X-Goog-Visitor-Id.
+      final visitor = _headers(YtPlayerClient.webRemix, music: true)[
+          'X-Goog-Visitor-Id'];
+      final identifier = CookieStore.instance.dataSyncId?.isNotEmpty == true
+          ? CookieStore.instance.dataSyncId!
+          : (visitor ?? _visitorData ?? _signedInVisitor ?? 'visitor');
+      final token = await PoTokenMinter.instance.mint(identifier);
+      if (token != null && token.isNotEmpty) {
+        savePoToken(videoId, player: token, gvs: token);
         _cache.remove(key);
         try {
           return await resolve(
@@ -816,9 +842,11 @@ class StreamResolver {
             allowPoTokenCapture: false,
           );
         } on StreamResolutionException {
-          // Fall through to the direct browser stream below.
+          // Fall through to the legacy browser capture below.
         }
       }
+      // Last resort: the old interactive capture of Chrome's own stream URL.
+      final captured = await GoogleLoginService().capturePoToken(videoId);
       final streamUrl = captured?.streamUrl;
       if (streamUrl != null) {
         final stream = ResolvedStream(
