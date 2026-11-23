@@ -57,7 +57,9 @@ class AutomixDebug extends ChangeNotifier {
     );
     _entries.insert(0, entry);
     if (_entries.length > 150) _entries.removeLast();
-    _writeFile(entry.formatted);
+    // File I/O on every tick starved the UI thread; defer it off the current
+    // frame so animations stay smooth.
+    Future<void>.delayed(Duration.zero, () => _writeFile(entry.formatted));
     notifyListeners();
   }
 

@@ -59,8 +59,10 @@ class RemoteControlService {
     final settings = GetIt.I<SettingsManager>();
     final existing = settings.extra<String>(deviceLinkIdKey, '');
     if (existing.isNotEmpty) return existing;
+    final fp = accountFp;
     final id =
-        'echo-${DateTime.now().millisecondsSinceEpoch.toRadixString(16)}-${accountFp.substring(0, 8)}';
+        'echo-${DateTime.now().millisecondsSinceEpoch.toRadixString(16)}-'
+        '${fp.isEmpty ? 'offline' : fp.substring(0, fp.length < 8 ? fp.length : 8)}';
     settings.setExtra<String>(deviceLinkIdKey, id);
     return id;
   }

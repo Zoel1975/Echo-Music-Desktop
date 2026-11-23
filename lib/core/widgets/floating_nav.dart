@@ -42,25 +42,26 @@ class EchoFloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(EchoTokens.floatingBarRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-          decoration: BoxDecoration(
-            color: scheme.surfaceVariant.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(EchoTokens.floatingBarRadius),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 24,
-                spreadRadius: -4,
-              ),
-            ],
+    // No BackdropFilter: on Windows/Impeller it leaked the blur outside the
+    // pill and blurred the whole app. Same look, stable layered colors.
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          scheme.surfaceVariant.withValues(alpha: 0.55),
+          scheme.surface.withValues(alpha: 0.92),
+        ),
+        borderRadius: BorderRadius.circular(EchoTokens.floatingBarRadius),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 24,
+            spreadRadius: -4,
           ),
-          child: Row(
+        ],
+      ),
+      child: Row(
             mainAxisSize: MainAxisSize.min,
             children: List.generate(destinations.length, (i) {
               final d = destinations[i];
@@ -96,8 +97,6 @@ class EchoFloatingNavBar extends StatelessWidget {
                 ),
               );
             }),
-          ),
-        ),
       ),
     );
   }

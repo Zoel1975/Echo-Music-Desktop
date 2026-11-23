@@ -73,7 +73,9 @@ class WrappedPage extends StatelessWidget {
               ...() {
                 final entries = months.entries.toList()
                   ..sort((a, b) => a.key.compareTo(b.key));
-                final max = months.values.reduce((a, b) => a > b ? a : b);
+                final max = months.isEmpty
+                    ? 0
+                    : months.values.reduce((a, b) => a > b ? a : b);
                 return entries.map((e) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(

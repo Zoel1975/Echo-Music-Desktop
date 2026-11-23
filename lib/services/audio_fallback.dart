@@ -23,26 +23,33 @@ final ValueNotifier<bool> audioFallback = ValueNotifier<bool>(false);
 /// The marker is removed after 30 seconds of a healthy run, so a normally
 /// working installation always starts with real audio again.
 Future<bool> prepareAudioFallback() async {
-  final support = await getApplicationSupportDirectory();
-  final marker = File(
-    '${support.path}${Platform.pathSeparator}audio_init_pending',
-  );
-  final explicitlyRequested = Platform.environment['ECHO_NO_AUDIO'] == '1';
-  final previousCrash = marker.existsSync();
-  final enabled = explicitlyRequested || previousCrash;
-
-  await marker.writeAsString(DateTime.now().toIso8601String());
+  bool enabled = Platform.environment['ECHO_NO_AUDIO'] == '1';
+  try {
+    final support = await getApplicationSupportDirectory();
+    final marker = File(
+      '${support.path}${Platform.pathSeparator}audio_init_pending',
+    );
+    final previousCrash = marker.existsSync();
+    enabled = enabled || previousCrash;
+    try {
+      await marker.writeAsString(DateTime.now().toIso8601String());
+    } catch (_) {
+      // Unwritable disk must never kill startup.
+    }
+    Timer(const Duration(seconds: 30), () {
+      try {
+        if (marker.existsSync()) marker.deleteSync();
+      } catch (_) {}
+    });
+  } catch (_) {
+    // If even the support dir is unavailable, stay in silent mode so the UI
+    // (including login/sign-out) remains usable.
+    enabled = true;
+  }
   if (enabled) {
     JustAudioMediaKit.silentFallback = true;
     audioFallback.value = true;
   }
-  Timer(const Duration(seconds: 30), () {
-    try {
-      if (marker.existsSync()) marker.deleteSync();
-    } catch (_) {
-      // A stale marker only costs one silent launch; never crash for it.
-    }
-  });
   return enabled;
 }
 

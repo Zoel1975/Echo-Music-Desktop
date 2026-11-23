@@ -370,7 +370,9 @@ class PlayerSettingsPage extends StatelessWidget {
     for (final d in s.audioDevices) {
       if (d.id == s.audioDeviceId) return d.name;
     }
-    return s.audioDevices.first.name;
+    return s.audioDevices.isEmpty
+        ? 'Dispositivo predefinito'
+        : s.audioDevices.first.name;
   }
 
   void _showDevicePicker(

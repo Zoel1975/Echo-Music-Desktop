@@ -170,7 +170,25 @@ class BeatAnalyzerService {
   }
 
   /// Resolves the cached file or the current YouTube stream for [song].
+  static final Map<String, Future<BeatAnalysisResult?>> _inFlight = {};
+
+  /// De-duplicates concurrent analyses of the same song: the position stream
+  /// used to launch two identical FFmpeg decodes within milliseconds.
   static Future<BeatAnalysisResult?> analyzeSong(
+    Map<String, dynamic> song,
+  ) {
+    final id = song['videoId']?.toString() ??
+        song['path']?.toString() ??
+        '';
+    final pending = _inFlight[id];
+    if (pending != null) return pending;
+    final future = _analyzeSongInternal(song);
+    _inFlight[id] = future;
+    future.whenComplete(() => _inFlight.remove(id));
+    return future;
+  }
+
+  static Future<BeatAnalysisResult?> _analyzeSongInternal(
     Map<String, dynamic> song,
   ) async {
     final id = song['videoId']?.toString() ??

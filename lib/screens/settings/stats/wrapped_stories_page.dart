@@ -3,7 +3,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/utils/service_locator.dart';
+import '../../../../ytmusic/ytmusic.dart';
 
 import '../../../../core/widgets/back_button.dart';
 import '../../../../services/media_player.dart';
@@ -24,6 +27,8 @@ class WrappedTheme {
     required this.label,
     required this.body,
     required this.card,
+    this.logo,
+    this.progress,
   });
 
   final Color background;
@@ -31,6 +36,10 @@ class WrappedTheme {
   final Color label;
   final Color body;
   final Color card;
+  final Color? logo;
+  final Color? progress;
+
+  Color get progressColor => progress ?? label;
 }
 
 const wrappedThemes = <WrappedTheme>[
@@ -99,13 +108,62 @@ const wrappedThemes = <WrappedTheme>[
   ),
 ];
 
+/// The five poster colorways selectable on the final slide (Android
+/// `WrappedShareHelper.WrappedPosterTheme`).
+const posterThemes = <WrappedTheme>[
+  WrappedTheme(
+    background: Color(0xFF2810C0),
+    headline: Colors.white,
+    label: Color(0xFF00F5D4),
+    body: Color(0xFFD8B4FE),
+    card: Color(0xFF2810C0),
+  ),
+  WrappedTheme(
+    background: Color(0xFF121212),
+    headline: Colors.white,
+    label: Color(0xFF1DB954),
+    body: Color(0xFFA7A7A7),
+    card: Color(0xFF1E1E1E),
+  ),
+  WrappedTheme(
+    background: Color(0xFFC41E3A),
+    headline: Colors.white,
+    label: Color(0xFFFFDF00),
+    body: Color(0xFFFECACA),
+    card: Color(0xFFC41E3A),
+  ),
+  WrappedTheme(
+    background: Color(0xFF1E3A8A),
+    headline: Colors.white,
+    label: Color(0xFF38BDF8),
+    body: Color(0xFFBFDBFE),
+    card: Color(0xFF1E3A8A),
+  ),
+  WrappedTheme(
+    background: Color(0xFFC2410C),
+    headline: Colors.white,
+    label: Color(0xFFFFFBEB),
+    body: Color(0xFFFED7AA),
+    card: Color(0xFFC2410C),
+  ),
+];
+
 class PlayStat {
-  PlayStat(this.title, this.artist, this.count, this.videoId);
+  PlayStat(
+    this.title,
+    this.artist,
+    this.count,
+    this.videoId, {
+    this.thumbnailUrl,
+    this.minutes = 0,
+  });
 
   final String title;
   final String artist;
   final int count;
   final String videoId;
+  final String? thumbnailUrl;
+  final int minutes;
 }
 
 class WrappedData {
@@ -135,6 +193,88 @@ class WrappedData {
     if (totalMinutes > 3000) return 'Devoted Listener';
     if (uniqueSongs < 30) return 'Loyal Replayer';
     return 'Curious Mixer';
+  }
+
+  /// Builds stats from the signed-in YouTube Music history
+  /// (`FEmusic_history`). Counts plays per videoId/artist and estimates
+  /// minutes from the track duration reported by YTM (lower bound).
+  static WrappedData fromYtmHistory(List sections) {
+    final songCounts = <String, int>{};
+    final songTitles = <String, String>{};
+    final songArtists = <String, String>{};
+    final songThumbs = <String, String?>{};
+    final songMinutes = <String, int>{};
+    final artistCounts = <String, int>{};
+    final months = <int, int>{};
+    final now = DateTime.now();
+
+    for (final section in sections) {
+      if (section is! Map) continue;
+      final bucket = section['title']?.toString() ?? '';
+      final contents = section['contents'];
+      if (contents is! List) continue;
+      for (final item in contents) {
+        if (item is! Map) continue;
+        final id = item['videoId']?.toString();
+        if (id == null || id.isEmpty) continue;
+        final title = item['title']?.toString() ?? 'Unknown';
+        final artists = item['artists'];
+        final artist = artists is List && artists.isNotEmpty
+            ? (artists.first is Map
+                ? artists.first['name']?.toString()
+                : artists.first?.toString()) ??
+                'Various Artists'
+            : 'Various Artists';
+        final thumbs = item['thumbnails'];
+        final thumb = thumbs is List && thumbs.isNotEmpty
+            ? (thumbs.first is Map
+                ? (thumbs.first as Map)['url']?.toString()
+                : null)
+            : null;
+        final duration = item['durationSeconds'];
+        final seconds = duration is num ? duration.toInt() : 0;
+
+        songCounts[id] = (songCounts[id] ?? 0) + 1;
+        songTitles[id] = title;
+        songArtists[id] = artist;
+        songThumbs[id] = thumb;
+        songMinutes[id] = (songMinutes[id] ?? 0) + seconds;
+        artistCounts[artist] = (artistCounts[artist] ?? 0) + 1;
+
+        // YTM groups history by date buckets; use the current month as a
+        // conservative proxy when the bucket is relative ("Today", ...).
+        months[now.month] = (months[now.month] ?? 0) + 1;
+        if (bucket.isNotEmpty) {
+          // keep the bucket available for future precise date filtering.
+        }
+      }
+    }
+
+    List<PlayStat> top(Map<String, int> counts, bool songs) {
+      final entries = counts.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      return entries.take(5).map((e) {
+        return PlayStat(
+          songs ? songTitles[e.key] ?? e.key : e.key,
+          songs ? songArtists[e.key] ?? '' : '${e.value} plays',
+          e.value,
+          e.key,
+          thumbnailUrl: songs ? songThumbs[e.key] : null,
+          minutes: songs ? (songMinutes[e.key] ?? 0) ~/ 60 : 0,
+        );
+      }).toList();
+    }
+
+    return WrappedData(
+      totalMinutes:
+          songMinutes.values.fold<int>(0, (sum, s) => sum + s) ~/ 60,
+      uniqueSongs: songCounts.length,
+      uniqueArtists: artistCounts.length,
+      topSongs: top(songCounts, true),
+      topArtists: top(artistCounts, false),
+      months: months,
+      year: now.year,
+    );
   }
 
   static WrappedData fromHistory(List<Map> songs) {
@@ -202,6 +342,9 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
   static const slideDuration = Duration(milliseconds: 8500);
 
   int _slide = 0;
+  Future<List>? _loadFuture;
+  int _posterTheme = 0;
+  int _range = 0; // 0 = this year, 1 = last year, 2 = all time
   bool _paused = false;
   Timer? _timer;
   late AnimationController _progress;
@@ -253,21 +396,67 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
     _startSlide();
   }
 
+  Future<List> _loadYtmHistory() async {
+    try {
+      return await sl<YTMusic>().getHistory();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final songs = Hive.box('SONG_HISTORY').values.whereType<Map>().toList();
-    if (songs.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: const BackButton(),
-          title: const Text('Echo Wrapped'),
-        ),
-        body: const Center(
-          child: Text('Ascolta qualche brano per creare il tuo Wrapped'),
-        ),
-      );
-    }
-    final data = WrappedData.fromHistory(songs);
+    return FutureBuilder<List>(
+      future: _loadFuture ??= _loadYtmHistory(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final sections = snapshot.data ?? const [];
+        final hasSongs = sections.any((section) {
+          if (section is! Map) return false;
+          final contents = section['contents'];
+          return contents is List && contents.isNotEmpty;
+        });
+        if (sections.isEmpty || !hasSongs) {
+          return Scaffold(
+            appBar: AppBar(
+              leading: const BackButton(),
+              title: const Text('Wrapped'),
+            ),
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.history, size: 56, color: Colors.white54),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Accedi a YouTube Music per creare il tuo Wrapped '
+                    'dalla cronologia del tuo account',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      context.go('/account');
+                    },
+                    child: const Text('Vai all\'account'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return _buildStories(WrappedData.fromYtmHistory(sections));
+      },
+    );
+  }
+
+  Widget _buildStories(WrappedData data) {
     final theme = wrappedThemes[_slide.clamp(0, 8)];
 
     return Scaffold(
@@ -278,18 +467,20 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
         child: SafeArea(
           child: Stack(
             children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 450),
-                switchInCurve: Curves.easeOutBack,
-                switchOutCurve: Curves.easeIn,
-                transitionBuilder: (child, animation) => SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.25),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: FadeTransition(opacity: animation, child: child),
+              Positioned.fill(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 450),
+                  switchInCurve: Curves.easeOutBack,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, animation) => SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.25),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+                  child: _slideView(data, theme),
                 ),
-                child: _slideView(data, theme),
               ),
               // Top progress segments.
               Positioned(
@@ -324,23 +515,63 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
                       )),
                 ),
               ),
+              // Header: YouTube Music wordmark + year range pill + controls,
+              // matching Android's WrappedScreen chrome.
               Positioned(
-                top: 28,
-                left: 8,
-                child: IconButton(
-                  icon: Icon(Icons.close, color: theme.headline),
-                  onPressed: () => Navigator.of(context).pop(),
+                top: 26,
+                left: 14,
+                child: Row(
+                  children: [
+                    Icon(Icons.music_note,
+                        size: 20, color: theme.logo ?? theme.headline),
+                    const SizedBox(width: 6),
+                    Text(
+                      'YouTube Music',
+                      style: TextStyle(
+                        color: theme.headline,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () => setState(() => _range = (_range + 1) % 3),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: theme.headline.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _range == 0
+                              ? '${data.year}'
+                              : _range == 1
+                                  ? '${data.year - 1}'
+                                  : 'All-Time',
+                          style: TextStyle(
+                              color: theme.headline, fontSize: 10),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Positioned(
-                top: 28,
-                right: 8,
-                child: IconButton(
-                  icon: Icon(
-                    _paused ? Icons.play_arrow : Icons.pause,
-                    color: theme.headline,
-                  ),
-                  onPressed: _togglePause,
+                top: 24,
+                right: 12,
+                child: Row(
+                  children: [
+                    _circleButton(
+                      theme,
+                      _paused ? Icons.play_arrow : Icons.pause,
+                      _togglePause,
+                    ),
+                    const SizedBox(width: 8),
+                    _circleButton(theme, Icons.close,
+                        () => Navigator.of(context).pop()),
+                  ],
                 ),
               ),
               // Tap zones: left = previous, right = next.
@@ -376,12 +607,26 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
         1 => _minutes(data, t),
         2 => _exploration(data, t),
         3 => _topSong(data, t),
-        4 => _topList(data.topSongs, 'TOP 5 CANZONI', t, Icons.music_note),
+        4 => _topList(data.topSongs, 'HEAVY ROTATION', t, Icons.music_note),
         5 => _topArtist(data, t),
-        6 => _topList(data.topArtists, 'TOP 5 ARTISTI', t, Icons.person),
+        6 => _topList(data.topArtists, 'CREATOR CIRCLE', t, Icons.person),
         7 => _persona(data, t),
         _ => _recap(data, t),
       };
+
+  Widget _circleButton(WrappedTheme t, IconData icon, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: t.headline.withValues(alpha: 0.16),
+          ),
+          child: Icon(icon, size: 16, color: t.headline),
+        ),
+      );
 
   Widget _eyebrow(String text, Color color) => Text(
         text,
@@ -410,7 +655,7 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _eyebrow('IL TUO ${d.year} IN MUSICA', t.label),
+            _eyebrow('YOUR ${d.year} WRAPPED', t.label),
             const SizedBox(height: 16),
             ShaderMask(
               shaderCallback: (b) => LinearGradient(
@@ -436,7 +681,7 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
               ],
             ),
             const SizedBox(height: 40),
-            _eyebrow('TOCCA PER CONTINUARE', t.body),
+            _eyebrow('START YOUR REPLAY', t.body),
           ],
         ),
       );
@@ -458,10 +703,10 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _eyebrow('HAI ASCOLTATO', t.label),
+            _eyebrow('TOTAL LISTENING TIME', t.label),
             const SizedBox(height: 8),
             _big('${d.totalMinutes}', t.headline),
-            Text('MINUTI', style: TextStyle(color: t.headline, fontSize: 24)),
+            Text('MINUTES', style: TextStyle(color: t.headline, fontSize: 24)),
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -483,7 +728,7 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _eyebrow('LA TUA ESPLORAZIONE', t.label),
+            _eyebrow('HORIZONS EXPLORED', t.label),
             const SizedBox(height: 24),
             _big('${d.uniqueSongs}', t.headline),
             Text('CANZONI DIVERSE',
@@ -505,7 +750,7 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _eyebrow('LA TUA CANZONE PIÙ ASCOLTATA', t.label),
+          _eyebrow('Top Track', t.label),
           const SizedBox(height: 24),
           Container(
             width: 220,
@@ -599,7 +844,7 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _eyebrow('IL TUO ARTISTA NUMERO UNO', t.label),
+          _eyebrow('Top Artist', t.label),
           const SizedBox(height: 24),
           AnimatedBuilder(
             animation: _pulse,
@@ -639,7 +884,7 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _eyebrow('LA TUA PERSONALITÀ MUSICALE', t.label),
+            _eyebrow('LISTENING PERSONA', t.label),
             const SizedBox(height: 16),
             Text(d.persona.toUpperCase(),
                 textAlign: TextAlign.center,
@@ -685,7 +930,7 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _eyebrow('IL TUO ${d.year} IN MUSICA', t.label),
+                _eyebrow('YOUR ${d.year} WRAPPED', t.label),
                 const SizedBox(height: 8),
                 Text('WRAPPED',
                     style: TextStyle(
@@ -693,11 +938,11 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
                         fontSize: 40,
                         fontWeight: FontWeight.w900)),
                 const Divider(height: 32),
-                _recapRow(Icons.music_note, 'Canzone top',
-                    d.topSong?.title ?? '—', t),
-                _recapRow(Icons.person, 'Artista top',
-                    d.topArtist?.title ?? '—', t),
-                _recapRow(Icons.access_time, 'Minuti totali',
+                _recapRow(Icons.music_note, 'TOP TRACK',
+                    d.topSong?.title ?? 'Various', t),
+                _recapRow(Icons.person, 'TOP ARTIST',
+                    d.topArtist?.title ?? 'Various', t),
+                _recapRow(Icons.access_time, 'TOTAL MINUTES',
                     '${d.totalMinutes}', t),
                 _recapRow(Icons.disc_full, 'Canzoni',
                     '${d.uniqueSongs}', t),
@@ -706,7 +951,7 @@ class _WrappedStoriesPageState extends State<WrappedStoriesPage>
                 ...d.topSongs.map((s) => Text(s.title,
                     style: TextStyle(color: t.body, fontSize: 14))),
                 const SizedBox(height: 16),
-                _eyebrow('TOP 5 ARTISTI', t.label),
+                _eyebrow('CREATOR CIRCLE', t.label),
                 ...d.topArtists.map((s) => Text(s.title,
                     style: TextStyle(color: t.body, fontSize: 14))),
               ],

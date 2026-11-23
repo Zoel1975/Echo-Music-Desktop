@@ -113,6 +113,26 @@ void main() {
     expect(queue, contains("song!['thumbnails']"));
   });
 
+  test('Wrapped is computed from YouTube Music history and is stable', () {
+    final wrapped =
+        src('lib/screens/settings/stats/wrapped_stories_page.dart');
+    expect(wrapped, contains('sl<YTMusic>().getHistory()'));
+    expect(wrapped, contains('fromYtmHistory'));
+    expect(wrapped, isNot(contains("Hive.box('SONG_HISTORY')")));
+    expect(wrapped, contains('YouTube Music'));
+    expect(wrapped, contains('Positioned.fill('));
+
+    final library = src('lib/ytmusic/mixins/library.dart');
+    expect(library, contains("'FEmusic_history'"));
+    expect(library, contains('parseDurationSeconds'));
+    expect(library, contains('maxPages'));
+
+    final nav = src('lib/core/widgets/floating_nav.dart');
+    expect(nav, isNot(contains('child: BackdropFilter(')));
+    final fallback = src('lib/services/audio_fallback.dart');
+    expect(fallback, contains('catch (_)'));
+  });
+
   test('parity matrix reaches the 90% target', () {
     final matrix = File('docs/PARITY_MATRIX.md').readAsStringSync();
     final rows = RegExp(r'^\| \d+ \|', multiLine: true)

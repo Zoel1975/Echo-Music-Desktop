@@ -31,7 +31,9 @@ class LibraryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Map song = songs[index];
-    List thumbnails = song['thumbnails'];
+    final thumbnails =
+        (song['thumbnails'] as List?)?.whereType<Map>().toList() ??
+            const <Map>[];
     double height =
         (song['aspectRatio'] != null ? 50 / song['aspectRatio'] : 50)
             .toDouble();
@@ -53,8 +55,15 @@ class LibraryTile extends StatelessWidget {
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(3),
         child: CachedNetworkImage(
-          imageUrl:
-              thumbnails.where((el) => el['width'] >= 50).toList().first['url'],
+          imageUrl: () {
+            final List<Map<dynamic, dynamic>> wide = thumbnails
+                .where((el) => (el['width'] is num ? (el['width'] as num).toInt() : 0) >= 50)
+                .toList();
+            final Map<dynamic, dynamic>? chosen =
+                wide.isNotEmpty ? wide.first : (thumbnails.isEmpty ? null : thumbnails.first);
+            if (chosen == null) return '';
+            return chosen['url']?.toString() ?? '';
+          }(),
           height: height,
           width: 50,
           fit: BoxFit.cover,

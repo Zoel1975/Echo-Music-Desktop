@@ -40,7 +40,7 @@ class _QueueListState extends State<QueueList> {
       ),
       child: ClipRRect(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
           child: SafeArea(
             top: false,
             child: StreamBuilder(
@@ -135,7 +135,7 @@ class _QueueHeader extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Queue • $count',
+                'Queue â€¢ $count',
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
@@ -168,7 +168,7 @@ class _QueueHeader extends StatelessWidget {
             controller: search,
             onChanged: onSearchChanged,
             decoration: const InputDecoration(
-              hintText: 'Filter queue…',
+              hintText: 'Filter queueâ€¦',
               prefixIcon: Icon(Icons.search, size: 18),
               isDense: true,
             ),

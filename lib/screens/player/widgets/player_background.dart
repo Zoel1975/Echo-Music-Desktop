@@ -66,9 +66,9 @@ class PlayerBackground extends StatelessWidget {
     return switch (resolved) {
       PlayerBackgroundStyle.defaultStyle => _solid(context),
       PlayerBackgroundStyle.gradient => _gradient(context, 8),
-      PlayerBackgroundStyle.blur => _artworkBlur(context, 60, 0.45),
+      PlayerBackgroundStyle.blur => _artworkBlur(context, 24, 0.45),
       PlayerBackgroundStyle.glowAnimated => _gradient(context, 20),
-      PlayerBackgroundStyle.appleMusic => _artworkBlur(context, 90, 0.62),
+      PlayerBackgroundStyle.appleMusic => _artworkBlur(context, 24, 0.62),
       PlayerBackgroundStyle.liveMesh => _mesh(context),
       PlayerBackgroundStyle.liquidGlass => _liquidGlass(context),
       _ => _solid(context),
@@ -128,7 +128,7 @@ class PlayerBackground extends StatelessWidget {
           // Base is the artwork, softly blurred as in Android's glass player.
           Positioned.fill(
             child: artwork != null
-                ? ImageFilterView(sigma: 28, child: artwork!)
+                ? ImageFilterView(sigma: 24, child: artwork!)
                 : _gradientOnly(),
           ),
           // A single translucent tint. Adding a second BackdropFilter here
@@ -166,13 +166,29 @@ class ImageFilterView extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => ClipRect(
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-          // Overscan hides the transparent fringe produced by the blur.
-          child: Transform.scale(scale: 1.25, child: child),
-        ),
-      );
+  Widget build(BuildContext context) {
+    // Large sigma values on a full-screen layer produced dark fringes and
+    // stale frames with Impeller. Cap the blur and scale the overscan with it.
+    final safeSigma = sigma.clamp(0.0, 24.0);
+    return LayoutBuilder(
+      builder: (context, box) {
+        final overscan = 1 +
+            (3 * safeSigma) /
+                math.max(1.0, math.min(box.maxWidth, box.maxHeight));
+        return RepaintBoundary(
+          child: ClipRect(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: safeSigma,
+                sigmaY: safeSigma,
+              ),
+              child: Transform.scale(scale: overscan, child: child),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// Animated live-mesh background (6 orbiting radial spots).

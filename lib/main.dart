@@ -98,6 +98,33 @@ void _installErrorHandlers() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _installErrorHandlers();
+  try {
+    await _startApp();
+  } catch (e, stack) {
+    // Never leave a live process with no window: startup I/O (Hive lock,
+    // application support dir, audio endpoint) can fail on locked-down PCs.
+    _writeErrorLog('Startup failed: $e\n$stack');
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Avvio non riuscito: $e\n\nRiavvia Echo Music.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+          backgroundColor: const Color(0xFF121212),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _startApp() async {
 
   // Single-instance guard: Hive locks its files, so launching the app twice
   // used to produce a PathAccessException and a blank window.

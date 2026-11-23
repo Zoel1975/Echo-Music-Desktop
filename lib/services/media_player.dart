@@ -122,6 +122,7 @@ class MediaPlayer extends ChangeNotifier {
   /// handoff/crossfade must change gradually, never jump in one step.
   BeatAnalysisResult? _beat;
   BeatAnalysisResult? _nextBeat;
+  String? _beatAnalysisId;
   BeatAnalysisResult? get diagnosticBeat => _beat;
   BeatAnalysisResult? get diagnosticNextBeat => _nextBeat;
 
@@ -376,6 +377,7 @@ class MediaPlayer extends ChangeNotifier {
   int? _xfadeArmedIndex;
   bool _xfadeTriggered = false;
   bool _xfadePreparing = false;
+  int _crossfadeGeneration = 0;
   int? _tooLateLoggedIndex;
 
   /// Short equal-power ramp used before the crossfade itself: the outgoing
@@ -798,12 +800,15 @@ class MediaPlayer extends ChangeNotifier {
         'lead=${lead.inMilliseconds}ms blend=${crossfade.inMilliseconds}ms '
         'outBpm=${_beat?.bpm.toStringAsFixed(1) ?? '?'}',
       );
+      final generation = ++_crossfadeGeneration;
       _xfadePreparing = true;
       final ready = await _prepareStandby(position, idx);
-      _xfadePreparing = false;
-      if (!ready) {
-        AutomixDebug.instance.log('pre-arm FALLITO (standby non pronto)',
-            level: 'WARN');
+      if (!ready || generation != _crossfadeGeneration) {
+        _xfadePreparing = false;
+        if (!ready) {
+          AutomixDebug.instance.log('pre-arm FALLITO (standby non pronto)',
+              level: 'WARN');
+        }
         return;
       }
       // Mark armed immediately: the position stream ticks every ~40 ms and
@@ -812,9 +817,15 @@ class MediaPlayer extends ChangeNotifier {
       _xfadeArmed = true;
       _xfadeArmedIndex = idx;
       await _applyHarmonicMix(idx, nextIdx);
+      if (generation != _crossfadeGeneration) {
+        _xfadePreparing = false;
+        return;
+      }
       _maybeAnalyzeNextBeat(nextIdx);
+      _xfadePreparing = false;
     }
-    if (remaining.inMilliseconds <= triggerMs) {
+    if (remaining.inMilliseconds <= triggerMs &&
+        idx + 1 < _songList.length) {
       await _triggerQueueCrossfade(idx, nextIdx, position);
     }
   }
@@ -933,8 +944,13 @@ class MediaPlayer extends ChangeNotifier {
     final id = _currentSongNotifier.value?.id;
     if (extras == null || id == null) {
       _beat = null;
+      _beatAnalysisId = null;
       return;
     }
+    // The current-song notifier fires from several places (queue listener,
+    // crossfade, restore). Analyze each track at most once.
+    if (_beatAnalysisId == id) return;
+    _beatAnalysisId = id;
     if (!GetIt.I.isRegistered<SettingsManager>()) return;
     final settings = GetIt.I<SettingsManager>();
     if (!settings.crossfadeEnabled || !settings.automixBeatAlign) {
@@ -1133,6 +1149,7 @@ class MediaPlayer extends ChangeNotifier {
   Future<void> playSong(Map<String, dynamic> song) async {
     if (song['videoId'] == null) return;
     // A user-initiated switch invalidates any standby prepared by the queue.
+    _crossfadeGeneration++;
     await _cancelCrossfadePreArm();
 
     // Generate a new request ID (monotonic: two taps in the same millisecond
@@ -1668,11 +1685,17 @@ class MediaPlayer extends ChangeNotifier {
           GetIt.I<SettingsManager>().autofetchSongs &&
           autoFetching == false) {
         autoFetching = true;
-        List nextSongs = await GetIt.I<YTMusic>()
-            .getNextSongList(videoId: player.sequence[index].tag.id);
-        if (nextSongs.isNotEmpty) nextSongs.removeAt(0);
-        await _addSongListToQueue(nextSongs);
-        autoFetching = false;
+        try {
+          if (index >= player.sequence.length) return;
+          List nextSongs = await GetIt.I<YTMusic>()
+              .getNextSongList(videoId: player.sequence[index].tag.id);
+          if (nextSongs.isNotEmpty) nextSongs.removeAt(0);
+          await _addSongListToQueue(nextSongs);
+        } catch (e) {
+          debugPrint('autofetch failed: $e');
+        } finally {
+          autoFetching = false;
+        }
       }
     });
   }

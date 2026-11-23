@@ -860,7 +860,7 @@ class _AppleMusicStylePopup extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                      filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1838,7 +1838,7 @@ class _GlassWindow extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
               child: Column(
                 children: [
                   // Header
