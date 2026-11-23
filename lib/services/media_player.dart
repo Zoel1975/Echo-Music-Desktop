@@ -426,6 +426,45 @@ class MediaPlayer extends ChangeNotifier {
     return true;
   }
 
+  /// The incoming track is attached with `seek(index: ...)` only at the
+  /// trigger, so a fresh network stream may still be buffering when the fade
+  /// begins. The outgoing standby keeps playing at full volume while we wait,
+  /// so waiting here is inaudible — starting the fade too early makes the
+  /// incoming side silent for its first moments, heard as a stutter.
+  Future<void> _waitForIncomingReady(
+    AudioPlayer player,
+    Duration position,
+  ) async {
+    const maxWait = Duration(milliseconds: 2500);
+    final started = DateTime.now();
+    var lastBuffered = Duration.zero;
+    while (DateTime.now().difference(started) < maxWait) {
+      lastBuffered = player.bufferedPosition;
+      if (player.playing &&
+          lastBuffered >= position + const Duration(milliseconds: 120)) {
+        return;
+      }
+      // media_kit does not always expose bufferedPosition for a freshly
+      // attached StreamAudioSource. Once it has been playing for a moment,
+      // proceed rather than delaying every automatic transition.
+      if (player.playing &&
+          DateTime.now().difference(started) >= const Duration(milliseconds: 700)) {
+        AutomixDebug.instance.log(
+          'ingresso playing, buffered=${lastBuffered.inMilliseconds}ms '
+          '(richiesto ${position.inMilliseconds}ms) → procedo',
+          level: 'WARN',
+        );
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+    }
+    AutomixDebug.instance.log(
+      'ingresso buffered non disponibile: playing=${player.playing} '
+      'buffered=${lastBuffered.inMilliseconds}ms → procedo',
+      level: 'WARN',
+    );
+  }
+
   Future<void> _rampHandoff(
     FadeablePlayer from,
     FadeablePlayer to,
@@ -700,6 +739,9 @@ class MediaPlayer extends ChangeNotifier {
       _currentSongNotifier.value = nextTag;
       _currentIndex.value = nextIdx;
       await _player.play();
+      // Never start the fade into a source that is still buffering: the
+      // outgoing standby covers this wait at full volume.
+      await _waitForIncomingReady(_player, Duration(milliseconds: startMs));
 
       await _xfade!.start(
         incoming: AudioPlayerAdapter(_player),
@@ -1297,6 +1339,9 @@ class MediaPlayer extends ChangeNotifier {
     if (_lastPlayRequestId != requestId) return;
     await _player.setVolume(0);
     await _player.play();
+    // The new source is a fresh network stream: the outgoing player is still
+    // audible here, so wait until it can actually decode before fading in.
+    await _waitForIncomingReady(_player, Duration.zero);
 
     await _xfade!.start(
       incoming: AudioPlayerAdapter(_player),

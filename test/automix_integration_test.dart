@@ -48,4 +48,30 @@ void main() {
     final doc = src('docs/AUTOMIX.md');
     expect(doc, contains('DJ blend'));
   });
+
+  test('the incoming track is ready before the fade-in starts', () {
+    final player = src('lib/services/media_player.dart');
+    expect(player, contains('Future<void> _waitForIncomingReady('));
+    expect(player, contains('bufferedPosition'));
+
+    // Both the automatic queue transition and the manual switch must wait
+    // before ramping the incoming volume up, otherwise the fresh stream is
+    // silent for the first moments of the fade (audible as a stutter).
+    final trigger = player.substring(
+      player.indexOf('Future<void> _triggerQueueCrossfade('),
+      player.indexOf('/// Android SponsorBlock'),
+    );
+    expect(trigger, contains('await _player.play()'));
+    final fadeAt = trigger.indexOf('await _xfade!.start(');
+    final waitAt = trigger.indexOf('await _waitForIncomingReady(');
+    expect(waitAt, greaterThan(0));
+    expect(waitAt, lessThan(fadeAt));
+
+    final manual = player.substring(
+      player.indexOf('Future<void> _crossfadeTo('),
+      player.indexOf('/// Re-attach the current audio source'),
+    );
+    expect(manual.indexOf('await _waitForIncomingReady('),
+        lessThan(manual.indexOf('await _xfade!.start(')));
+  });
 }
