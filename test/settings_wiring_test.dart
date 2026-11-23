@@ -10,7 +10,7 @@ void main() {
     final entries = RegExp(r"^\s*'([A-Za-z0-9_]+)':\s*'([^']+)'", multiLine: true)
         .allMatches(registry)
         .toList();
-    expect(entries.length, greaterThan(30));
+    expect(entries.length, greaterThan(15));
     for (final m in entries) {
       expect(m.group(2)!.trim().length, greaterThan(15),
           reason: '${m.group(1)} needs a real explanation');
@@ -47,6 +47,35 @@ void main() {
     expect(bottom, contains('miniPlayerStyle'));
     expect(page, contains('hidePlayerThumbnail'));
     expect(like, contains('autoDownloadOnLike'));
+  });
+
+  test('appearance options are implemented, not disabled', () {
+    final registry = src('lib/services/settings_capabilities.dart');
+    for (final key in [
+      'hideVolumeSlider',
+      'wavyPlayPause',
+      'cropArt',
+      'rotatingThumb',
+      'buttonColors',
+      'glassPlayer',
+      'glassMiniPlayer',
+      'glassNavBar',
+      'lyricsAnimation',
+      'appleLyricsBlur',
+      'standardLyricsBlur',
+      'lyricsClickChange',
+      'lyricsSwipe',
+      'lyricsThumbPlayPause',
+      'defaultLibChip',
+      'displayDensity',
+      'swipeChangeSong',
+      'swipeSensitivity',
+      'swipeQueue',
+      'swipeRemove',
+    ]) {
+      expect(registry, isNot(contains("'$key':")),
+          reason: '$key is implemented and must not be disabled');
+    }
   });
 
   test('accent color and AMOLED are applied to the theme', () {

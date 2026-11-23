@@ -363,15 +363,7 @@ class _PlayerPageState extends State<PlayerPage> {
                                                                   BorderRadius
                                                                       .circular(
                                                                           12),
-                                                              child:
-                                                                  SongThumbnail(
-                                                                song: currentSong!
-                                                                    .extras!,
-                                                                fit: BoxFit
-                                                                    .cover,
-                                                                onImageReady:
-                                                                    updateBackgroundColor,
-                                                              ),
+                                                              child: _artwork(song: currentSong!.extras!, onImageReady: updateBackgroundColor),
                                                             ),
                                                           ),
                                                         ),
@@ -452,13 +444,10 @@ class _PlayerPageState extends State<PlayerPage> {
                                                     BorderRadius.circular(12),
                                                 child: GetIt.I<SettingsManager>().hidePlayerThumbnail
                                                     ? const SizedBox.shrink()
-                                                    : SongThumbnail(
-                                                        song: currentSong!
-                                                            .extras!,
-                                                        fit: BoxFit.cover,
+                                                    : _artwork(
+                                                        song: currentSong!.extras!,
                                                         onImageReady:
-                                                            updateBackgroundColor,
-                                                      ),
+                                                            updateBackgroundColor),
                                               ),
                                             ),
                                           ),
@@ -486,12 +475,46 @@ class _PlayerPageState extends State<PlayerPage> {
     );
   }
 
-  Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
+  
+/// Player artwork with the Android appearance gestures wired: crop, rotation,
+/// swipe-to-change-song and its sensitivity.
+Widget _artwork({
+  required Map song,
+  required void Function(ImageProvider) onImageReady,
+}) {
+  final settings = GetIt.I<SettingsManager>();
+  final fit =
+      settings.extra<bool>('cropArt', true) ? BoxFit.cover : BoxFit.contain;
+  final sensitivity = settings.extra<double>('swipeSensitivity', 5).clamp(1, 10);
+  final threshold = 900.0 / sensitivity;
+  return SongSwipeDetector(
+    enabled: settings.extra<bool>('swipeChangeSong', true),
+    threshold: threshold,
+    onNext: () => GetIt.I<MediaPlayer>().player.seekToNext(),
+    onPrevious: () => GetIt.I<MediaPlayer>().player.seekToPrevious(),
+    child: RotatingArt(
+      enabled: settings.extra<bool>('rotatingThumb', false),
+      child: SongThumbnail(
+        song: song,
+        fit: fit,
+        onImageReady: onImageReady,
+      ),
+    ),
+  );
+}
+
+Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
     if (currentSong == null) return const SizedBox();
     MediaPlayer mediaPlayer = context.watch<MediaPlayer>();
     final playerSettings = GetIt.I<SettingsManager>();
     final showSeek = playerSettings.showSeekButtons;
     final progressive = playerSettings.progressiveSeek;
+  final inactiveControl = switch (
+      playerSettings.extra<String>('buttonColors', 'Default')) {
+    'Accent' => Theme.of(context).colorScheme.primary,
+    'White' => Colors.white,
+    _ => Colors.white.withValues(alpha: 0.7),
+  };
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment:
@@ -731,7 +754,7 @@ class _PlayerPageState extends State<PlayerPage> {
                 icon: Icon(
                   Icons.replay_10,
                   size: 28,
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: inactiveControl,
                 ),
               ),
             // Play/Pause
@@ -747,20 +770,24 @@ class _PlayerPageState extends State<PlayerPage> {
                     return const Center(
                         child: CircularProgressIndicator(color: Colors.black));
                   }
-                  return IconButton(
-                    onPressed: () {
-                      value == ButtonState.playing
-                          ? mediaPlayer.player.pause()
-                          : mediaPlayer.player.play();
-                    },
-                    icon: Icon(
-                      value == ButtonState.playing
-                          ? Icons.pause
-                          : Icons.play_arrow,
-                      size: 32,
-                      color: Colors.black,
-                    ),
-                  );
+                  final wavy =
+                      playerSettings.extra<bool>('wavyPlayPause', false);
+                    return IconButton(
+                      onPressed: () {
+                        value == ButtonState.playing
+                            ? mediaPlayer.player.pause()
+                            : mediaPlayer.player.play();
+                      },
+                      icon: wavy
+                          ? WavyPlayPause(playing: value == ButtonState.playing)
+                          : Icon(
+                              value == ButtonState.playing
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              size: 32,
+                              color: Colors.black,
+                            ),
+                    );
                 },
               ),
             ),
@@ -785,7 +812,7 @@ class _PlayerPageState extends State<PlayerPage> {
                 icon: Icon(
                   Icons.forward_10,
                   size: 28,
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: inactiveControl,
                 ),
               ),
             // Repeat

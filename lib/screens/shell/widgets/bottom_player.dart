@@ -90,10 +90,11 @@ class _BottomPlayerState extends State<BottomPlayer> {
                     };
                   }(),
                   radius: const BorderRadius.all(Radius.circular(50)),
-                  vibrancy:
-                      GetIt.I<SettingsManager>().miniPlayerStyle == 'Glass'
-                          ? 1.3
-                          : 0.0,
+                  vibrancy: GetIt.I<SettingsManager>()
+                              .extra<bool>('glassMiniPlayer', true) &&
+                          GetIt.I<SettingsManager>().miniPlayerStyle == 'Glass'
+                      ? 1.3
+                      : 0.0,
                   child: ClipRRect(
                   borderRadius: BorderRadius.circular(50),
                   child: Padding(

@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../services/account_refresh.dart';
 import '../../services/cookie_store.dart';
 import '../../services/media_player.dart';
+import '../../services/settings_manager.dart';
 import '../../ytmusic/ytmusic.dart';
 
 /// Real signed-in YouTube Music library (port of Android's LibraryScreen /
@@ -39,7 +40,17 @@ class _YtmLibraryPageState extends State<YtmLibraryPage>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: _labels.length, vsync: this);
+    // Android's "Default library chip" preference.
+    final defaultChip = GetIt.I<SettingsManager>()
+        .extra<String>('defaultLibChip', 'Songs');
+    final initialIndex = switch (defaultChip) {
+      'Playlists' => 0,
+      'Albums' => 2,
+      'Artists' => 3,
+      _ => 1,
+    };
+    _tabs = TabController(
+        length: _labels.length, vsync: this, initialIndex: initialIndex);
     _tabs.addListener(() {
       if (!_tabs.indexIsChanging) _load(_tabs.index);
     });

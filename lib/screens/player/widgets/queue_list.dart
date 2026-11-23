@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:Echo/services/settings_manager.dart';
+import 'package:get_it/get_it.dart';
 import 'package:Echo/generated/l10n.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/services/queue_filter.dart';
@@ -200,7 +202,26 @@ class QueueTile extends StatelessWidget {
 
     final colorScheme = Theme.of(context).colorScheme;
 
-    return ListTile(
+    final settings = GetIt.I<SettingsManager>();
+    final tile = GestureDetector(
+      onHorizontalDragEnd: (details) {
+        if (!settings.extra<bool>('swipeQueue', true)) return;
+        final v = details.primaryVelocity ?? 0;
+        if (v.abs() < 400) return;
+        if (v < 0) {
+          // Swipe left: play this track next.
+          final target = (player.currentIndex ?? -1) + 1;
+          if (target < player.sequence.length && index < player.sequence.length) {
+            player.moveAudioSource(index, target);
+          }
+        } else {
+          // Swipe right: move to the end of the queue.
+          if (index < player.sequence.length) {
+            player.moveAudioSource(index, player.sequence.length - 1);
+          }
+        }
+      },
+      child: ListTile(
       selected: isCurrent,
       selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
       leading: Row(
@@ -240,6 +261,22 @@ class QueueTile extends StatelessWidget {
         onPressed: () => player.removeAudioSourceAt(index),
       ),
       onTap: () => player.seek(Duration.zero, index: index),
+      ),
     );
+    if (settings.extra<bool>('swipeRemove', false)) {
+      return Dismissible(
+        key: ValueKey('queue-${song.id}-$index'),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          color: Colors.red.withValues(alpha: 0.7),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          child: const Icon(Icons.delete, color: Colors.white),
+        ),
+        onDismissed: (_) => player.removeAudioSourceAt(index),
+        child: tile,
+      );
+    }
+    return tile;
   }
 }

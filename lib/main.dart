@@ -270,6 +270,15 @@ Future<void> _startApp() async {
   );
 }
 
+/// Android's "Display density" preference mapped to Flutter's VisualDensity.
+double _densityScale(SettingsManager settings) => switch (
+        settings.extra<String>('displayDensity', 'Native 100%')) {
+      'Compact 85%' => 0.85,
+      'Compact 75%' => 0.75,
+      'Ultra 65%' => 0.65,
+      _ => 1.0,
+    };
+
 class Echo extends StatelessWidget {
   const Echo({super.key});
   @override
@@ -293,9 +302,13 @@ class Echo extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         themeMode: settings.themeMode,
         theme: AppTheme.light(
-            primary: settings.accentColor, amoled: settings.amoledBlack),
+            primary: settings.accentColor,
+            amoled: settings.amoledBlack,
+            density: _densityScale(settings)),
         darkTheme: AppTheme.dark(
-            primary: settings.accentColor, amoled: settings.amoledBlack),
+            primary: settings.accentColor,
+            amoled: settings.amoledBlack,
+            density: _densityScale(settings)),
       ),
     );
   }

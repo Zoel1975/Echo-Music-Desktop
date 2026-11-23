@@ -1022,8 +1022,10 @@ BottomModalLayout _playerOptionsModal(BuildContext context, Map song) {
           // SLIDERS GROUP (Volume/Speed)
           Column(
             children: [
-              StreamBuilder(
-                stream: GetIt.I<MediaPlayer>().player.volumeStream,
+              if (!GetIt.I<SettingsManager>()
+                  .extra<bool>('hideVolumeSlider', false))
+                StreamBuilder(
+                  stream: GetIt.I<MediaPlayer>().player.volumeStream,
                 builder: (context, progress) {
                   return AdaptiveListTile(
                     dense: true,

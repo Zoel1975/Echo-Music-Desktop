@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get_it/get_it.dart';
@@ -162,7 +163,20 @@ class _LyricsBoxState extends State<LyricsBox> {
       padding: const EdgeInsets.all(16),
       child: Stack(
         children: [
-          Center(
+          GestureDetector(
+            onHorizontalDragEnd: (details) {
+              final s = GetIt.I<SettingsManager>();
+              if (!s.extra<bool>('lyricsSwipe', true)) return;
+              final v = details.primaryVelocity ?? 0;
+              if (v.abs() < 400) return;
+              final player = GetIt.I<MediaPlayer>().player;
+              if (v < 0) {
+                player.seekToNext();
+              } else {
+                player.seekToPrevious();
+              }
+            },
+            child: Center(
             child: _fetchLyricsFuture != null
                 ? FutureBuilder<Lyrics>(
                     future: _fetchLyricsFuture,
@@ -183,7 +197,35 @@ class _LyricsBoxState extends State<LyricsBox> {
                     },
                   )
                 : const ExpressiveLoadingIndicator(),
+            ),
           ),
+          if (GetIt.I<SettingsManager>()
+              .extra<bool>('lyricsThumbPlayPause', true))
+            Positioned(
+              left: 0,
+              bottom: 0,
+              child: ValueListenableBuilder<ButtonState>(
+                valueListenable: GetIt.I<MediaPlayer>().buttonState,
+                builder: (context, state, _) => Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: IconButton(
+                    tooltip: state == ButtonState.playing ? 'Pausa' : 'Riproduci',
+                    icon: Icon(
+                      state == ButtonState.playing
+                          ? Icons.pause
+                          : Icons.play_arrow,
+                      color: Colors.white,
+                    ),
+                    onPressed: () => state == ButtonState.playing
+                        ? GetIt.I<MediaPlayer>().player.pause()
+                        : GetIt.I<MediaPlayer>().player.play(),
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             right: 0,
             bottom: 0,
@@ -528,19 +570,47 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
                     ],
                   );
 
+              final clickSeek =
+                  settings.extra<bool>('lyricsClickChange', true);
+              final blurSigma = !isCurrent
+                  ? (settings.extra<bool>('appleLyricsBlur', false)
+                      ? 1.6
+                      : settings.extra<bool>('standardLyricsBlur', false)
+                          ? 0.8
+                          : 0.0)
+                  : 0.0;
+              final animate = settings.extra<String>('lyricsAnimation', 'None') != 'None';
               return GestureDetector(
-                onTap: () => _seekToLyric(index),
+                onTap: clickSeek ? () => _seekToLyric(index) : null,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(vertical: 16.0, horizontal: 32),
                   // Only the active line rebuilds on the glow tick.
-                  child: isCurrent
-                      ? AnimatedBuilder(
-                          animation: _glowAnimation,
-                          builder: (context, _) => lyricLine(_glowAnimation.value),
-                        )
-                      : lyricLine(0),
+                  child: () {
+                    Widget line = isCurrent
+                        ? AnimatedBuilder(
+                            animation: _glowAnimation,
+                            builder: (context, _) => lyricLine(_glowAnimation.value),
+                          )
+                        : lyricLine(0);
+                    if (animate) {
+                      line = AnimatedScale(
+                        scale: isCurrent ? 1.05 : 1.0,
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        child: line,
+                      );
+                    }
+                    if (blurSigma > 0) {
+                      line = ImageFiltered(
+                        imageFilter:
+                            ui.ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+                        child: line,
+                      );
+                    }
+                    return line;
+                  }(),
                 ),
               );
             },

@@ -221,6 +221,146 @@ class ShimmerBox extends StatelessWidget {
       );
 }
 
+/// Android's "Rotating thumbnail" preference: slow continuous rotation of the
+/// playing artwork. Only created when enabled, so lists pay nothing.
+class RotatingArt extends StatefulWidget {
+  const RotatingArt({
+    required this.child,
+    required this.enabled,
+    super.key,
+  });
+
+  final Widget child;
+  final bool enabled;
+
+  @override
+  State<RotatingArt> createState() => _RotatingArtState();
+}
+
+class _RotatingArtState extends State<RotatingArt>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _spin;
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(covariant RotatingArt oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.enabled != widget.enabled) _sync();
+  }
+
+  void _sync() {
+    if (widget.enabled && _spin == null) {
+      _spin = AnimationController(
+          vsync: this, duration: const Duration(seconds: 14))
+        ..repeat();
+    } else if (!widget.enabled && _spin != null) {
+      _spin!.dispose();
+      _spin = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _spin?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final spin = _spin;
+    return spin == null
+        ? widget.child
+        : RotationTransition(turns: spin, child: widget.child);
+  }
+}
+
+/// Android's "Swipe to change song" + "Swipe sensitivity" preferences for the
+/// player artwork. A horizontal drag past [threshold] switches track.
+class SongSwipeDetector extends StatelessWidget {
+  const SongSwipeDetector({
+    required this.child,
+    required this.enabled,
+    required this.threshold,
+    required this.onNext,
+    required this.onPrevious,
+    super.key,
+  });
+
+  final Widget child;
+  final bool enabled;
+  final double threshold;
+  final VoidCallback onNext;
+  final VoidCallback onPrevious;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity.abs() < threshold) return;
+        if (velocity < 0) {
+          onNext();
+        } else {
+          onPrevious();
+        }
+      },
+      child: child,
+    );
+  }
+}
+
+/// "Wavy play/pause button": an animated icon that morphs between play and
+/// pause instead of swapping a static glyph.
+class WavyPlayPause extends StatefulWidget {
+  const WavyPlayPause({required this.playing, super.key});
+
+  final bool playing;
+
+  @override
+  State<WavyPlayPause> createState() => _WavyPlayPauseState();
+}
+
+class _WavyPlayPauseState extends State<WavyPlayPause>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 320));
+
+  @override
+  void didUpdateWidget(covariant WavyPlayPause oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.playing != oldWidget.playing) {
+      widget.playing ? _controller.forward() : _controller.reverse();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.playing) _controller.value = 1;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedIcon(
+        icon: AnimatedIcons.play_pause,
+        progress: _controller,
+        size: 32,
+        color: Colors.black,
+      );
+}
+
 /// Marquee used in Android's player, mini-player, queue and search.
 class MarqueeText extends StatelessWidget {
   const MarqueeText(

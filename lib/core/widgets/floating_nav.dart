@@ -1,6 +1,8 @@
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
+import '../../services/settings_manager.dart';
 
 import '../theme/motion_tokens.dart';
 import '../theme/tokens.dart';
@@ -47,10 +49,19 @@ class EchoFloatingNavBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          scheme.surfaceVariant.withValues(alpha: 0.55),
-          scheme.surface.withValues(alpha: 0.92),
-        ),
+        color: () {
+          // Tests render the bar without the DI container; default to glass.
+          bool glass = true;
+          if (GetIt.I.isRegistered<SettingsManager>()) {
+            glass = GetIt.I<SettingsManager>().extra<bool>('glassNavBar', true);
+          }
+          return glass
+              ? Color.alphaBlend(
+                  scheme.surfaceVariant.withValues(alpha: 0.55),
+                  scheme.surface.withValues(alpha: 0.92),
+                )
+              : scheme.surface;
+        }(),
         borderRadius: BorderRadius.circular(EchoTokens.floatingBarRadius),
         border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
         boxShadow: [

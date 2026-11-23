@@ -10,7 +10,8 @@ Color? themeSeedOverride;
 class AppTheme {
   /// When "AMOLED black" is on, dark surfaces use pure black instead of the
   /// seeded dark grey. Port of Android's `amoledBlack` preference.
-  static ThemeData light({Color? primary, bool amoled = false}) {
+  static ThemeData light(
+      {Color? primary, bool amoled = false, double density = 1.0}) {
     final colorScheme =
         ColorScheme.fromSeed(
             seedColor: primary ?? themeSeedOverride ?? EchoTokens.seedColor,
@@ -20,7 +21,10 @@ class AppTheme {
       scaffoldBackgroundColor: Colors.transparent,
       textTheme: appTextTheme(ThemeData.light().textTheme),
       colorScheme: colorScheme,
-      visualDensity: VisualDensity.adaptivePlatformDensity,
+      visualDensity: density == 1.0
+          ? VisualDensity.adaptivePlatformDensity
+          : VisualDensity(
+              horizontal: (density - 1) * 5, vertical: (density - 1) * 5),
       appBarTheme: AppBarTheme(
         systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarBrightness: Brightness.light,
@@ -48,7 +52,8 @@ class AppTheme {
     );
   }
 
-  static ThemeData dark({Color? primary, bool amoled = false}) {
+  static ThemeData dark(
+      {Color? primary, bool amoled = false, double density = 1.0}) {
     final seeded = ColorScheme.fromSeed(
       seedColor: primary ?? themeSeedOverride ?? EchoTokens.seedColor,
       brightness: Brightness.dark,
@@ -66,7 +71,10 @@ class AppTheme {
       scaffoldBackgroundColor: amoled ? Colors.black : Colors.transparent,
       textTheme: appTextTheme(ThemeData.dark().textTheme),
       colorScheme: colorScheme,
-      visualDensity: VisualDensity.adaptivePlatformDensity,
+      visualDensity: density == 1.0
+          ? VisualDensity.adaptivePlatformDensity
+          : VisualDensity(
+              horizontal: (density - 1) * 5, vertical: (density - 1) * 5),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,

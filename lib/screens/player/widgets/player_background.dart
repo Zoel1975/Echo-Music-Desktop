@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
+import 'package:Echo/services/settings_manager.dart';
 
 import 'animated_gradient_bg.dart';
 
@@ -123,12 +125,18 @@ class PlayerBackground extends StatelessWidget {
         ],
       );
 
-  Widget _liquidGlass(BuildContext context) => Stack(
+  Widget _liquidGlass(BuildContext context) {
+    // Android's "Glass player" toggle: without glass the artwork stays sharp
+    // and the translucent tint is skipped.
+    final glass = GetIt.I<SettingsManager>().extra<bool>('glassPlayer', true);
+    return Stack(
         children: [
           // Base is the artwork, softly blurred as in Android's glass player.
           Positioned.fill(
             child: artwork != null
-                ? ImageFilterView(sigma: 24, child: artwork!)
+                ? glass
+                    ? ImageFilterView(sigma: 24, child: artwork!)
+                    : artwork!
                 : _gradientOnly(),
           ),
           // A single translucent tint. Adding a second BackdropFilter here
@@ -151,6 +159,7 @@ class PlayerBackground extends StatelessWidget {
           child,
         ],
       );
+  }
 
   static ImageFilter uiBlur(double sigma) =>
       ImageFilter.blur(sigmaX: sigma, sigmaY: sigma);
