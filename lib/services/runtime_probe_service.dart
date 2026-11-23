@@ -13,6 +13,7 @@ import 'package:hive/hive.dart';
 import 'account_refresh.dart';
 import 'audio_fallback.dart';
 import 'automix_debug.dart';
+import 'export_task_queue.dart';
 import 'ffmpeg_audio_encoder.dart';
 import 'autoeq_service.dart';
 import 'beat_analyzer_service.dart';
@@ -71,9 +72,9 @@ class RuntimeProbeService {
   }
 
   /// One second of silence in PCM WAV, for the real FFmpeg export probe.
-  static List<int> _probeWav() {
+  static List<int> _probeWav({int seconds = 1}) {
     const rate = 44100;
-    const samples = rate;
+    final samples = rate * seconds;
     final data = samples * 2;
     final bytes = <int>[];
     void ascii(String s) => bytes.addAll(s.codeUnits);
@@ -1166,6 +1167,61 @@ class RuntimeProbeService {
         'enabled': settings.crossfadeEnabled,
         'samples': samples,
       });
+      return;
+    }
+    if (path == '/export/queue-test' && request.method == 'POST') {
+      try {
+        final dir = await Directory.systemTemp.createTemp('echo_exp_q_');
+        final input = '${dir.path}${Platform.pathSeparator}song.wav';
+        final seconds =
+            int.tryParse(request.uri.queryParameters['seconds'] ?? '1') ?? 1;
+        File(input).writeAsBytesSync(_probeWav(seconds: seconds));
+        final queue = GetIt.I<ExportTaskQueue>();
+        final samples = <int>[];
+        // enqueue() awaits the whole drain, so observe the queue while it runs
+        // instead of waiting for the returned task first.
+        final pending = queue.enqueue(input);
+        ExportTask? task;
+        for (var i = 0; i < 50 && task == null; i++) {
+          final found = queue.tasks.where((x) => x.sourcePath == input);
+          if (found.isNotEmpty) task = found.first;
+          if (task == null) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+          }
+        }
+        if (task == null) throw Exception('task non creata');
+        final taskId = task.id;
+        final started = DateTime.now();
+        while (DateTime.now().difference(started).inSeconds < 20) {
+          final t = queue.tasks.firstWhere((x) => x.id == taskId);
+          samples.add(t.progress == null ? -1 : (t.progress! * 100).round());
+          if (t.status == ExportStatus.done ||
+              t.status == ExportStatus.failed) {
+            break;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        await pending;
+        final finalTask = queue.tasks.firstWhere((x) => x.id == taskId);
+        final out = File(finalTask.targetPath);
+        _json(request.response, 200, {
+          'status': finalTask.status.name,
+          'stage': finalTask.stage,
+          'error': finalTask.error,
+          'source': finalTask.sourcePath,
+          'target': finalTask.targetPath,
+          'progressSamples': samples.length > 30
+              ? samples.sublist(samples.length - 30)
+              : samples,
+          'outputExists': out.existsSync(),
+          'outputSize': out.existsSync() ? out.lengthSync() : 0,
+        });
+        try {
+          dir.deleteSync(recursive: true);
+        } catch (_) {}
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
       return;
     }
     if (path == '/export/mp3' && request.method == 'POST') {

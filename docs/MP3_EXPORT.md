@@ -18,9 +18,9 @@ Non vengono esportati brani in streaming: l'export funziona offline sui file gi�
 1. `ExportTaskQueue.enqueue()` (o `enqueueSong()`) crea un task con nome `Artista - Titolo.mp3`, caratteri Windows non validi rimossi e suffisso `(1)` in caso di collisione.
 2. Il bitrate viene letto da `SettingsManager.exportBitrateKbps` (default 192 kbps, modificabile 128/192/256/320 nella schermata Export).
 3. `FfmpegAudioEncoder` esegue:
-   `-nostdin -y -i <input> -vn -map 0:a:0 -c:a libmp3lame -b:a <n>k -map_metadata 0 -id3v2_version 3 [-metadata ...] <target>.part`
-4. L'output viene scritto in un file temporaneo `.part` e solo al successo rinominato nel `.mp3` finale: un errore o un annullamento non lascia file MP3 fasulli.
-5. Progresso: statistiche FFmpeg (`statistics.getTime() / duration`) quando la durata è nota; altrimenti progresso indeterminato.
+   `-stats_period 0.2 -nostdin -y -i <input> -vn -map 0:a:0 -c:a libmp3lame -b:a <n>k -map_metadata 0 -id3v2_version 3 [-metadata ...] -f mp3 <target>.part`
+4. L'output viene scritto in un file temporaneo `.part` e solo al successo rinominato nel `.mp3` finale: un errore o un annullamento non lascia file MP3 fasulli. **`-f mp3` è obbligatorio**: FFmpeg non riesce a dedurre il contenitore dall'estensione `.part` e senza questo flag l'export falliva sempre con exit 1 (`Unable to choose an output format`).
+5. Progresso: statistiche FFmpeg (`statistics.getTime() / duration`) con aggiornamenti ogni 0,2 s. Se la durata non è nota (file aggiunti con il file picker), viene letta con `FFprobeKit.getMediaInformation()`: la barra mostra così una percentuale reale invece di restare indeterminata. La schermata mostra anche `stadio · bitrate · percentuale`.
 6. Annullamento: `FFmpegKit.cancel(sessionId)`; il task passa allo stato "Annullata". "Riprova" rimette il task in coda.
 
 I file sono salvati in `Downloads/Echo/Music` (stessa cartella dei brani scaricati). Il pulsante cartella apre la destinazione.

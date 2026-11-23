@@ -59,7 +59,7 @@ class ExportTask {
         coverUrl: coverUrl,
         durationMs: durationMs,
         status: status ?? this.status,
-        progress: progress,
+        progress: progress ?? this.progress,
         error: clearError ? null : error,
         stage: stage ?? this.stage,
         sessionId: sessionId ?? this.sessionId,

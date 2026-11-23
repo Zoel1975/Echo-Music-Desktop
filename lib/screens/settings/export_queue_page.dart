@@ -149,7 +149,10 @@ class ExportQueuePage extends StatelessWidget {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('${t.stage} · ${t.bitrateKbps} kbps'),
+                                Text(
+                                  '${t.stage} · ${t.bitrateKbps} kbps'
+                                  '${t.progress != null ? ' · ${(t.progress! * 100).round()}%' : ''}',
+                                ),
                                 if (t.error != null)
                                   Text(t.error!,
                                       style: const TextStyle(color: Colors.red)),

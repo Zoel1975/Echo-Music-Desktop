@@ -25,6 +25,20 @@ void main() {
       expect(args.last, 'C:\\Music\\song.mp3.part');
     });
 
+    test('forces the mp3 container for the .part temporary file', () {
+      final args = buildMp3Args(
+        inputPath: 'in.m4a',
+        outputPath: 'out.mp3.part',
+        bitrateKbps: 192,
+      );
+      final i = args.indexOf('-f');
+      expect(i, greaterThanOrEqualTo(0));
+      expect(args[i + 1], 'mp3',
+          reason:
+              'FFmpeg cannot infer the container from a .part extension; '
+              'without this the export always fails with exit 1');
+    });
+
     test('clamps the bitrate to a safe range', () {
       final args = buildMp3Args(
         inputPath: 'in.m4a',
