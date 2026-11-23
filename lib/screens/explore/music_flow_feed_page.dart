@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/theme/motion_tokens.dart';
 import '../../core/utils/service_locator.dart';
 import '../../services/media_player.dart';
+import '../../services/settings_manager.dart';
 import '../../utils/playable.dart';
 import '../../utils/song_thumbnail.dart';
 import '../../ytmusic/ytmusic.dart';
@@ -26,6 +28,9 @@ class _MusicFlowFeedPageState extends State<MusicFlowFeedPage> {
   String? _error;
   int _current = 0;
 
+  bool _flag(String key) =>
+      GetIt.I<SettingsManager>().extra<bool>(key, true);
+
   static const _palette = <Color>[
     Color(0xFF2B1B4D),
     Color(0xFF123B4A),
@@ -40,6 +45,10 @@ class _MusicFlowFeedPageState extends State<MusicFlowFeedPage> {
   }
 
   Future<void> _load() async {
+    if (!_flag('musicFlowEnabled')) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -49,7 +58,13 @@ class _MusicFlowFeedPageState extends State<MusicFlowFeedPage> {
       final songs = await sl<YTMusic>().getNextSongList(
         videoId: mp.currentSongNotifier.value?.id,
       );
-      final playable = toPlaySongs(songs);
+      var playable = toPlaySongs(songs);
+      if (_flag('musicFlowHideRecent')) {
+        final history = Hive.box('SONG_HISTORY');
+        playable = playable
+            .where((s) => !history.containsKey(s['videoId']?.toString()))
+            .toList();
+      }
       if (!mounted) return;
       setState(() {
         _songs
@@ -57,7 +72,10 @@ class _MusicFlowFeedPageState extends State<MusicFlowFeedPage> {
           ..addAll(playable);
         _loading = false;
       });
-      if (_songs.isNotEmpty) await mp.playAll(_songs);
+      // Autoplay is an explicit Android setting.
+      if (_songs.isNotEmpty && _flag('musicFlowAutoplay')) {
+        await mp.playAll(_songs);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -70,13 +88,18 @@ class _MusicFlowFeedPageState extends State<MusicFlowFeedPage> {
 
   Future<void> _onChanged(int index) async {
     setState(() => _current = index);
-    if (index >= 0 && index < _songs.length) {
+    if (index >= 0 && index < _songs.length &&
+        _flag('musicFlowAutoNext')) {
       await GetIt.I<MediaPlayer>().playSong(_songs[index]);
     }
-    if (index >= _songs.length - 3) await _loadMore();
+    if (index >= _songs.length - 3 &&
+        _flag('musicFlowCellularPrefetch')) {
+      await _loadMore();
+    }
   }
 
   Future<void> _loadMore() async {
+    if (!_flag('musicFlowCellularPrefetch')) return;
     final last = _songs.isEmpty ? null : _songs.last['videoId'] as String?;
     try {
       final songs = await sl<YTMusic>().getNextSongList(videoId: last);
@@ -96,9 +119,33 @@ class _MusicFlowFeedPageState extends State<MusicFlowFeedPage> {
   @override
   Widget build(BuildContext context) {
     final accent = _palette[_current % _palette.length];
+    if (!_flag('musicFlowEnabled')) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.auto_awesome_mosaic,
+                  color: Colors.white54, size: 48),
+              const SizedBox(height: 12),
+              const Text('Music Flow disabilitato nelle impostazioni',
+                  style: TextStyle(color: Colors.white70)),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => context.go('/settings/music_flow'),
+                child: const Text('Apri impostazioni'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final animatedBackground = _flag('musicFlowAnimatedBackground');
     return Scaffold(
       body: AnimatedContainer(
-        duration: MotionTokens.section,
+        duration: animatedBackground
+            ? MotionTokens.section
+            : Duration.zero,
         curve: MotionTokens.standard,
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -279,6 +326,21 @@ class _MusicFlowFeedPageState extends State<MusicFlowFeedPage> {
               artists,
               style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
             ),
+            if (_flag('musicFlowLyrics')) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  song['subtitle']?.toString() ?? '',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             ValueListenableBuilder<ButtonState>(
               valueListenable: GetIt.I<MediaPlayer>().buttonState,

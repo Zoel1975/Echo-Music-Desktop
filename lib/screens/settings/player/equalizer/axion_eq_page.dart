@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/widgets/back_button.dart';
+import '../../../player/widgets/circular_eq_control.dart';
 import '../../../../services/autoeq_service.dart';
 import '../../../../services/axion_eq_service.dart';
 import '../../../../services/settings_manager.dart';
@@ -124,6 +125,20 @@ class _AxionEqPageState extends State<AxionEqPage> {
       body: SettingsList(
         padding: const EdgeInsets.all(16),
         children: [
+          Center(
+            child: CircularEqControl(
+              gains: _gains,
+              onChanged: (i) {
+                setState(() {
+                  _gains[i] = (_gains[i] + 1.5).clamp(-12.0, 12.0);
+                  if (_gains[i] > 12) _gains[i] = -12;
+                  _presetName = 'Custom';
+                });
+                _save();
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
           Text('Presets', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Wrap(

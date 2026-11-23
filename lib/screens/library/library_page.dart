@@ -152,7 +152,7 @@ class _LibraryBody extends StatelessWidget {
     });
     gridItems.add({
       'title': 'Podcasts',
-      'subtitle': 'Coming in a future update',
+      'subtitle': 'Podcast e serie YouTube Music',
       'icon': Icons.podcasts,
       'onTap': () => context.push('/podcasts'),
     });

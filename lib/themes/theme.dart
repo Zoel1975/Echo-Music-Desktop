@@ -4,10 +4,14 @@ import 'package:flutter/services.dart';
 import '../core/theme/tokens.dart';
 import 'typography.dart';
 
+/// Set at startup by the "Theme variant" setting (monochrome).
+Color? themeSeedOverride;
+
 class AppTheme {
   static ThemeData light({Color? primary}) {
     final colorScheme =
-        ColorScheme.fromSeed(seedColor: primary ?? EchoTokens.seedColor,
+        ColorScheme.fromSeed(
+            seedColor: primary ?? themeSeedOverride ?? EchoTokens.seedColor,
             brightness: Brightness.light);
 
     return ThemeData.light(useMaterial3: true).copyWith(
@@ -44,7 +48,7 @@ class AppTheme {
 
   static ThemeData dark({Color? primary}) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: primary ?? EchoTokens.seedColor,
+      seedColor: primary ?? themeSeedOverride ?? EchoTokens.seedColor,
       brightness: Brightness.dark,
     );
     return ThemeData.dark(useMaterial3: true).copyWith(

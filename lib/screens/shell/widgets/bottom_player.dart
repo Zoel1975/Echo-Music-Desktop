@@ -5,6 +5,8 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/services/cast/cast_device.dart';
 import 'package:Echo/services/cast/cast_service.dart';
+import 'package:Echo/core/widgets/echo_surface.dart';
+import 'package:Echo/core/widgets/motion_effects.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/utils/adaptive_widgets/buttons.dart';
 import 'package:Echo/utils/adaptive_widgets/progress_ring.dart';
@@ -75,22 +77,14 @@ class _BottomPlayerState extends State<BottomPlayer> {
               onTap: () {
                 context.push('/player');
               },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: EchoSurface(
                   color: (backgroundColor ?? const Color(0xFF202020))
                       .withAlpha(255),
-                  borderRadius: BorderRadius.circular(50),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
+                  radius: const BorderRadius.all(Radius.circular(50)),
+                  vibrancy: 1.3,
+                  child: ClipRRect(
                   borderRadius: BorderRadius.circular(50),
                   child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -121,10 +115,8 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      MarqueeText(
                                         currentSong.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
@@ -134,12 +126,10 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                       if (currentSong.artist != null ||
                                           currentSong.extras!['subtitle'] !=
                                               null)
-                                        Text(
+                                        MarqueeText(
                                           currentSong.artist ??
                                               currentSong
                                                   .extras!['subtitle'],
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             fontSize: 12,
                                             color:
@@ -253,6 +243,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                         ],
                       ),
                     ),
+                  ),
                   ),
                 ),
               ),

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'app_fonts.dart';
 
 // ColorScheme.fromSeed(
 //             seedColor: accentColor,
@@ -12,7 +12,7 @@ import 'package:google_fonts/google_fonts.dart';
 //             onPrimaryContainer: Colors.black,
 //             surface: accentColor.withAlpha(10),
 //           )
-final defaultFontStyle = GoogleFonts.poppins();
+final defaultFontStyle = AppFonts.style();
 ColorScheme darkScheme = const ColorScheme.dark();
 ThemeData darkTheme({required ColorScheme colorScheme}) {
   return ThemeData.dark().copyWith(

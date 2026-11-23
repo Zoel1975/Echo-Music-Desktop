@@ -13,15 +13,13 @@ List<String> buildMp3Args({
   required String outputPath,
   required int bitrateKbps,
   Map<String, String> tags = const {},
+  String? coverUrl,
 }) {
   final args = <String>[
     '-nostdin',
     '-y',
     '-i',
     inputPath,
-    '-vn',
-    '-map',
-    '0:a:0',
     '-c:a',
     'libmp3lame',
     '-b:a',
@@ -31,6 +29,22 @@ List<String> buildMp3Args({
     '-id3v2_version',
     '3',
   ];
+  if (coverUrl != null && coverUrl.isNotEmpty) {
+    args.addAll([
+      '-i',
+      coverUrl,
+      '-map',
+      '0:a:0',
+      '-map',
+      '1:v:0',
+      '-c:v',
+      'copy',
+      '-disposition:v:0',
+      'attached_pic',
+    ]);
+  } else {
+    args.addAll(['-vn', '-map', '0:a:0']);
+  }
   for (final entry in tags.entries) {
     if (entry.value.trim().isEmpty) continue;
     args.addAll(['-metadata', '${entry.key}=${entry.value}']);
@@ -48,6 +62,7 @@ class FfmpegAudioEncoder implements AudioEncoder {
     required int bitrateKbps,
     int? durationMs,
     Map<String, String> tags = const {},
+    String? coverUrl,
     void Function(double? progress)? onProgress,
     void Function(int sessionId)? onSession,
   }) async {
@@ -58,6 +73,7 @@ class FfmpegAudioEncoder implements AudioEncoder {
         outputPath: outputPath,
         bitrateKbps: bitrateKbps,
         tags: tags,
+        coverUrl: coverUrl,
       ),
       (s) => done.complete(s),
       null,

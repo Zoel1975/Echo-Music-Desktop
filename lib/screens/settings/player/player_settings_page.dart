@@ -313,23 +313,25 @@ class PlayerSettingsPage extends StatelessWidget {
 
                     // Infeasible Android internals — explicit future-update notes.
                     const GroupTitle(title: 'Advanced playback'),
-                    _comingSoon(
-                      context,
+                    SettingTile(
                       title: 'Playback cutoff guard',
-                      feature: 'Adaptive end-of-track pre-arming to avoid '
-                          'playback gaps.',
+                      subtitle: 'Pre-arm adattivo attivo (20-35 s)',
+                      leading: const Icon(Icons.timelapse),
                       isFirst: true,
+                      onTap: () =>
+                          context.go('/settings/player/automix_debug'),
+                    ),
+                    SettingTile(
+                      title: 'AXION / AutoEq engine',
+                      subtitle: '10 bande applicate al filtro audio',
+                      leading: const Icon(Icons.equalizer),
+                      onTap: () => context.go('/settings/player/axion'),
                     ),
                     _comingSoon(
                       context,
                       title: 'Bit-perfect USB DAC output',
                       feature: 'Direct UAC1/UAC2 driver bypass (Android audio '
                           'HAL only).',
-                    ),
-                    _comingSoon(
-                      context,
-                      title: 'AXION / AutoEq engine',
-                      feature: 'Pro-grade DSP with headphone AutoEq profiles.',
                       isLast: true,
                     ),
                     const SizedBox(height: 100), // extra padding for miniplayer

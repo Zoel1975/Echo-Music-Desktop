@@ -109,6 +109,12 @@ class MediaPlayer extends ChangeNotifier {
   ValueNotifier<ButtonState> get buttonState => _buttonState;
   ValueNotifier<ProgressBarState> get progressBarState => _progressBarState;
   bool get shuffleModeEnabled => _shuffleModeEnabled;
+
+  /// Reflects just_audio's shuffle state for the player UI.
+  final ValueNotifier<bool> shuffleNotifier = ValueNotifier<bool>(false);
+
+  Future<void> setShuffleModeEnabled(bool value) =>
+      _player.setShuffleModeEnabled(value);
   ValueNotifier<LoopMode> get loopMode => _loopMode;
   ValueNotifier<Duration?> get timerDuration => sleepTimer.remaining;
 
@@ -859,6 +865,7 @@ class MediaPlayer extends ChangeNotifier {
   void _listenToShuffle() {
     _player.shuffleModeEnabledStream.listen((data) {
       _shuffleModeEnabled = data;
+      shuffleNotifier.value = data;
       notifyListeners();
     });
   }

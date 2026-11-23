@@ -20,6 +20,7 @@ class ExportTask {
     required this.targetPath,
     required this.bitrateKbps,
     required this.tags,
+    this.coverUrl,
     this.durationMs,
     this.status = ExportStatus.queued,
     this.progress,
@@ -33,6 +34,7 @@ class ExportTask {
   final String targetPath;
   final int bitrateKbps;
   final Map<String, String> tags;
+  final String? coverUrl;
   final int? durationMs;
   final ExportStatus status;
   final double? progress;
@@ -54,6 +56,7 @@ class ExportTask {
         targetPath: targetPath,
         bitrateKbps: bitrateKbps,
         tags: tags,
+        coverUrl: coverUrl,
         durationMs: durationMs,
         status: status ?? this.status,
         progress: progress,
@@ -160,6 +163,10 @@ class ExportTaskQueue extends ChangeNotifier {
         'album': song?['album']?['name']?.toString() ?? '',
         'year': song?['year']?.toString() ?? '',
       },
+      // Embeds album art in the MP3 like Android's AudioExportService.
+      coverUrl: (song?['thumbnails'] is List && song!['thumbnails'].isNotEmpty)
+          ? song['thumbnails'].first['url']?.toString()
+          : null,
     );
     _tasks.add(task);
     notifyListeners();
@@ -212,6 +219,7 @@ class ExportTaskQueue extends ChangeNotifier {
           bitrateKbps: task.bitrateKbps,
           durationMs: task.durationMs,
           tags: task.tags,
+          coverUrl: task.coverUrl,
           onProgress: (progress) {
             if (_cancelled.contains(task.id)) return;
             _tasks[i] = _tasks[i].copyWith(progress: progress);

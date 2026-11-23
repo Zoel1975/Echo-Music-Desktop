@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get_it/get_it.dart';
+import 'package:Echo/themes/app_fonts.dart';
 import 'package:Echo/themes/theme.dart';
 import 'package:Echo/ytmusic/modals/yt_config.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -155,6 +156,14 @@ void main() async {
   await FileStorage.initialise();
   FileStorage fileStorage = FileStorage();
   SettingsManager settingsManager = SettingsManager();
+  AppFonts.initialize(settingsManager.extra<String>('appFont', 'Google Sans Flex'));
+
+  final themeVariant =
+      settingsManager.extra<String>('themeVariant', 'System');
+  if (themeVariant == 'Monochrome' || themeVariant == 'Monochrome OLED') {
+    // Mirrors Android's monochrome theme variant: seed the scheme with grey.
+    themeSeedOverride = Colors.grey;
+  }
 
   GetIt.I.registerSingleton<SettingsManager>(settingsManager);
   // Genuine desktop skip-silence: apply mpv's silenceremove filter before any

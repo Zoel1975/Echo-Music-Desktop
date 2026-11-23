@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:get_it/get_it.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +9,68 @@ import '../../themes/dark.dart';
 import '../../utils/song_thumbnail.dart';
 import 'widgets/animated_gradient_bg.dart';
 import 'widgets/lyrics_box.dart';
+
+/// Extracts the live palette from the playing artwork, like Android's
+/// `AmbientGlowBackground` / `extractThemeColor()`.
+class AmbientBackground extends StatefulWidget {
+  const AmbientBackground({this.artUri, super.key});
+
+  final Uri? artUri;
+
+  @override
+  State<AmbientBackground> createState() => _AmbientBackgroundState();
+}
+
+class _AmbientBackgroundState extends State<AmbientBackground> {
+  static const _fallback = [
+    Color(0xFF2A1B3D),
+    Color(0xFF1B2A3D),
+    Color(0xFF3D1B2A),
+  ];
+
+  List<Color> _colors = _fallback;
+
+  @override
+  void initState() {
+    super.initState();
+    _extract();
+  }
+
+  @override
+  void didUpdateWidget(AmbientBackground oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.artUri != widget.artUri) _extract();
+  }
+
+  Future<void> _extract() async {
+    final uri = widget.artUri;
+    if (uri == null) {
+      if (mounted) setState(() => _colors = _fallback);
+      return;
+    }
+    try {
+      final palette = await PaletteGenerator.fromImageProvider(
+        NetworkImage(uri.toString()),
+        maximumColorCount: 16,
+      );
+      final extracted = [
+        palette.vibrantColor?.color,
+        palette.darkVibrantColor?.color,
+        palette.mutedColor?.color,
+        palette.dominantColor?.color,
+      ].whereType<Color>().toList();
+      if (mounted && extracted.isNotEmpty) {
+        setState(() => _colors = extracted);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedGradientBackground(
+        colors: _colors,
+        animationDuration: const Duration(seconds: 20),
+      );
+}
 
 /// Real desktop port of Android `AmbientModeScreen` / `CanvasAlbum`: a
 /// full-screen immersive player with an animated palette background, album art
@@ -35,13 +98,9 @@ class AmbientPage extends StatelessWidget {
             backgroundColor: Colors.black,
             body: Stack(
               children: [
-                const Positioned.fill(
-                  child: AnimatedGradientBackground(
-                    colors: [
-                      Color(0xFF2A1B3D),
-                      Color(0xFF1B2A3D),
-                      Color(0xFF3D1B2A),
-                    ],
+                Positioned.fill(
+                  child: AmbientBackground(
+                    artUri: song?.artUri,
                   ),
                 ),
                 if (song == null)

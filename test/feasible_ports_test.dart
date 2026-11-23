@@ -23,6 +23,7 @@ class FakeAudioEncoder implements AudioEncoder {
     required int bitrateKbps,
     int? durationMs,
     Map<String, String> tags = const {},
+    String? coverUrl,
     void Function(double? progress)? onProgress,
     void Function(int sessionId)? onSession,
   }) async {

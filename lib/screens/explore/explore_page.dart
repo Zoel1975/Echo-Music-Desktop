@@ -54,12 +54,12 @@ class _ExplorePage extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.auto_awesome_mosaic),
-                    tooltip: 'Music Flow (coming soon)',
+                    tooltip: 'Music Flow',
                     onPressed: () => context.push('/music_flow_full'),
                   ),
                   IconButton(
                     icon: const Icon(Icons.animation),
-                    tooltip: 'Canvas & Ambient (coming soon)',
+                    tooltip: 'Canvas & Ambient',
                     onPressed: () => context.push('/canvas_ambient'),
                   ),
                 ],

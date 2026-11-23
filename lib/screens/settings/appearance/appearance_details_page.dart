@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
+import '../../../../themes/app_fonts.dart';
 import '../widgets/setting_item.dart';
 import '../widgets/settings_list.dart';
 import '../../../../core/widgets/back_button.dart';
@@ -34,7 +35,14 @@ class AppearanceDetailsPage extends StatelessWidget {
             'System',
           ),
           _soon(context, 'App Icon', 'Custom launcher icon (Android-only)'),
-          _soon(context, 'App Font', 'Google Sans / Outfit / Plus Jakarta Sans'),
+          _dropdown(
+            context,
+            s,
+            'App Font',
+            'appFont',
+            AppFonts.choices.keys.toList(),
+            'Google Sans Flex',
+          ),
 
           const GroupTitle(title: 'Glass effect'),
           _switch(context, s, 'Enable Liquid Glass', 'liquidGlass', false),
@@ -108,6 +116,7 @@ class AppearanceDetailsPage extends StatelessWidget {
   Widget _dropdown(BuildContext context, SettingsManager s, String title,
       String key, List<String> items, String fallback) {
     final value = s.extra<String>(key, fallback);
+    if (key == 'appFont') AppFonts.initialize(value);
     return SettingTile(
       title: title,
       subtitle: value,
@@ -119,7 +128,9 @@ class AppearanceDetailsPage extends StatelessWidget {
             .map((i) => DropdownMenuItem(value: i, child: Text(i)))
             .toList(),
         onChanged: (v) {
-          if (v != null) s.setExtra<String>(key, v);
+          if (v == null) return;
+          s.setExtra<String>(key, v);
+          if (key == 'appFont') AppFonts.initialize(v);
         },
       ),
     );

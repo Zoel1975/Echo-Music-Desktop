@@ -101,6 +101,19 @@ flutter:
   assets:
     - icons/
     - assets/po/po_token.html
+  fonts:
+    - family: GoogleSansFlex
+      fonts:
+        - asset: assets/fonts/google_sans_flex.ttf
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/outfit.ttf
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/plus_jakarta_sans.ttf
+    - family: BBHBartle
+      fonts:
+        - asset: assets/fonts/bbh_bartle_regular.ttf
 flutter_intl:
   enabled: true
 

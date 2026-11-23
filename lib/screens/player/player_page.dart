@@ -16,7 +16,9 @@ import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:text_scroll/text_scroll.dart';
 import 'package:palette_generator/palette_generator.dart';
 
+import '../../core/widgets/motion_effects.dart';
 import 'widgets/animated_gradient_bg.dart';
+import 'widgets/player_background.dart';
 
 import '../../services/audio_source_info.dart';
 import '../../services/automix_debug.dart';
@@ -188,9 +190,10 @@ class _PlayerPageState extends State<PlayerPage> {
                 backgroundColor: Colors.black,
                 body: Stack(
                   children: [
-                    // ANIMATED BACKGROUND GRADIENT (Apple Music style)
+                    // Player background: all seven Android styles.
                     Positioned.fill(
-                      child: AnimatedGradientBackground(
+                      child: PlayerBackground(
+                        style: GetIt.I<SettingsManager>().playerBackgroundStyle,
                         colors: paletteColors.isNotEmpty
                             ? paletteColors
                             : [
@@ -199,6 +202,15 @@ class _PlayerPageState extends State<PlayerPage> {
                                 Colors.purple.shade800,
                                 Colors.indigo.shade900,
                               ],
+                        artwork: currentSong?.artUri != null
+                            ? Image.network(
+                                currentSong!.artUri.toString(),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.shrink(),
+                              )
+                            : null,
+                        child: const SizedBox.expand(),
                       ),
                     ),
 
@@ -434,12 +446,18 @@ class _PlayerPageState extends State<PlayerPage> {
                                               child: ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(12),
-                                                child: SongThumbnail(
-                                                  song: currentSong!.extras!,
-                                                  fit: BoxFit.cover,
-                                                  onImageReady:
-                                                      updateBackgroundColor,
-                                                ),
+                                                child: GetIt.I<SettingsManager>()
+                                                        .extra<bool>(
+                                                            'hidePlayerThumbnail',
+                                                            false)
+                                                    ? const SizedBox.shrink()
+                                                    : SongThumbnail(
+                                                        song: currentSong!
+                                                            .extras!,
+                                                        fit: BoxFit.cover,
+                                                        onImageReady:
+                                                            updateBackgroundColor,
+                                                      ),
                                               ),
                                             ),
                                           ),
@@ -549,17 +567,9 @@ class _PlayerPageState extends State<PlayerPage> {
               valueListenable: Hive.box('FAVOURITES').listenable(),
               builder: (context, value, child) {
                 Map? item = value.get(currentSong?.extras?['videoId']);
-                return AdaptiveIconButton(
-                  icon: Icon(
-                    item == null
-                        ? AdaptiveIcons.heart
-                        : AdaptiveIcons.heart_fill,
-                    size: 24,
-                    color: item == null
-                        ? Colors.white.withValues(alpha: 0.7)
-                        : Colors.redAccent,
-                  ),
-                  onPressed: () async {
+                return HeartBurst(
+                  liked: item != null,
+                  onTap: () async {
                     if (item == null) {
                       await Hive.box('FAVOURITES').put(
                         currentSong!.extras!['videoId'],
@@ -607,6 +617,44 @@ class _PlayerPageState extends State<PlayerPage> {
         ValueListenableBuilder(
           valueListenable: mediaPlayer.progressBarState,
           builder: (context, ProgressBarState value, child) {
+            final sliderStyle = GetIt.I<SettingsManager>()
+                .extra<String>('sliderStyle', 'Default');
+            if (sliderStyle == 'Wavy' || sliderStyle == 'Squiggly') {
+              final ratio = value.total.inMilliseconds > 0
+                  ? (value.current.inMilliseconds /
+                          value.total.inMilliseconds)
+                      .clamp(0.0, 1.0)
+                  : 0.0;
+              return Column(
+                children: [
+                  WavySlider(
+                    value: ratio,
+                    squiggly: sliderStyle == 'Squiggly',
+                    onChanged: (v) => mediaPlayer.player.seek(
+                      Duration(
+                        milliseconds:
+                            (v * value.total.inMilliseconds).round(),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        value.current.toString().split('.').first,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 12),
+                      ),
+                      Text(
+                        value.total.toString().split('.').first,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
             return ProgressBar(
               progress: value.current,
               total: value.total,
@@ -628,15 +676,18 @@ class _PlayerPageState extends State<PlayerPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Shuffle
-            AdaptiveIconButton(
-              onPressed: () {
-                // Toggle shuffle not implemented in UI, just icon for now or placeholder
-              },
-              icon: Icon(
-                Icons.shuffle,
-                size: 24,
-                color: Colors.white.withValues(alpha: 0.7),
+            // Shuffle (same behaviour as the queue sheet)
+            ValueListenableBuilder<bool>(
+              valueListenable: mediaPlayer.shuffleNotifier,
+              builder: (context, enabled, _) => AdaptiveIconButton(
+                onPressed: () => mediaPlayer.setShuffleModeEnabled(!enabled),
+                icon: Icon(
+                  Icons.shuffle,
+                  size: 24,
+                  color: enabled
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.7),
+                ),
               ),
             ),
             // Previous

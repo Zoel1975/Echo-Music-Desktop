@@ -6,6 +6,7 @@ import '../../../generated/l10n.dart';
 import '../widgets/setting_item.dart';
 import '../../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../../utils/bottom_modals.dart';
+import '../../player/widgets/player_background.dart';
 import 'cubit/appearance_cubit.dart';
 import '../../../../core/widgets/back_button.dart';
 
@@ -112,8 +113,9 @@ class AppearancePage extends StatelessWidget {
                     _dropdown(context,
                         title: 'Player background style',
                         icon: Icons.wallpaper,
-                        value: s.playerBackgroundStyle,
-                        items: const ['Gradient', 'Solid', 'Artwork'],
+                        value: PlayerBackgroundStyle.normalize(
+                            s.playerBackgroundStyle),
+                        items: PlayerBackgroundStyle.all,
                         onChanged: cubit.setPlayerBackgroundStyle,
                         isFirst: true),
                     SettingSwitchTile(
