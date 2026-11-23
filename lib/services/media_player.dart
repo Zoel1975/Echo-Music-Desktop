@@ -382,7 +382,7 @@ class MediaPlayer extends ChangeNotifier {
 
   /// Short equal-power ramp used before the crossfade itself: the outgoing
   /// player starts muted, so jumping straight to full volume would click.
-  static const Duration handoffRampDuration = Duration(milliseconds: 140);
+  static const Duration handoffRampDuration = Duration(milliseconds: 220);
 
   /// A freshly attached StreamAudioSource needs a moment to buffer the range
   /// at [position]. Starting the handoff before that produced an audible
@@ -443,7 +443,7 @@ class MediaPlayer extends ChangeNotifier {
     final engine = CrossfadeEngine(
       out: from,
       inPlayer: to,
-      tick: const Duration(milliseconds: 20),
+      tick: const Duration(milliseconds: 25),
     )..peakVolume = peak;
     _handoffEngine = engine;
     final done = Completer<void>();
@@ -451,10 +451,19 @@ class MediaPlayer extends ChangeNotifier {
       if (!done.isCompleted) done.complete();
     });
     // A lost platform callback must not hang the play request.
-    await done.future
-        .timeout(const Duration(milliseconds: 700), onTimeout: () {});
+    var completed = true;
+    await done.future.timeout(
+      const Duration(milliseconds: 700),
+      onTimeout: () => completed = false,
+    );
     engine.dispose();
     if (identical(_handoffEngine, engine)) _handoffEngine = null;
+    if (!completed) {
+      // Force the end state: the main player must be silent before it seeks
+      // to the next track, otherwise that seek is audible as a "scattino".
+      await Future.wait([from.setVolume(0), to.setVolume(peak)]);
+      AutomixDebug.instance.log('handoff timeout: volumi forzati', level: 'WARN');
+    }
     AutomixDebug.instance.set(handoffRunning: false);
     AutomixDebug.instance.log('handoff fine');
   }

@@ -18,10 +18,19 @@ Il port segue `AdaptivePreArmManager.kt` / `StandbyCrossfadeSchedulerImpl.kt`:
 ## Handoff e curva
 
 - durante l'handoff il player udibile scende con `cos(t·π/2)` mentre lo standby
-  sale con `sin(t·π/2)` in 140 ms: nessun salto di volume;
+  sale con `sin(t·π/2)` in **220 ms**: nessun salto di volume;
 - il crossfade vero usa la stessa curva equal-power per la durata impostata;
 - i tick asincroni sovrapposti e quelli di una fade annullata vengono ignorati
   (`CrossfadeEngine` con generation guard);
+- **i due volumi vengono applicati in parallelo** (`Future.wait`) in ogni tick:
+  awaitarli in sequenza raddoppiava la finestra in cui un tick poteva essere
+  saltato, lasciando gradini di volume percettibili ("scattino");
+- **un tick saltato non perde progresso**: `t` viene ricalcolato dal cronometro
+  a ogni tick, quindi la curva resta continua;
+- a fine fade i volumi finali (`0` e `peak`) vengono scritti esplicitamente:
+  un callback piattaforma perso non può lasciare un volume intermedio proprio
+  mentre il player principale fa il seek al brano successivo;
+- se l'handoff non completa entro 700 ms, i volumi finali vengono forzati;
 - il volume finale viene ripristinato dal valore catturato all'inizio, non
   ricalcolato da un player muto (che lo portava al 100%).
 

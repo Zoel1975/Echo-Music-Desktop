@@ -1,132 +1,140 @@
 <div align="center">
   <img src="assets/Echo_github.png" alt="Echo Music Logo" width="140"/>
   <h1>Echo Music Desktop</h1>
-  <p><strong>A robust, open-source music streaming client for Desktop</strong></p>
-  <p>Ad-free experience, offline capabilities, and advanced music discovery.</p>
+  <p><strong>Il tuo music player completo su Windows.</strong></p>
+  <p>Streaming da YouTube Music senza pubblicità, ascolto offline, Automix intelligente e un'interfaccia curata in ogni dettaglio.</p>
 
-  <a href="https://github.com/EchoMusicApp/Echo-Music-Desktop/releases/download/v1.0/EchoMusic.exe"><img src="assets/Windows-button.png" alt="Download for Windows" width="170"/></a>
-  <a href="https://github.com/EchoMusicApp/Echo-Music-Desktop/releases/download/v1.0/EchoMusic.dmg"><img src="assets/mac-button.png" alt="Download for Mac" width="170"/></a>
+  <a href="https://github.com/ItsZale0/Echo-Music-Desktop/releases/latest"><img src="assets/Windows-button.png" alt="Scarica per Windows" width="170"/></a>
 </div>
 
 ---
 
-> **Port status (work in progress).** This repository is being brought up to
-> feature parity with the Android app
-> [`EchoMusicApp/Echo-Music`](https://github.com/EchoMusicApp/Echo-Music)
-> (Kotlin + Compose). See [`docs/PORTING_PLAN.md`](docs/PORTING_PLAN.md) for the
-> parity matrix, architecture and phase plan, and run `tool/verify.ps1` to check
-> the build. Both projects are GPL-3.0.
+## Cos'è
 
-## Overview
+Echo Music Desktop è il port nativo per Windows di [Echo Music](https://github.com/EchoMusicApp/Echo-Music), l'app Android per YouTube Music. Non è un wrapper del browser: è un client Flutter che si collega al tuo account YouTube Music, riproduce l'audio attraverso un motore dedicato e offre funzioni che l'app web non ha.
 
-Echo Music Desktop brings the premium music listening experience to your computer. Built with Flutter, it offers a seamless interface to stream music from YouTube Music without advertisements, along with powerful desktop-centric features.
+**Stato:** parità completa con l'app Android — **48/48 funzioni** (`docs/PARITY_MATRIX.md`).
 
-## Screenshots
+**Piattaforme:** Windows x64. macOS e Linux non sono supportati in questa release.
 
-<div align="center">
-  <img src="Screenshots/Desktop-1.png" alt="Desktop Home" width="400"/>
-  <img src="Screenshots/Desktop-2.png" alt="Desktop Player" width="400"/>
-</div>
-<div align="center">
-  <img src="Screenshots/Desktop-3.png" alt="Desktop Library" width="400"/>
-  <img src="Screenshots/Desktop-4.png" alt="Desktop Settings" width="400"/>
-</div>
-
-## Features
-
-*   **Ad-Free Streaming:** Enjoy uninterrupted music playback.
-*   **High Quality Audio:** Stream in the best available quality.
-*   **Offline Mode:** Download your favorite tracks and playlists for offline listening.
-*   **Lyrics Support:** Real-time synchronized lyrics with AI-powered translation.
-*   **Broad Compatibility:** Cross-platform support for Windows, macOS, and Linux.
-*   **Smart Recommendations:** Personalized song suggestions based on your listening history.
-*   **Sleep Timer:** Configure automatic playback cessation.
-
-## Installation
-
-### Windows
-1.  Download the latest installer (`.exe`) from the [Releases Page](https://github.com/iad1tya/Echo-Music/releases/latest).
-2.  Run the installer and follow the on-screen prompts.
-
-### macOS
-1.  Download the `.dmg` file from the [Releases Page](https://github.com/iad1tya/Echo-Music/releases/latest).
-2.  Open the disk image and drag "Echo Music" to your Applications folder.
-3.  *Note: If you encounter a security warning, go to System Settings > Privacy & Security and allow the application.*
-
-### Linux
-Echo Music is available as an AppImage, DEB, and RPM package.
-1.  Download the appropriate package from the [Releases Page](https://github.com/iad1tya/Echo-Music/releases/latest).
-2.  **AppImage**: Make it executable (`chmod +x Echo-Music-*.AppImage`) and run it.
-3.  **DEB/RPM**: Install using your package manager (e.g., `sudo dpkg -i package.deb`).
-
-## Build from Source
-
-To build Echo Music locally, ensure you have Flutter installed and configured for desktop development.
-
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/iad1tya/Echo-Music.git
-    cd Echo-Music
-    ```
-
-2.  **Enable Desktop Support**
-    Enable the platforms you intend to build for:
-    ```bash
-    flutter config --enable-windows-desktop
-    flutter config --enable-macos-desktop
-    flutter config --enable-linux-desktop
-    ```
-
-3.  **Install Dependencies**
-    ```bash
-    flutter pub get
-    ```
-
-4.  **Run the Application**
-    ```bash
-    flutter run -d [windows|macos|linux]
-    ```
-
-5.  **Build for Release**
-    ```bash
-    flutter build [windows|macos|linux]
-    ```
+**Licenza:** GPL-3.0.
 
 ---
 
-## Community and Support
+## Funzioni in evidenza
 
-Join our community for updates, support, and discussions.
+### Ascolto
+- **Streaming senza pubblicità** dalla tua libreria YouTube Music, con la qualità migliore disponibile.
+- **Brani con limite d'età** riproducibili grazie al port del workaround Android (PoToken BotGuard + `signatureTimestamp` reale + decifratura `signatureCipher`). Nessuna finestra del browser si apre durante la riproduzione.
+- **Download e ascolto offline**, con export MP3 reale (ID3v2.3, copertina inclusa) e opzione FLAC Monochrome con fallback YouTube e priorità Data Saver.
+- **Sorgente e codec sempre visibili**, così sai cosa stai ascoltando.
 
-<div align="center">
-  <a href="https://discord.gg/EcfV3AxH5c"><img src="assets/discord.png" width="140"/></a>
-  <a href="https://t.me/EchoMusicApp"><img src="assets/telegram.png" width="130"/></a>
-</div>
+### Scoperta e organizzazione
+- **Home personalizzabile** con sezioni configurabili.
+- **Ricerca** online e nella libreria locale, con filtri.
+- **Playlist e code**: toccare un brano imposta l'intera playlist come coda, partendo dal brano scelto.
+- **Explore**, **podcast**, **Music Flow** con 7 toggle, **cronologia** e **brani piaciuti**.
 
-### Support the Project
+### Automix e crossfade
+- **Crossfade adattivo** con pre-arm da 20 a 35 secondi e handoff a 220 ms senza scatti.
+- **Analisi beat** (BPM, fase, chiave) e **mix-in/mix-out** dinamici calcolati sull'energia dell'audio.
+- **Beat-matching** e **DJ blend di 16 beat** con ducking della traccia in uscita.
+- **Mixing armonico** con ruota Camelot: sceglie il brano successivo tra i primi 3 della coda in base alla compatibilità della chiave.
+- **Diagnostica Automix** integrata, con stato, volumi, BPM e log degli eventi.
 
-If you find this project useful, consider supporting its development.
+### Testi e suono
+- **12 provider di lyrics**, sincronizzazione parola per parola e traduzione.
+- **Equalizzatore a 10 bande**, AutoEq, preset Axion e **DSP** con controllo del guadagno.
+- **Normalizzazione del volume** basata sulla loudness del brano.
 
-<div align="center">
-  <a href="https://buymeacoffee.com/iad1tya"><img src="assets/bmac.png" width="140"/></a>
-  <a href="https://intradeus.github.io/http-protocol-redirector/?r=upi://pay?pa=iad1tya@upi&pn=Aditya%20Yadav&am=&tn=Thank%20You"><img src="assets/upi.svg" width="100"/></a>
-  <a href="https://www.patreon.com/cw/iad1tya"><img src="assets/patreon3.png" width="100"/></a>
-</div>
+### Esperienza
+- **Wrapped in stile YouTube Music**: 9 slide animate con i tuoi dati reali di ascolto (`FEmusic_history`), temi, radar, EQ e poster colorati.
+- **Commenti YouTube** sui brani, con autore, avatar, like e risposte.
+- **Riconoscimento brani offline**: registra dal microfono, calcola un'impronta spettrale e la confronta con la tua libreria indicizzata. Nessuna API a pagamento.
+- **Cast DirectV2** verso Chromecast e smart TV (mDNS + DIAL).
+- **7 background del player**, font Android, vetro EchoGlass, slider ondulati, HeartBurst, marquee, shimmer, EQ circolare e palette ambient.
+- **Sleep timer**, **SponsorBlock**, **comandi remote**, **device link** e impostazioni con ricerca globale.
 
-### Cryptocurrency Addresses
-<div align="center">
-  <table>
-    <tr>
-      <td align="center"><strong>Bitcoin</strong><br><img src="assets/Bitcoin.jpeg" width="150"/><br><code>bc1qcvyr7eekha8uytmffcvgzf4h7xy7shqzke35fy</code></td>
-      <td align="center"><strong>Ethereum</strong><br><img src="assets/Ethereum.jpeg" width="150"/><br><code>0x51bc91022E2dCef9974D5db2A0e22d57B360e700</code></td>
-      <td align="center"><strong>Solana</strong><br><img src="assets/Solana.jpeg" width="150"/><br><code>9wjca3EQnEiqzqgy7N5iqS1JGXJiknMQv6zHgL96t94S</code></td>
-    </tr>
-  </table>
-</div>
-
+La guida completa è in [`docs/FEATURES.md`](docs/FEATURES.md); per iniziare vedi [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md).
 
 ---
 
+## Installazione
+
+### Windows (consigliato)
+1. Scarica `EchoMusicSetup.exe` dalla [pagina Releases](https://github.com/ItsZale0/Echo-Music-Desktop/releases/latest).
+2. Esegui l'installer: è una procedura guidata reale in italiano e inglese, con licensing GPL-3.0, scorciatoia sul Desktop, voce nel Menu Start e disinstallatore.
+3. Avvia Echo Music dal Menu Start o dalla scorciatoia.
+
+### Portabile (senza installazione)
+1. Scarica `EchoMusicPortable.zip` dalla [pagina Releases](https://github.com/ItsZale0/Echo-Music-Desktop/releases/latest).
+2. Estrai l'archivio in una cartella a tua scelta.
+3. Avvia `echo.exe`. Nessuna installazione, nessuna scrittura nel registro.
+
+### Aggiornamento
+Scarica il nuovo installer ed eseguilo: sovrascrive la versione precedente mantenendo i dati (account, preferenze, cronologia). L'archivio portatile va estratto in una nuova cartella.
+
+---
+
+## Primo avvio
+
+1. Clicca **Accedi** e completa il login con il tuo account Google/YouTube Music. Viene usato un profilo Chrome dedicato e i cookie vengono salvati in modo sicuro.
+2. Dopo il login la libreria, la cronologia e le playlist vengono caricate.
+3. Premi un brano per iniziare l'ascolto. Tocca l'icona del player per aprire i controlli completi, i testi e l'Automix.
+
+Per i dettagli, inclusi i brani con limite d'età e il riconoscimento brani, leggi [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md).
+
+---
+
+## Compilare da sorgente
+
+Serve Flutter con il supporto Windows abilitato.
+
+```bash
+git clone https://github.com/ItsZale0/Echo-Music-Desktop.git
+cd Echo-Music-Desktop
+flutter config --enable-windows-desktop
+flutter pub get
+flutter run -d windows
+```
+
+Build di produzione:
+
+```bash
+flutter build windows --release
+```
+
+L'installer Inno Setup si genera con lo script in `installer/EchoMusic.iss`. La verifica completa è:
+
+```bash
+flutter analyze
+flutter test
+tool/verify.ps1
+```
+
+---
+
+## Documentazione
+
+| Documento | Contenuto |
+|---|---|
+| [`docs/FEATURES.md`](docs/FEATURES.md) | Tutte le funzioni dell'app, spiegate per uso |
+| [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) | Installazione, login e primi passi |
+| [`docs/PARITY_MATRIX.md`](docs/PARITY_MATRIX.md) | Matrice di parità Android → Desktop (48/48) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Architettura tecnica e componenti |
+| [`docs/AGE_GATE.md`](docs/AGE_GATE.md) | Come funziona la riproduzione dei brani age-gated |
+| [`docs/AUTOMIX.md`](docs/AUTOMIX.md) | Beat analysis, DJ blend e mixing armonico |
+| [`docs/CROSSFADE.md`](docs/CROSSFADE.md) | Pre-arm adattivo, handoff e curva di fade |
+| [`docs/MP3_EXPORT.md`](docs/MP3_EXPORT.md) | Export MP3 con copertina |
+| [`docs/MONOCHROME_FLAC.md`](docs/MONOCHROME_FLAC.md) | FLAC monochrome e fallback |
+| [`docs/PORTING_PLAN.md`](docs/PORTING_PLAN.md) | Piano di port storico e dettagli di implementazione |
+
+---
+
+## Community e supporto
+
+Per segnalazioni e richieste apri una issue nel repository. Il progetto originale Android è [EchoMusicApp/Echo-Music](https://github.com/EchoMusicApp/Echo-Music).
+
 <div align="center">
-    Licensed under <a href="LICENSE">GPL-3.0</a>
+    Realizzato con Flutter. Licenziato sotto <a href="LICENSE">GPL-3.0</a>.
 </div>

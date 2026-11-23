@@ -60,6 +60,19 @@ se media_kit non espone `bufferedPosition`, procede comunque riprovando `play()`
 al trigger: prima di questa correzione ogni pre-arm veniva annullato e il
 crossfade automatico non partiva mai.
 
+## Transizioni senza scatti
+
+Le transizioni Automix usano lo stesso motore di crossfade del cambio brano manuale:
+
+- l'handoff tra player principale e standby dura **220 ms** con curva equal-power;
+- i volumi dei due player vengono aggiornati in parallelo a ogni tick e il progresso
+  viene ricalcolato dal cronometro, quindi un tick saltato non crea un gradino;
+- i volumi finali vengono scritti esplicitamente a fine rampa (e forzati se un
+  callback piattaforma va perso), così il seek al brano successivo avviene sempre
+  a volume zero del player principale.
+
+Vedi [`CROSSFADE.md`](CROSSFADE.md) per i dettagli.
+
 ## Limiti della fase 3
 
 - il ducking di Android è per-sample con rampa (nessun "zipper noise"): qui è

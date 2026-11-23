@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -43,6 +44,9 @@ import '../ytmusic/ytmusic.dart';
 /// started in a normal launch and never binds to a network interface.
 class RuntimeProbeService {
   RuntimeProbeService._();
+
+  static Timer? _xfadeTrace;
+  static final List<String> _xfadeSamples = <String>[];
 
   static Future<HttpServer> start() async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -206,6 +210,33 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/xfade/record' && request.method == 'POST') {
+      final ms = int.tryParse(
+              request.uri.queryParameters['ms'] ?? '4000') ?? 4000;
+      _xfadeTrace?.cancel();
+      _xfadeTrace = null;
+      _xfadeSamples.clear();
+      final sw = Stopwatch()..start();
+      _xfadeTrace = Timer.periodic(const Duration(milliseconds: 10), (t) {
+        final mp = GetIt.I<MediaPlayer>();
+        _xfadeSamples.add(
+          '${sw.elapsedMilliseconds} ${mp.player.volume.toStringAsFixed(3)} '
+          '${mp.diagnosticOutVolume.toStringAsFixed(3)} '
+          '${mp.diagnosticHandoffRunning ? 'H' : '-'}'
+          '${mp.diagnosticCrossfading ? 'F' : '-'}',
+        );
+      });
+      Timer(Duration(milliseconds: ms), () {
+        _xfadeTrace?.cancel();
+        _xfadeTrace = null;
+      });
+      _json(request.response, 200, {'recording': ms});
+      return;
+    }
+    if (path == '/xfade/trace' && request.method == 'GET') {
+      _json(request.response, 200, {'lines': _xfadeSamples.toList()});
+      return;
+    }
     if (path == '/player/status' && request.method == 'GET') {
       final mp = GetIt.I<MediaPlayer>();
       _json(request.response, 200, {
@@ -214,6 +245,10 @@ class RuntimeProbeService {
         'durationMs': mp.player.duration?.inMilliseconds,
         'current': mp.currentSongNotifier.value?.id,
         'error': mp.playbackError.value,
+        'mainVolume': mp.player.volume,
+        'outVolume': mp.diagnosticOutVolume,
+        'handoff': mp.diagnosticHandoffRunning,
+        'fading': mp.diagnosticCrossfading,
       });
       return;
     }

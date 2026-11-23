@@ -18,7 +18,7 @@ Material You dal wallpaper, RenderEffect con rifrazione reale.
 | 10 | Ricerca globale impostazioni | DONE | `settings_page.dart` |
 | 11 | Login CDP + cookie | DONE | `google_login_service.dart` |
 | 12 | Account/sign-out | DONE | `account_page.dart`, `session_service.dart` |
-| 13 | Brani age-gated | DONE | `po_token_minter.dart`, `AGE_GATE.md` (limite account documentato) |
+| 13 | Brani age-gated | DONE | `stream_resolver.dart` (STS reale + `signatureCipher`) + `po_token_minter.dart`, `AGE_GATE.md` (nessun browser visibile) |
 | 14 | Coda persistente | DONE | `queue_snapshot.dart`, `media_player.dart` |
 | 15 | Sleep timer | DONE | `sleep_timer.dart` |
 | 16 | SponsorBlock | DONE | `sponsor_block_service.dart` |

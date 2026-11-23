@@ -94,20 +94,36 @@ class CrossfadeEngine {
     final generation = _generation;
     final sw = _stopwatchFactory()..start();
     _timer = Timer.periodic(tick, (timer) async {
-      // setVolume() is async on Windows. Overlapping ticks would apply stale
-      // volumes out of order, audible as a stutter/click near the handoff.
-      if (_updating || generation != _generation) return;
+      if (generation != _generation) return;
+      // setVolume() is async on Windows. Never apply two ramps out of order.
+      // A skipped tick is harmless: the next one recomputes `t` from the
+      // stopwatch, so no progress is lost and the curve stays continuous.
+      if (_updating) return;
       _updating = true;
       try {
         final t =
             (sw.elapsedMicroseconds / duration.inMicroseconds).clamp(0.0, 1.0);
-        await out.setVolume(peakVolume * CrossfadeCurve.fadeOut(t));
-        await inPlayer.setVolume(peakVolume * CrossfadeCurve.fadeIn(t));
+        // Apply both ends together. Awaiting them sequentially doubled the
+        // window in which a tick could be skipped, leaving coarse volume
+        // steps ("scattino") right before the main player seeks to the next
+        // track.
+        await Future.wait([
+          out.setVolume(peakVolume * CrossfadeCurve.fadeOut(t)),
+          inPlayer.setVolume(peakVolume * CrossfadeCurve.fadeIn(t)),
+        ]);
         if (generation != _generation) return;
         if (t >= 1.0) {
           timer.cancel();
           _timer = null;
           _running = false;
+          // Guarantee the exact end volumes even if the final setVolume was
+          // rejected by a stale platform callback: a leftover intermediate
+          // volume makes the source switch audible as a click.
+          await Future.wait([
+            out.setVolume(0),
+            inPlayer.setVolume(peakVolume),
+          ]);
+          if (generation != _generation) return;
           onDone?.call();
         }
       } finally {
