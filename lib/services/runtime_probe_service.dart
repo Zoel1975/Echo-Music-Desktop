@@ -754,6 +754,30 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/settings/extra' && request.method == 'POST') {
+      final key = request.uri.queryParameters['key'] ?? '';
+      final value = request.uri.queryParameters['value'] ?? '';
+      if (key.isEmpty) {
+        _json(request.response, 400, {'error': 'missing key'});
+        return;
+      }
+      final settings = GetIt.I<SettingsManager>();
+      final numeric = num.tryParse(value);
+      if (numeric != null && value.contains('.')) {
+        settings.setExtra<double>(key, numeric.toDouble());
+      } else if (numeric != null) {
+        settings.setExtra<int>(key, numeric.toInt());
+      } else if (value == 'true' || value == 'false') {
+        settings.setExtra<bool>(key, value == 'true');
+      } else {
+        settings.setExtra<String>(key, value);
+      }
+      _json(request.response, 200, {
+        'key': key,
+        'value': settings.settings['EXTRA_$key'],
+      });
+      return;
+    }
     if (path == '/settings/crossfade' && request.method == 'POST') {
       final enabled = request.uri.queryParameters['enabled'] != '0';
       final settings = GetIt.I<SettingsManager>();

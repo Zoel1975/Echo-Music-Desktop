@@ -49,6 +49,19 @@ void main() {
     }
   });
 
+  test('blur never leaks outside the mini-player on Windows', () {
+    final glass = src('lib/core/widgets/echo_surface.dart');
+    expect(glass, isNot(contains('child: BackdropFilter(')),
+        reason: 'BackdropFilter leaked blur to the whole settings screen');
+    expect(glass, contains('LinearGradient'));
+
+    final background =
+        src('lib/screens/player/widgets/player_background.dart');
+    expect(background, contains('ImageFiltered'),
+        reason: 'artwork blur must filter the child, not the backdrop');
+    expect(background, isNot(contains('BackdropFilter(')));
+  });
+
   test('glass and micro-effects are real widgets', () {
     final glass = src('lib/core/widgets/echo_surface.dart');
     expect(glass, contains('BackdropFilter'));

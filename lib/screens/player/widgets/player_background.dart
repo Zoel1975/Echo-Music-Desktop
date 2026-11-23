@@ -125,12 +125,26 @@ class PlayerBackground extends StatelessWidget {
 
   Widget _liquidGlass(BuildContext context) => Stack(
         children: [
-          Positioned.fill(child: _gradientOnly()),
+          // Base is the artwork, softly blurred as in Android's glass player.
           Positioned.fill(
-            child: BackdropFilter(
-              filter: uiBlur(18),
-              child: Container(
-                color: Colors.white.withValues(alpha: 0.05),
+            child: artwork != null
+                ? ImageFilterView(sigma: 28, child: artwork!)
+                : _gradientOnly(),
+          ),
+          // A single translucent tint. Adding a second BackdropFilter here
+          // used to double-blur and produce dark/striped artifacts.
+          Positioned.fill(
+            child: Container(
+              color: Colors.white.withValues(alpha: 0.06),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.09),
+                  width: 1,
+                ),
               ),
             ),
           ),
@@ -142,7 +156,9 @@ class PlayerBackground extends StatelessWidget {
       ImageFilter.blur(sigmaX: sigma, sigmaY: sigma);
 }
 
-/// Applies a blur to an arbitrary artwork widget without rebuilding it.
+/// Blurs the artwork ITSELF. BackdropFilter blurs what is behind the widget
+/// (which made the old implementation blur the gradient and leave the cover
+/// sharp); ImageFiltered applies the filter to the child.
 class ImageFilterView extends StatelessWidget {
   const ImageFilterView({required this.sigma, required this.child, super.key});
 
@@ -151,9 +167,10 @@ class ImageFilterView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-          child: child,
+        child: ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+          // Overscan hides the transparent fringe produced by the blur.
+          child: Transform.scale(scale: 1.25, child: child),
         ),
       );
 }
