@@ -10,6 +10,7 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
   final bool showSeekButtons;
   final bool crossfadeEnabled;
   final bool automixBeatAlign;
+  final bool automixHarmonicMix;
   final double crossfadeDuration;
   final bool dataSaver;
   final dynamic streamingQuality;
@@ -41,6 +42,7 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
     required this.showSeekButtons,
     required this.crossfadeEnabled,
     this.automixBeatAlign = true,
+    this.automixHarmonicMix = true,
     required this.crossfadeDuration,
     required this.dataSaver,
     required this.streamingQuality,
@@ -71,6 +73,7 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
     bool? showSeekButtons,
     bool? crossfadeEnabled,
     bool? automixBeatAlign,
+    bool? automixHarmonicMix,
     double? crossfadeDuration,
     bool? dataSaver,
     dynamic streamingQuality,
@@ -100,6 +103,7 @@ class PlayerSettingsLoaded extends PlayerSettingsState {
       showSeekButtons: showSeekButtons ?? this.showSeekButtons,
       crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
       automixBeatAlign: automixBeatAlign ?? this.automixBeatAlign,
+      automixHarmonicMix: automixHarmonicMix ?? this.automixHarmonicMix,
       crossfadeDuration: crossfadeDuration ?? this.crossfadeDuration,
       dataSaver: dataSaver ?? this.dataSaver,
       streamingQuality: streamingQuality ?? this.streamingQuality,

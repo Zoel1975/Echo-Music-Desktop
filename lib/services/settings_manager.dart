@@ -39,6 +39,7 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool _showSeekButtons = false;
   bool _crossfadeEnabled = false;
   bool _automixBeatAlign = true;
+  bool _automixHarmonicMix = true;
   double _crossfadeDuration = 5.0;
   int _exportBitrateKbps = 192;
   bool _dataSaver = false;
@@ -114,6 +115,7 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   bool get showSeekButtons => _showSeekButtons;
   bool get crossfadeEnabled => _crossfadeEnabled;
   bool get automixBeatAlign => _automixBeatAlign;
+  bool get automixHarmonicMix => _automixHarmonicMix;
   double get crossfadeDuration => _crossfadeDuration;
   int get exportBitrateKbps => _exportBitrateKbps;
   bool get dataSaver => _dataSaver;
@@ -209,6 +211,8 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
     _showSeekButtons = _box.get('SHOW_SEEK_BUTTONS', defaultValue: false);
     _crossfadeEnabled = _box.get('CROSSFADE_ENABLED', defaultValue: false);
     _automixBeatAlign = _box.get('AUTOMIX_BEAT_ALIGN', defaultValue: true);
+    _automixHarmonicMix =
+        _box.get('AUTOMIX_HARMONIC_MIX', defaultValue: true);
     _crossfadeDuration =
         (_box.get('CROSSFADE_DURATION', defaultValue: 5.0) as num).toDouble();
     _exportBitrateKbps =
@@ -433,6 +437,12 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
   set automixBeatAlign(bool value) {
     _box.put('AUTOMIX_BEAT_ALIGN', value);
     _automixBeatAlign = value;
+    notifyListeners();
+  }
+
+  set automixHarmonicMix(bool value) {
+    _box.put('AUTOMIX_HARMONIC_MIX', value);
+    _automixHarmonicMix = value;
     notifyListeners();
   }
 

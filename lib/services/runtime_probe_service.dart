@@ -678,6 +678,34 @@ class RuntimeProbeService {
       }
       return;
     }
+    if (path == '/automix/harmonic-test' && request.method == 'POST') {
+      final settings = GetIt.I<SettingsManager>();
+      settings.crossfadeEnabled = true;
+      settings.automixBeatAlign = true;
+      settings.automixHarmonicMix = true;
+      final player = GetIt.I<MediaPlayer>();
+      Map<String, dynamic> song(String id, String title) => {
+            'videoId': id,
+            'title': title,
+            'artists': [
+              {'name': 'Probe'}
+            ],
+            'duration': 210000,
+          };
+      await player.playSong(song('dQw4w9WgXcQ', 'Harmony OUT'));
+      for (final id in ['2Vv-BfVoq4g', 'kJQP7kiw5Fk', 'JgpJVI3tDbY']) {
+        await player.addToQueue(song(id, 'Harmony candidate $id'));
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+      final duration = player.player.duration ?? const Duration(seconds: 210);
+      final target = duration - const Duration(seconds: 45);
+      await player.player.seek(target > Duration.zero ? target : Duration.zero);
+      _json(request.response, 200, {
+        'queued': player.player.sequence.length,
+        'targetMs': target.inMilliseconds,
+      });
+      return;
+    }
     if (path == '/queue/crossfade-test' && request.method == 'POST') {
       final settings = GetIt.I<SettingsManager>();
       settings.crossfadeEnabled = true;

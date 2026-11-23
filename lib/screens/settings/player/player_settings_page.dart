@@ -145,6 +145,14 @@ class PlayerSettingsPage extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (s.crossfadeEnabled && s.automixBeatAlign)
+                      SettingSwitchTile(
+                        title: 'Automix · mixing armonico',
+                        subtitle: 'Sceglie il brano successivo in tonalità compatibile (Camelot)',
+                        leading: const Icon(Icons.grid_3x3),
+                        value: s.automixHarmonicMix,
+                        onChanged: cubit.setAutomixHarmonicMix,
+                      ),
                     SettingTile(
                       title: 'Diagnostica Automix',
                       subtitle: 'Stato, analisi beat, mix point e log eventi',

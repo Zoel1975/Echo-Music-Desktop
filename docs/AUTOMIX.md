@@ -26,7 +26,15 @@ Port dell'Automix di Echo Android. Questa build contiene la fase 3.
   posto della durata fissa; **ducking low-shelf** sulla traccia in uscita
   (`bass=f=150:g=-8`) applicato solo al momento della creazione del player
   di standby, poiché la catena `af` di mpv è uno snapshot per player;
-  rilevamento chiave (Krumhansl-Schmuckler) disponibile come `keyLabel`.
+  rilevamento chiave (Krumhansl-Schmuckler) come `keyLabel`;
+- **mixing armonico** (`harmonic_mixing.dart`): la chiave viene convertita in
+  Camelot (1A-12A / 1B-12B) e usata per scegliere il brano successivo tra i
+  primi 3 della coda. Punteggio: stessa chiave 1.0, relativa maggiore/minore
+  0.85, quinta giusta (adescente sul wheel) 0.7, altrimenti 0. Il candidato
+  migliore viene spostato subito dopo il brano corrente con
+  `moveAudioSource`. Setting **Automix · mixing armonico** in Player (default
+  on) e risultato visibile nella diagnostica. L'analisi dei candidati è
+  limitata a 3 s ciascuno per non consumare il lead del pre-arm.
 
 ## Diagnostica (port del debug overlay Android)
 
@@ -57,7 +65,8 @@ crossfade automatico non partiva mai.
 - il ducking di Android è per-sample con rampa (nessun "zipper noise"): qui è
   un filtro statico sul player di uscita, mascherato dalla fade-in della nuova
   traccia. Non è un IIR per-sample, ma evita il mud dei due bassi;
-- la chiave viene rilevata ma non ancora usata per filtrare o scegliere i brani.
+- il confronto armonico considera solo i 3 brani successivi della coda, non
+  l'intera libreria o le raccomandazioni radio.
 
 ## Test
 

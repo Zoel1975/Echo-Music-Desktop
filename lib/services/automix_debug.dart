@@ -44,6 +44,8 @@ class AutomixDebug extends ChangeNotifier {
   BeatAnalysisResult? outBeat;
   BeatAnalysisResult? inBeat;
   String? lastError;
+  String? harmonicChoice;
+  double? harmonicScore;
 
   List<AutomixLogEntry> get entries => List.unmodifiable(_entries);
 
@@ -76,6 +78,8 @@ class AutomixDebug extends ChangeNotifier {
     BeatAnalysisResult? outBeat,
     BeatAnalysisResult? inBeat,
     String? lastError,
+    String? harmonicChoice,
+    double? harmonicScore,
   }) {
     this.status = status ?? this.status;
     this.crossfadeEnabled = crossfadeEnabled ?? this.crossfadeEnabled;
@@ -93,6 +97,8 @@ class AutomixDebug extends ChangeNotifier {
     this.outBeat = outBeat ?? this.outBeat;
     this.inBeat = inBeat ?? this.inBeat;
     this.lastError = lastError ?? this.lastError;
+    this.harmonicChoice = harmonicChoice ?? this.harmonicChoice;
+    this.harmonicScore = harmonicScore ?? this.harmonicScore;
     notifyListeners();
   }
 
@@ -119,6 +125,8 @@ class AutomixDebug extends ChangeNotifier {
         'outBeat': outBeat?.toJson(),
         'inBeat': inBeat?.toJson(),
         'lastError': lastError,
+        'harmonicChoice': harmonicChoice,
+        'harmonicScore': harmonicScore,
         'log': _entries.take(40).map((e) => e.formatted).toList(),
       };
 

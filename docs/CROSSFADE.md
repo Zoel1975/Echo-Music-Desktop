@@ -32,8 +32,9 @@ rimuovono pero' la causa dello stall.
 
 ## Automix
 
-L'Automix Android e' un insieme piu' ampio: `BeatAnalyzer` (STFT, spectral
-flux, autocorrelazione per BPM/beat-grid/chiave), mix-in/mix-out dinamici,
-blend DJ di 16 beat, ducking low-shelf per-sample (`AutomixDuckAudioProcessor`)
-e standby player. Non e' stato portato in questa build. Vedi il piano nella
-risposta all'utente.
+L'Automix Android e' stato portato nelle fasi 1-3: `BeatAnalyzer` (STFT,
+spectral flux, autocorrelazione per BPM/beat-grid/chiave), mix-in/mix-out
+dinamici, beat-matching, DJ blend di 16 beat, ducking low-shelf, mixing
+armonico con Camelot wheel e diagnostica. Vedi `docs/AUTOMIX.md` per dettagli
+e limiti (il ducking e' un filtro statico sul player di uscita, non un IIR
+per-sample come su Android).

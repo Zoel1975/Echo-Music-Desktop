@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
@@ -12,6 +13,7 @@ import 'package:Echo/services/crossfade_engine.dart';
 import 'package:Echo/services/crossfade_prearm.dart';
 import 'package:Echo/services/desktop_dsp.dart';
 import 'package:Echo/services/eq_settings.dart';
+import 'package:Echo/services/harmonic_mixing.dart';
 import 'package:Echo/services/playback_cutoff.dart';
 import 'package:Echo/services/scrobble_service.dart';
 import 'package:Echo/services/discord_rpc_service.dart';
@@ -508,6 +510,87 @@ class MediaPlayer extends ChangeNotifier {
     return Duration(milliseconds: (settings.crossfadeDuration * 1000).round());
   }
 
+  /// Uses the detected musical key (Camelot wheel) to pick the most harmonically
+  /// compatible of the next few queued tracks, then moves it right after the
+  /// current one. Returns the (possibly changed) next index.
+  Future<int> _applyHarmonicMix(int idx, int nextIdx) async {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.crossfadeEnabled ||
+        !settings.automixBeatAlign ||
+        !settings.automixHarmonicMix ||
+        _beat == null ||
+        camelotFor(_beat!) == null) {
+      return nextIdx;
+    }
+    final fromKey = camelotFor(_beat!);
+    const maxCandidates = 3;
+    final end = math.min(_songList.length, nextIdx + maxCandidates);
+    final candidates = <int>[];
+    for (var i = nextIdx; i < end; i++) {
+      candidates.add(i);
+    }
+    if (candidates.length < 2) {
+      AutomixDebug.instance.set(
+        harmonicChoice: 'unico candidato (${fromKey?.code})',
+        harmonicScore: harmonicScore(
+          fromKey,
+          _nextBeat == null ? null : camelotFor(_nextBeat!),
+        ),
+      );
+      return nextIdx;
+    }
+
+    // Analyze candidates during the pre-arm lead (results are cached in Hive).
+    final keys = <int, CamelotKey?>{};
+    final beats = <int, BeatAnalysisResult?>{};
+    for (final i in candidates) {
+      final tag = _songList[i].tag;
+      if (tag is! MediaItem) continue;
+      final cached = BeatAnalyzerService.cached(tag.id);
+      // Bound the analysis: it must finish inside the pre-arm lead, otherwise
+      // the transition trigger arrives while we are still decoding.
+      final beat = cached ??
+          await BeatAnalyzerService.analyzeSong(
+            Map<String, dynamic>.from(tag.extras ?? const <String, dynamic>{}),
+          ).timeout(const Duration(seconds: 3), onTimeout: () => null);
+      beats[i] = beat;
+      keys[i] = beat == null ? null : camelotFor(beat);
+    }
+
+    final chosen = pickHarmonicNext(
+      nextIndex: nextIdx,
+      candidateIndices: candidates,
+      from: fromKey,
+      keys: keys,
+    );
+    final score = harmonicScore(fromKey, keys[chosen]);
+    AutomixDebug.instance.set(
+      harmonicChoice: '${fromKey?.code} → ${keys[chosen]?.code ?? '?'} '
+          '(#$chosen · ${keys[chosen]?.code ?? '?'})',
+      harmonicScore: score,
+    );
+    AutomixDebug.instance.log(
+      'mixing armonico: ${fromKey?.code} → scelto #$chosen '
+      '${keys[chosen]?.code ?? '?'} score=${score.toStringAsFixed(2)} '
+      '(candidati: ${candidates.map((i) => '#$i ${keys[i]?.code ?? '?'}').join(', ')})',
+    );
+
+    if (chosen != nextIdx) {
+      try {
+        await _player.moveAudioSource(chosen, nextIdx);
+        AutomixDebug.instance.log('coda riordinata: #$chosen → #$nextIdx');
+      } catch (e) {
+        AutomixDebug.instance.log('riordino coda fallito: $e', level: 'WARN');
+      }
+    }
+    final chosenBeat = beats[chosen];
+    if (chosenBeat != null) {
+      _nextBeat = chosenBeat;
+      AutomixDebug.instance.set(inBeat: chosenBeat);
+    }
+    return nextIdx;
+  }
+
   /// Port of Android `StandbyCrossfadeScheduler`: prepare the standby player
   /// early and wait until it is really ready (STATE_READY equivalent) instead
   /// of assuming a freshly created source can start instantly.
@@ -662,7 +745,14 @@ class MediaPlayer extends ChangeNotifier {
         mixOutMs: _beat!.mixOutMs,
       );
     }
-    final lead = _preArm.currentLeadTime;
+    final baseLead = _preArm.currentLeadTime;
+    // Automix can move the trigger earlier than the adaptive lead (e.g. a
+    // mix-out near 199s of a 213s track). The standby must be prepared before
+    // the trigger, otherwise crossfade can never start.
+    final triggerDuration = Duration(milliseconds: triggerMs);
+    final lead = baseLead > triggerDuration + const Duration(milliseconds: 12000)
+        ? baseLead
+        : triggerDuration + const Duration(milliseconds: 12000);
     AutomixDebug.instance.set(
       status: _xfadeTriggered
           ? 'FADING'
@@ -710,9 +800,13 @@ class MediaPlayer extends ChangeNotifier {
             level: 'WARN');
         return;
       }
-      _maybeAnalyzeNextBeat(nextIdx);
+      // Mark armed immediately: the position stream ticks every ~40 ms and
+      // would otherwise restart the standby for every tick while the harmonic
+      // analysis is running.
       _xfadeArmed = true;
       _xfadeArmedIndex = idx;
+      await _applyHarmonicMix(idx, nextIdx);
+      _maybeAnalyzeNextBeat(nextIdx);
     }
     if (remaining.inMilliseconds <= triggerMs) {
       await _triggerQueueCrossfade(idx, nextIdx, position);

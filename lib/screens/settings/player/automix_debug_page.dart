@@ -105,6 +105,12 @@ class AutomixDebugPage extends StatelessWidget {
                         'start=${_ms(d.incomingStartMs)}',
                         style: mono,
                       ),
+                      if (d.harmonicChoice != null)
+                        Text(
+                          'ARMONIA: ${d.harmonicChoice} '
+                          'score=${d.harmonicScore?.toStringAsFixed(2) ?? '—'}',
+                          style: mono.copyWith(color: Colors.tealAccent),
+                        ),
                       if (d.lastError != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
