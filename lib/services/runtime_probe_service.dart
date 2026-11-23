@@ -206,6 +206,17 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/player/status' && request.method == 'GET') {
+      final mp = GetIt.I<MediaPlayer>();
+      _json(request.response, 200, {
+        'playing': mp.player.playing,
+        'positionMs': mp.player.position.inMilliseconds,
+        'durationMs': mp.player.duration?.inMilliseconds,
+        'current': mp.currentSongNotifier.value?.id,
+        'error': mp.playbackError.value,
+      });
+      return;
+    }
     if (path == '/state' && request.method == 'GET') {
       _json(request.response, 200, state());
       return;
@@ -965,6 +976,36 @@ class RuntimeProbeService {
         }
       }
       _json(request.response, 200, {'results': out});
+      return;
+    }
+    if (path == '/cipher/diag' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? 'esHBHhbDQh4';
+      try {
+        _json(request.response, 200,
+            await StreamResolver.instance.debugCipherDiag(id));
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
+      return;
+    }
+    if (path == '/cipher/test' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? 'esHBHhbDQh4';
+      try {
+        final stream = await StreamResolver.instance.debugCipher(id);
+        _json(request.response, 200, stream == null
+            ? {'ok': false}
+            : {
+                'ok': true,
+                'client': stream.client,
+                'mime': stream.mimeType,
+                'length': stream.contentLength,
+                'url': stream.url.length > 120
+                    ? '${stream.url.substring(0, 120)}…'
+                    : stream.url,
+              });
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
       return;
     }
     if (path == '/comments/test' && request.method == 'GET') {

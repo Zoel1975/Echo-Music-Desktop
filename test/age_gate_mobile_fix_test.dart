@@ -88,5 +88,36 @@ void main() {
       expect(source, contains('_studioPlayerUrl'));
       expect(source, contains("params['cpn']"));
     });
+
+    test('sends the mobile body fields for signed-in web clients', () {
+      final body = resolver.buildBody(
+        YtPlayerClient.webRemix,
+        'age-test',
+        signatureTimestamp: '20775',
+      );
+      final context = body['context'] as Map<String, dynamic>;
+      expect(context['request'], {
+        'internalExperimentFlags': [],
+        'useSsl': true,
+      });
+      expect(body['videoCheckOk'], true);
+      final pcc = (body['playbackContext'] as Map)['contentPlaybackContext'];
+      expect(pcc['html5Preference'], 'HTML5_PREF_WANTS');
+      expect(pcc['signatureTimestamp'], '20775');
+    });
+
+    test('scrapes a real STS from the YouTube homepage, not a fabricated one', () {
+      final source = src('lib/services/stream_resolver.dart');
+      expect(source, contains("'https://www.youtube.com/'"));
+      expect(source, contains(r'"STS"?\s*:\s*"?([0-9]{5})'));
+      expect(source, contains('signatureTimestamp: sts'));
+    });
+
+    test('deciphers signatureCipher formats before browser capture', () {
+      final source = src('lib/services/stream_resolver.dart');
+      expect(source, contains('await _resolveWithCipher(videoId)'));
+      expect(source, contains('no direct audio format'));
+      expect(source, contains('withGvsPot('));
+    });
   });
 }

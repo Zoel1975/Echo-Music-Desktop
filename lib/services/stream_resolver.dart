@@ -248,6 +248,12 @@ class StreamResolver {
   String? _visitorData;
   DateTime? _visitorDataFetched;
 
+  /// Real `signatureTimestamp` (STS) scraped from the watch page. Mobile
+  /// (InnerTubeX `YtConfigParserImpl`) refuses to guess this; a fabricated
+  /// days-since-epoch value makes YouTube reject the deciphered format URL.
+  String? _signatureTimestamp;
+  DateTime? _signatureTimestampFetched;
+
   /// Loudness metadata of the last resolved stream per video, used by the
   /// desktop normalization engine to compute replay gain.
   final Map<String, double?> _loudness = {};
@@ -350,6 +356,46 @@ class StreamResolver {
         return token;
       }
     } catch (_) {}
+    return null;
+  }
+
+  /// Scrapes the 5-digit `signatureTimestamp` from the signed-in watch page,
+  /// matching mobile's `YtConfigParserImpl.fetchConfig()`.
+  Future<String?> _getSignatureTimestamp(String videoId) async {
+    final now = DateTime.now();
+    if (_signatureTimestamp != null &&
+        _signatureTimestampFetched != null &&
+        now.difference(_signatureTimestampFetched!).inHours < 6) {
+      return _signatureTimestamp;
+    }
+    // The signed-out YouTube homepage exposes `"STS":<5 digits>` in ytcfg;
+    // mobile's YtConfigParserImpl reads the same value (its watch-page regex
+    // is a fallback for surfaces that inline the player config).
+    for (final url in [
+      'https://www.youtube.com/',
+      'https://music.youtube.com/watch?v=$videoId',
+    ]) {
+      try {
+        final page = await _client
+            .get(
+              Uri.parse(url),
+              headers: {'User-Agent': YtPlayerClient.webRemix.userAgent},
+            )
+            .timeout(const Duration(seconds: 12));
+        final match = RegExp(
+          r'"STS"?\s*:\s*"?([0-9]{5})|signatureTimestamp"?\s*:\s*([0-9]{5})',
+        ).firstMatch(page.body);
+        final sts = match?.group(1) ?? match?.group(2);
+        if (sts != null) {
+          _signatureTimestamp = sts;
+          _signatureTimestampFetched = now;
+          debugPrint('[resolver] STS=$sts from $url');
+          return sts;
+        }
+      } catch (e) {
+        debugPrint('[resolver] STS scrape failed for $url: $e');
+      }
+    }
     return null;
   }
 
@@ -493,16 +539,20 @@ class StreamResolver {
     YtPlayerClient client,
     String videoId, {
     String? visitorData,
+    String? signatureTimestamp,
   }) =>
-      _body(client, videoId, visitorData: visitorData);
+      _body(client, videoId,
+          visitorData: visitorData, signatureTimestamp: signatureTimestamp);
 
   Map<String, dynamic> _body(
     YtPlayerClient client,
     String videoId, {
     String? visitorData,
+    String? signatureTimestamp,
   }) {
     final signedVisitor = _signedInVisitor;
     final dataSyncId = CookieStore.instance.dataSyncId;
+    final web = client.name == 'WEB_REMIX' || client.name == 'WEB_CREATOR';
     return {
       'context': {
         'client': <String, dynamic>{
@@ -516,21 +566,33 @@ class StreamResolver {
           else if (signedVisitor != null && signedVisitor.isNotEmpty)
             'visitorData': signedVisitor,
         },
-        // NOTE: `user.onBehalfOfUser` is valid on /browse but makes /player
-        // answer HTTP 401 with our account id. Keep it out of player requests.
+        // Mobile (InnerTubeX) always serializes these. `onBehalfOfUser` used
+        // to 401 when sent to /player with our account id, so keep it out by
+        // default and only add it for the signed-in web clients that need it.
+        'request': {
+          'internalExperimentFlags': [],
+          'useSsl': true,
+        },
+        if (web && dataSyncId != null && dataSyncId.isNotEmpty)
+          'user': {
+            'lockedSafetyMode': false,
+            'onBehalfOfUser': dataSyncId,
+          },
       },
       'videoId': videoId,
       'contentCheckOk': true,
       'racyCheckOk': true,
-      // Mobile (InnerTubeX v0.7.0) sends the BotGuard token as a TOP-LEVEL
-      // field. The old desktop code put it in playbackContext, where YouTube
-      // ignores it - that is why age-gated tracks never resolved.
+      if (web) 'videoCheckOk': true,
       if ((poTokenFor(videoId) ?? '').isNotEmpty)
         'serviceIntegrityDimensions': {'poToken': poTokenFor(videoId)},
       'playbackContext': {
         'contentPlaybackContext': {
-          'signatureTimestamp':
-              DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(0)).inDays - 1,
+          if (web) 'html5Preference': 'HTML5_PREF_WANTS',
+          'signatureTimestamp': signatureTimestamp ??
+              (DateTime.now()
+                      .difference(DateTime.fromMillisecondsSinceEpoch(0))
+                      .inDays -
+                  1),
         },
       },
     };
@@ -554,12 +616,20 @@ class StreamResolver {
               headers: {
                 ...stream.headers,
                 'Range': 'bytes=$start-${start + 1023}',
-                'User-Agent': YtPlayerClient.visionOs.userAgent,
+                'User-Agent': stream.headers['User-Agent'] ??
+                    YtPlayerClient.visionOs.userAgent,
               },
             )
             .timeout(const Duration(seconds: 12));
-        if (r.statusCode != 200 && r.statusCode != 206) return false;
-      } catch (_) {
+        if (r.statusCode != 200 && r.statusCode != 206) {
+          debugPrint(
+            '[validate] reject range=$start status=${r.statusCode} '
+            'len=${r.bodyBytes.length} body=${String.fromCharCodes(r.bodyBytes.take(80))}',
+          );
+          return false;
+        }
+      } catch (e) {
+        debugPrint('[validate] range=$start exception=$e');
         return false;
       }
     }
@@ -581,8 +651,12 @@ class StreamResolver {
     final response = await _client.post(
       Uri.parse(_musicPlayerUrl),
       headers: _headers(client, music: true),
-      body: jsonEncode(_body(client, videoId,
-          visitorData: _signedInVisitor ?? await _getVisitorData())),
+      body: jsonEncode(_body(
+        client,
+        videoId,
+        visitorData: _signedInVisitor ?? await _getVisitorData(),
+        signatureTimestamp: await _getSignatureTimestamp(videoId),
+      )),
     );
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
@@ -649,13 +723,20 @@ class StreamResolver {
         query[sigKey] = newSig;
         final newN = n == null ? null : solved[n];
         if (n != null && newN != null) query['n'] = newN;
-        final stream = ResolvedStream(
-          url: base.replace(queryParameters: query).toString(),
-          mimeType: format['mimeType'] as String? ?? 'audio/mp4',
-          contentLength: _asNum(format['contentLength']).toInt(),
-          bitrate: _asNum(format['bitrate']).toInt(),
-          client: 'CIPHER',
-          headers: {'User-Agent': YtPlayerClient.webRemix.userAgent},
+        final stream = withGvsPot(
+          ResolvedStream(
+            url: base.replace(queryParameters: query).toString(),
+            mimeType: format['mimeType'] as String? ?? 'audio/mp4',
+            contentLength: _asNum(format['contentLength']).toInt(),
+            bitrate: _asNum(format['bitrate']).toInt(),
+            client: 'CIPHER',
+            headers: {
+              'User-Agent': YtPlayerClient.webRemix.userAgent,
+              'Origin': 'https://music.youtube.com',
+              'Referer': 'https://music.youtube.com/',
+            },
+          ),
+          poTokenFor(videoId, gvs: true),
         );
         if (await _validate(stream)) return stream;
         debugPrint('[cipher] format ${format['itag']} rejected');
@@ -664,6 +745,100 @@ class StreamResolver {
       debugPrint('[cipher] $videoId: $e');
     }
     return null;
+  }
+
+  /// Diagnostic entry point for the signatureCipher path (same one mobile's
+  /// InnerTubeX extractor uses for age-gated tracks).
+  Future<ResolvedStream?> debugCipher(String videoId) =>
+      _resolveWithCipher(videoId);
+
+  /// Diagnostic: decipher one format, then probe the URL with the identity
+  /// variants mobile uses, to isolate which one YouTube accepts.
+  Future<Map<String, dynamic>> debugCipherDiag(String videoId) async {
+    final out = <String, dynamic>{};
+    try {
+      out['sts'] = await _getSignatureTimestamp(videoId);
+      final raw = await debugPlayer(videoId);
+      final formats = (raw['streamingData']?['adaptiveFormats'] as List? ?? [])
+          .whereType<Map>()
+          .where((f) =>
+              (f['mimeType'] as String? ?? '').startsWith('audio/') &&
+              f['signatureCipher'] is String)
+          .toList();
+      out['cipherFormats'] = formats.length;
+      if (formats.isEmpty) return out;
+      final page = await _client.get(
+        Uri.parse('https://music.youtube.com/watch?v=$videoId'),
+        headers: _headers(YtPlayerClient.webRemix, music: true),
+      );
+      String? playerJs;
+      final jsUrlMatch = RegExp(r'"jsUrl":"([^"]+)"').firstMatch(page.body);
+      if (jsUrlMatch != null) {
+        playerJs = jsonDecode('"${jsUrlMatch.group(1)}"') as String;
+      }
+      if (playerJs != null && playerJs.startsWith('/')) {
+        playerJs = 'https://www.youtube.com$playerJs';
+      }
+      out['playerJs'] = playerJs;
+      out['stsMatches'] = RegExp(
+        r'.{0,40}(?:signatureTimestamp|"sts"|"STS"|sts).{0,60}',
+        caseSensitive: false,
+      ).allMatches(page.body).take(8).map((m) => m.group(0)).toList();
+      if (playerJs == null) return out;
+      final solver = await NodeEJSSolver.create();
+      final format = formats.first;
+      final params = Uri.splitQueryString(format['signatureCipher'] as String);
+      final base = Uri.parse(params['url'] ?? '');
+      final sig = params['s'];
+      final n = base.queryParameters['n'];
+      if (sig == null || base.toString().isEmpty) return out;
+      final solved = await solver.solveBulk(
+        playerJs,
+        {
+          JSChallengeType.sig: [sig],
+          if (n != null && n.isNotEmpty) JSChallengeType.n: [n],
+        },
+      );
+      final newSig = solved[sig];
+      final query = Map<String, String>.from(base.queryParameters)
+        ..[params['sp'] ?? 'sig'] = newSig ?? '';
+      if (n != null && solved[n] != null) query['n'] = solved[n]!;
+      final plain = base.replace(queryParameters: query).toString();
+      final minted = poTokenFor(videoId, gvs: true) ?? '';
+      out['mintedPotLength'] = minted.length;
+      final potUrl = Uri.parse(plain);
+      final potParams = Map<String, String>.from(potUrl.queryParameters)
+        ..['pot'] = minted
+        ..['cpn'] = 'abcdefghijklmnop';
+
+      Future<void> test(String name, String url, Map<String, String> h) async {
+        try {
+          final r = await _client
+              .get(Uri.parse(url),
+                  headers: {...h, 'Range': 'bytes=0-1023'})
+              .timeout(const Duration(seconds: 12));
+          out[name] = 'status=${r.statusCode} len=${r.bodyBytes.length}';
+        } catch (e) {
+          out[name] = 'error=$e';
+        }
+      }
+
+      final ff = {'User-Agent': YtPlayerClient.webRemix.userAgent};
+      final vis = {'User-Agent': YtPlayerClient.visionOs.userAgent};
+      await test('plain_ff', plain, ff);
+      await test('plain_vis', plain, vis);
+      await test('pot_ff', potUrl.toString(), ff);
+      await test('pot_vis', potUrl.toString(), vis);
+      await test('pot_cookie', potUrl.toString(), {
+        ...ff,
+        if (cookieHeaderProvider?.call() != null)
+          'Cookie': cookieHeaderProvider!.call()!,
+      });
+      out['urlHead'] = plain.length > 160 ? plain.substring(0, 160) : plain;
+    } catch (e) {
+      out['error'] = e.toString();
+    }
+    return out;
   }
 
   /// Last-resort resolver for age-restricted videos: youtube_explode_dart
@@ -742,6 +917,7 @@ class StreamResolver {
     // A public visitor token clears the "confirm you're not a bot" check
     // without requiring a Google sign-in. Fetch once per resolve; it is cached.
     final visitorData = await _getVisitorData();
+    final sts = await _getSignatureTimestamp(videoId);
 
     final errors = <String>[];
     // Transient 429/5xx/timeouts are common on mobile networks: retry the
@@ -768,6 +944,7 @@ class StreamResolver {
                   client,
                   videoId,
                   visitorData: music ? _signedInVisitor : visitorData,
+                  signatureTimestamp: sts,
                 )),
               )
               .timeout(const Duration(seconds: 20));
@@ -784,6 +961,18 @@ class StreamResolver {
           final picked = pick(audioFormats(data), quality, client.name);
           if (picked == null) {
             roundErrors.add('${client.name}: no direct audio format');
+            // Age-gated player responses return only `signatureCipher` formats.
+            // Mobile's InnerTubeX deciphers them here rather than falling back
+            // to a browser capture whose URL YouTube rejects.
+            final deciphered = await _resolveWithCipher(videoId);
+            if (deciphered != null) {
+              _loudness[videoId] = deciphered.loudnessDb;
+              _cache[key] = (
+                stream: deciphered,
+                expiry: DateTime.now().add(const Duration(hours: 1)),
+              );
+              return deciphered;
+            }
             continue;
           }
           final stream = withGvsPot(
@@ -841,7 +1030,8 @@ class StreamResolver {
             quality: quality,
             allowPoTokenCapture: false,
           );
-        } on StreamResolutionException {
+        } on StreamResolutionException catch (retryError) {
+          debugPrint('[resolver] retry con PoToken fallito: ${retryError.message}');
           // Fall through to the legacy browser capture below.
         }
       }
