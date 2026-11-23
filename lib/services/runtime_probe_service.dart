@@ -6,6 +6,8 @@ import 'dart:math' as math;
 import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart'
     as ffmpeg_kit_flutter_new_audio;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import '../generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:hive/hive.dart';
@@ -251,6 +253,23 @@ class RuntimeProbeService {
         'handoff': mp.diagnosticHandoffRunning,
         'fading': mp.diagnosticCrossfading,
       });
+      return;
+    }
+    if (path == '/i18n/check' && request.method == 'GET') {
+      try {
+        final out = <String, dynamic>{};
+        for (final code in ['en', 'it', 'es', 'hi', 'tr', 'ur']) {
+          final s = await S.load(Locale(code));
+          out[code] = {
+            'retry': s.Retry,
+            'theme': s.Theme,
+            'recognition': s.SongRecognitionEchoFind,
+          };
+        }
+        _json(request.response, 200, out);
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
       return;
     }
     if (path == '/state' && request.method == 'GET') {
