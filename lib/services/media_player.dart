@@ -175,6 +175,7 @@ class MediaPlayer extends ChangeNotifier {
     _listenToShuffle();
     _listenToAutofetch();
     _listenToPlayerErrors();
+    await _restoreQueuePreferences();
 
     Timer.periodic(const Duration(seconds: 10), (timer) {
       if (currentSongNotifier.value != null && _player.playing) {
@@ -182,6 +183,30 @@ class MediaPlayer extends ChangeNotifier {
             .addPlayingStats(currentSongNotifier.value!.id, _player.position);
       }
     });
+  }
+
+  /// Android's "Remember shuffle and repeat" preference: restore the last
+  /// shuffle/loop state at startup and persist every later change.
+  Future<void> _restoreQueuePreferences() async {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.rememberShuffleRepeat) return;
+    final shuffle = settings.extra<bool>('PLAYER_SHUFFLE', false);
+    final loop = settings.extra<String>('PLAYER_LOOP', 'off');
+    if (shuffle) await _player.setShuffleModeEnabled(true);
+    final mode = switch (loop) {
+      'all' => LoopMode.all,
+      'one' => LoopMode.one,
+      _ => LoopMode.off,
+    };
+    _loopMode.value = mode;
+    await _player.setLoopMode(mode);
+  }
+
+  Future<void> _persistQueuePreferences() async {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.rememberShuffleRepeat) return;
+    settings.setExtra('PLAYER_SHUFFLE', _shuffleModeEnabled);
+    settings.setExtra('PLAYER_LOOP', _loopMode.value.name);
   }
 
   Future<void> _loadLoudnessEnhancer() async {
@@ -560,6 +585,16 @@ class MediaPlayer extends ChangeNotifier {
 
   /// DJ blend length: 16 beats of the outgoing track when Automix is active.
   Duration _automixDuration(SettingsManager settings) {
+    // Android's "Gapless in album": consecutive tracks of the same album use
+    // a zero-length overlap instead of a crossfade.
+    if (settings.crossfadeGapless) {
+      final idx = _player.currentIndex;
+      if (idx != null && idx + 1 < _songList.length) {
+        final a = _songList[idx].tag?.album;
+        final b = _songList[idx + 1].tag?.album;
+        if (a != null && a.isNotEmpty && a == b) return Duration.zero;
+      }
+    }
     if (settings.automixBeatAlign && _beat != null) {
       return Duration(milliseconds: djBlendDurationMs(_beat!));
     }
@@ -943,6 +978,7 @@ class MediaPlayer extends ChangeNotifier {
     _player.shuffleModeEnabledStream.listen((data) {
       _shuffleModeEnabled = data;
       shuffleNotifier.value = data;
+      unawaited(_persistQueuePreferences());
       notifyListeners();
     });
   }
@@ -979,6 +1015,7 @@ class MediaPlayer extends ChangeNotifier {
         break;
     }
     _player.setLoopMode(_loopMode.value);
+    unawaited(_persistQueuePreferences());
   }
 
   Future<void> skipSilence(bool value) async {
@@ -1727,8 +1764,30 @@ class MediaPlayer extends ChangeNotifier {
   Future<void> _addSongListToQueue(List songs, {bool isNext = false}) async {
     if (songs.isEmpty) return;
 
+    // Android's "Prevent duplicate tracks in queue": skip ids already queued
+    // (and duplicates inside the incoming batch) when the setting is on.
+    final avoidDuplicates = GetIt.I<SettingsManager>().preventDuplicates;
+    final seen = <String>{};
+    if (avoidDuplicates) {
+      for (final source in _player.sequence) {
+        final id = source.tag?.id;
+        if (id != null && id.isNotEmpty) seen.add(id);
+      }
+    }
+    final filtered = <dynamic>[];
+    for (final song in songs) {
+      final id = song is Map
+          ? (song['videoId'] ?? song['id'])?.toString()
+          : null;
+      if (avoidDuplicates && id != null && id.isNotEmpty && !seen.add(id)) {
+        continue;
+      }
+      filtered.add(song);
+    }
+    if (filtered.isEmpty) return;
+
     // Convert your song objects into AudioSources
-    final newSources = await Future.wait(songs.map((song) async {
+    final newSources = await Future.wait(filtered.map((song) async {
       final mapSong = Map<String, dynamic>.from(song);
       return await _getAudioSource(mapSong);
     }));
@@ -1750,14 +1809,22 @@ class MediaPlayer extends ChangeNotifier {
   void _listenToAutofetch() {
     player.currentIndexStream.listen((index) async {
       if (index == null) return;
+      final settings = GetIt.I<SettingsManager>();
       if (player.sequence.length - index < 5 &&
-          GetIt.I<SettingsManager>().autofetchSongs &&
+          settings.autofetchSongs &&
+          (settings.autoLoadMore || settings.similarContent) &&
           autoFetching == false) {
         autoFetching = true;
         try {
           if (index >= player.sequence.length) return;
-          List nextSongs = await GetIt.I<YTMusic>()
-              .getNextSongList(videoId: player.sequence[index].tag.id);
+          // "Similar content" uses YTMusic's radio/next list. "Auto load more"
+          // has no source-playlist handle on desktop, so it uses the same
+          // radio feed as an equivalent, keeping the queue non-empty.
+          List nextSongs = [];
+          if (settings.similarContent || settings.autoLoadMore) {
+            nextSongs = await GetIt.I<YTMusic>()
+                .getNextSongList(videoId: player.sequence[index].tag.id);
+          }
           if (nextSongs.isNotEmpty) nextSongs.removeAt(0);
           await _addSongListToQueue(nextSongs);
         } catch (e) {

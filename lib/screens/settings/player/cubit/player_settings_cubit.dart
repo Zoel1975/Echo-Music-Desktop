@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import '../../../../../../services/audio_device_service.dart';
 import '../../../../../../services/eq_settings.dart';
@@ -183,7 +184,11 @@ class PlayerSettingsCubit extends Cubit<PlayerSettingsState> {
   void setCrossfadeGapless(bool v) => _settings.crossfadeGapless = v;
   void setHistoryDuration(double v) => _settings.historyDuration = v;
   void setLoudnessPreset(String v) => _settings.loudnessPreset = v;
-  void setPreloadNext(bool v) => _settings.preloadNext = v;
+  void setPreloadNext(bool v) {
+    _settings.preloadNext = v;
+    // Applied live: mpv reads this when creating each player source.
+    JustAudioMediaKit.prefetchPlaylist = v;
+  }
   void setPreloadLimit(double v) => _settings.preloadLimit = v;
 
   @override

@@ -158,7 +158,10 @@ Future<void> _startApp() async {
     JustAudioMediaKit.ensureInitialized();
     JustAudioMediaKit.bufferSize = 8 * 1024 * 1024;
     JustAudioMediaKit.title = 'Echo Music';
-    JustAudioMediaKit.prefetchPlaylist = true;
+    // "Preload next song": mpv's prefetch-playlist reads the next source
+    // ahead of time. Driven by the persisted setting instead of always on.
+    JustAudioMediaKit.prefetchPlaylist =
+        Hive.box('SETTINGS').get('PRELOAD_NEXT', defaultValue: true) as bool;
     JustAudioMediaKit.pitch = true;
   }
 
@@ -271,6 +274,7 @@ class Echo extends StatelessWidget {
   const Echo({super.key});
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsManager>();
     return Shortcuts(
       shortcuts: <LogicalKeySet, Intent>{
         LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
@@ -278,7 +282,7 @@ class Echo extends StatelessWidget {
       child: MaterialApp.router(
         title: 'Echo Music',
         routerConfig: router,
-        locale: Locale(context.watch<SettingsManager>().language['value']!),
+        locale: Locale(settings.language['value']!),
         localizationsDelegates: const [
           S.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -287,9 +291,11 @@ class Echo extends StatelessWidget {
         ],
         supportedLocales: S.delegate.supportedLocales,
         debugShowCheckedModeBanner: false,
-        themeMode: context.watch<SettingsManager>().themeMode,
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
+        themeMode: settings.themeMode,
+        theme: AppTheme.light(
+            primary: settings.accentColor, amoled: settings.amoledBlack),
+        darkTheme: AppTheme.dark(
+            primary: settings.accentColor, amoled: settings.amoledBlack),
       ),
     );
   }

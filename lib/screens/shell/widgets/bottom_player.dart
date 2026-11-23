@@ -8,6 +8,7 @@ import 'package:Echo/services/cast/cast_service.dart';
 import 'package:Echo/core/widgets/echo_surface.dart';
 import 'package:Echo/core/widgets/motion_effects.dart';
 import 'package:Echo/services/media_player.dart';
+import 'package:Echo/services/settings_manager.dart';
 import 'package:Echo/utils/adaptive_widgets/buttons.dart';
 import 'package:Echo/utils/adaptive_widgets/progress_ring.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
@@ -80,10 +81,19 @@ class _BottomPlayerState extends State<BottomPlayer> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: EchoSurface(
-                  color: (backgroundColor ?? const Color(0xFF202020))
-                      .withAlpha(255),
+                  color: () {
+                    final base = backgroundColor ?? const Color(0xFF202020);
+                    return switch (GetIt.I<SettingsManager>().miniPlayerStyle) {
+                      'Glass' => base.withAlpha(215),
+                      'Gradient' => base.withAlpha(240),
+                      _ => base.withAlpha(255), // Solid
+                    };
+                  }(),
                   radius: const BorderRadius.all(Radius.circular(50)),
-                  vibrancy: 1.3,
+                  vibrancy:
+                      GetIt.I<SettingsManager>().miniPlayerStyle == 'Glass'
+                          ? 1.3
+                          : 0.0,
                   child: ClipRRect(
                   borderRadius: BorderRadius.circular(50),
                   child: Padding(

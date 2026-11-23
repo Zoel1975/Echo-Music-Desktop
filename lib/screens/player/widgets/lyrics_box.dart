@@ -89,6 +89,7 @@ class _LyricsBoxState extends State<LyricsBox> {
       _lyrics = lyrics;
       _lyricsLoaded = (lyrics.parsedLyrics?.lyrics.isNotEmpty ?? false) ||
           lyrics.lyricsPlain.isNotEmpty;
+      _maybeAutoRomanize(lyrics, generation);
       widget.onLyricsFound?.call(_lyricsLoaded);
       _updateWakelock();
     }).catchError((_) {
@@ -104,6 +105,35 @@ class _LyricsBoxState extends State<LyricsBox> {
     GetIt.I<MediaPlayer>().buttonState.removeListener(_updateWakelock);
     WakelockPlus.disable();
     super.dispose();
+  }
+
+  /// Android's "Lyrics romanization": transliterate automatically after a
+  /// fetch when enabled. "Show romanized as main" is applied by the lyric
+  /// widgets when deciding which text to render first.
+  Future<void> _maybeAutoRomanize(Lyrics lyrics, int generation) async {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.lyricsRomanization || !settings.translateLyrics) return;
+    final lines = lyrics.lyricsPlain
+        .split('\n')
+        .where((l) => l.trim().isNotEmpty)
+        .toList();
+    if (lines.isEmpty) return;
+    try {
+      final translated = await GetIt.I<LyricsService>().translateLyrics(
+        lines: lines,
+        targetLanguage: settings.translationLanguage,
+        mode: 'Romanized',
+        provider: settings.translationProvider,
+        apiKey: settings.translationApiKey,
+        baseUrl: settings.translationBaseUrl,
+        model: settings.translationModel,
+        deeplApiKey: settings.extra<String>('deeplApiKey', ''),
+        useStreaming: settings.translationStreaming,
+      );
+      if (mounted && generation == _fetchGeneration) {
+        setState(() => _translatedLines = translated);
+      }
+    } catch (_) {}
   }
 
   void _showTranslationDialog(Lyrics lyrics) {
@@ -244,7 +274,18 @@ class PlainLyricsWidget extends StatelessWidget {
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
         child: SelectableText(
-          "\n${lyrics.lyricsPlain}\n${translatedLines == null || translatedLines!.isEmpty ? '' : '\n${translatedLines!.join('\n')}'}",
+          () {
+            final settings = GetIt.I<SettingsManager>();
+            final hasTranslated = translatedLines != null &&
+                translatedLines!.isNotEmpty;
+            final swap = hasTranslated && settings.romanizeAsMain;
+            final primary =
+                swap ? translatedLines!.join('\n') : lyrics.lyricsPlain;
+            final secondary = swap
+                ? lyrics.lyricsPlain
+                : (hasTranslated ? translatedLines!.join('\n') : '');
+            return '\n$primary\n${secondary.isEmpty ? '' : '\n$secondary'}';
+          }(),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: GetIt.I<SettingsManager>().lyricsTextSize + 16,
@@ -334,6 +375,8 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
   }
 
   void _scrollToCurrentLyric(int index) {
+    // Android's "Auto scroll lyrics" preference.
+    if (!GetIt.I<SettingsManager>().lyricsAutoScroll) return;
     if (_itemScrollController.isAttached && !_isUserScrolling) {
       _itemScrollController.scrollTo(
         index: index,
@@ -469,7 +512,11 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
                             widget.translatedLines![index],
-                            textAlign: TextAlign.center,
+                            textAlign: switch (GetIt.I<SettingsManager>().lyricsTextPosition) {
+             'Left' => TextAlign.left,
+             'Right' => TextAlign.right,
+             _ => TextAlign.center,
+           },
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,

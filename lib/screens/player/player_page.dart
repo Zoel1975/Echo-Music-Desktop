@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/services/cast/cast_service.dart';
+import 'package:Echo/services/download_manager.dart';
+import 'package:Echo/services/settings_manager.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -447,10 +450,7 @@ class _PlayerPageState extends State<PlayerPage> {
                                               child: ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(12),
-                                                child: GetIt.I<SettingsManager>()
-                                                        .extra<bool>(
-                                                            'hidePlayerThumbnail',
-                                                            false)
+                                                child: GetIt.I<SettingsManager>().hidePlayerThumbnail
                                                     ? const SizedBox.shrink()
                                                     : SongThumbnail(
                                                         song: currentSong!
@@ -579,6 +579,12 @@ class _PlayerPageState extends State<PlayerPage> {
                           'createdAt': DateTime.now().millisecondsSinceEpoch
                         },
                       );
+                      // Android's "Auto download on like": start an offline
+                      // download as soon as the track becomes a Favourite.
+                      if (GetIt.I<SettingsManager>().autoDownloadOnLike) {
+                        unawaited(GetIt.I<DownloadManager>()
+                            .downloadSong(currentSong!.extras!));
+                      }
                     } else {
                       await value.delete(currentSong!.extras!['videoId']);
                     }
@@ -671,7 +677,10 @@ class _PlayerPageState extends State<PlayerPage> {
               total: value.total,
               buffered: value.buffered,
               barHeight: 4,
-              thumbRadius: 6,
+              thumbRadius: GetIt.I<SettingsManager>()
+                  .extra<double>('thumbRadius', 6)
+                  .round()
+                  .toDouble(),
               baseBarColor: Colors.white.withValues(alpha: 0.3),
               bufferedBarColor: Colors.white.withValues(alpha: 0.5),
               progressBarColor: Colors.white,

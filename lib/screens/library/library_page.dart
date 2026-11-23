@@ -103,20 +103,25 @@ class _LibraryBody extends StatelessWidget {
       'onTap': () => context.push('/ytm_library'),
     });
 
-    // Static Items
-    gridItems.add({
-      'title': S.of(context).Favourites,
-      'subtitle': S.of(context).nSongs(favouritesCount),
-      'icon': AdaptiveIcons.heart_fill,
-      'onTap': () => context.push('/saved/favourites_page'),
-    });
+    // Static Items — Android's "Show Liked / Downloaded playlist" toggles.
+    final librarySettings = GetIt.I<SettingsManager>();
+    if (librarySettings.showLikedPlaylist) {
+      gridItems.add({
+        'title': S.of(context).Favourites,
+        'subtitle': S.of(context).nSongs(favouritesCount),
+        'icon': AdaptiveIcons.heart_fill,
+        'onTap': () => context.push('/saved/favourites_page'),
+      });
+    }
 
-    gridItems.add({
-      'title': S.of(context).Downloads,
-      'subtitle': S.of(context).nSongs(downloadsCount),
-      'icon': AdaptiveIcons.download,
-      'onTap': () => context.push('/saved/downloads_page'),
-    });
+    if (librarySettings.showDownloadedPlaylist) {
+      gridItems.add({
+        'title': S.of(context).Downloads,
+        'subtitle': S.of(context).nSongs(downloadsCount),
+        'icon': AdaptiveIcons.download,
+        'onTap': () => context.push('/saved/downloads_page'),
+      });
+    }
 
     gridItems.add({
       'title': S.of(context).History,

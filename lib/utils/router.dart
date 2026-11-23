@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:get_it/get_it.dart';
+import 'package:Echo/services/settings_manager.dart';
 import 'package:Echo/screens/browse/browse_page.dart';
 import 'package:Echo/screens/chip/chip_page.dart';
 import 'package:Echo/screens/home/home_page.dart';
@@ -68,8 +70,26 @@ import 'package:Echo/screens/shell/app_shell.dart';
 EchoPage<dynamic> _softPage(GoRouterState state, Widget child) =>
     EchoPage<dynamic>(key: state.pageKey, child: child);
 
+bool _defaultTabApplied = false;
+
+/// Android's "Default open tab": redirect the very first navigation to the
+/// configured branch. The router is constructed before main() registers the
+/// settings singleton, so this has to happen in the first redirect pass.
+String? _applyDefaultTab(BuildContext context, GoRouterState state) {
+  if (_defaultTabApplied) return null;
+  _defaultTabApplied = true;
+  if (Platform.environment['ECHO_START_ROUTE'] != null) return null;
+  if (state.matchedLocation != '/') return null;
+  if (!GetIt.I.isRegistered<SettingsManager>()) return null;
+  const paths = ['/', '/search', '/explore', '/saved', '/settings'];
+  final index = GetIt.I<SettingsManager>().defaultTab;
+  if (index <= 0 || index >= paths.length) return null;
+  return paths[index];
+}
+
 GoRouter router = GoRouter(
   initialLocation: Platform.environment['ECHO_START_ROUTE'] ?? '/',
+  redirect: _applyDefaultTab,
   routes: [
     ShellRoute(
       builder: (context, state, child) => child,

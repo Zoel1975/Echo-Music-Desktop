@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
+import '../../../services/settings_capabilities.dart';
 import '../../../services/cloud_service.dart';
 import '../../../services/song_dna_service.dart';
 import '../widgets/setting_item.dart';
@@ -57,7 +58,8 @@ class IntegrationPage extends StatelessWidget {
   Widget _cloudTest(BuildContext context, SettingsManager s) {
     return SettingTile(
       title: S.of(context).TestConnection,
-      subtitle: S.of(context).VerifyTheEnteredServerCredentials,
+      subtitle:
+          '${S.of(context).VerifyTheEnteredServerCredentials} — la sincronizzazione della libreria non è disponibile su Windows: questo pulsante verifica solo la connessione.',
       leading: const Icon(Icons.cloud_sync),
       trailing: FilledButton(
         onPressed: () async {
@@ -91,7 +93,8 @@ class IntegrationPage extends StatelessWidget {
   Widget _dnaTest(BuildContext context, SettingsManager s) {
     return SettingTile(
       title: S.of(context).FetchSongBackground,
-      subtitle: S.of(context).LookUpATrackOnGeniusWikipedia,
+      subtitle:
+          '${S.of(context).LookUpATrackOnGeniusWikipedia} — test dei token; il pannello Song DNA nel player non è ancora collegato.',
       leading: const Icon(Icons.biotech),
       trailing: FilledButton(
         onPressed: () async {
@@ -117,6 +120,15 @@ class IntegrationPage extends StatelessWidget {
   }
 
   Widget _field(BuildContext context, SettingsManager s, IntegrationField f) {
+    final reason = unavailableReason(f.key);
+    if (reason != null) {
+      return SettingTile(
+        title: f.label,
+        subtitle: 'Non disponibile su Windows — $reason',
+        leading: const Icon(Icons.info_outline),
+        trailing: const Icon(Icons.block, size: 18),
+      );
+    }
     switch (f.type) {
       case IntegrationFieldType.toggle:
         return SettingSwitchTile(

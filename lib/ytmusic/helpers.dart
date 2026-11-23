@@ -51,8 +51,14 @@ Map<String, dynamic> initializeContext() {
   return {
     'context': {
       'client': {
-        "hl": settings.get('LANGUAGE', defaultValue: 'en-IN'),
-        "gl": settings.get('LOCATION', defaultValue: 'IN'),
+        // Android's ContentLanguage / ContentCountry control the YouTube
+        // Music catalog locale, independent of the app UI language/region.
+        "hl": settings.get('CONTENT_LANGUAGE')?.toString().isNotEmpty == true
+            ? settings.get('CONTENT_LANGUAGE').toString()
+            : settings.get('LANGUAGE', defaultValue: 'en-IN'),
+        "gl": settings.get('CONTENT_COUNTRY')?.toString().isNotEmpty == true
+            ? settings.get('CONTENT_COUNTRY').toString()
+            : settings.get('LOCATION', defaultValue: 'IN'),
         'clientName': ytmClientName,
         'clientVersion': ytmClientVersion(),
         if (visitorData.isNotEmpty) 'visitorData': visitorData,

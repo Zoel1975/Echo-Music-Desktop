@@ -8,7 +8,9 @@ import 'typography.dart';
 Color? themeSeedOverride;
 
 class AppTheme {
-  static ThemeData light({Color? primary}) {
+  /// When "AMOLED black" is on, dark surfaces use pure black instead of the
+  /// seeded dark grey. Port of Android's `amoledBlack` preference.
+  static ThemeData light({Color? primary, bool amoled = false}) {
     final colorScheme =
         ColorScheme.fromSeed(
             seedColor: primary ?? themeSeedOverride ?? EchoTokens.seedColor,
@@ -46,13 +48,22 @@ class AppTheme {
     );
   }
 
-  static ThemeData dark({Color? primary}) {
-    final colorScheme = ColorScheme.fromSeed(
+  static ThemeData dark({Color? primary, bool amoled = false}) {
+    final seeded = ColorScheme.fromSeed(
       seedColor: primary ?? themeSeedOverride ?? EchoTokens.seedColor,
       brightness: Brightness.dark,
     );
+    final colorScheme = amoled
+        ? seeded.copyWith(
+            surface: Colors.black,
+            onSurface: Colors.white,
+            surfaceContainerHighest: const Color(0xFF0A0A0A),
+            surfaceContainerLow: Colors.black,
+            background: Colors.black,
+          )
+        : seeded;
     return ThemeData.dark(useMaterial3: true).copyWith(
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor: amoled ? Colors.black : Colors.transparent,
       textTheme: appTextTheme(ThemeData.dark().textTheme),
       colorScheme: colorScheme,
       visualDensity: VisualDensity.adaptivePlatformDensity,

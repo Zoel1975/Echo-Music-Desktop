@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../services/settings_capabilities.dart';
 import 'package:Echo/generated/l10n.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -77,12 +78,12 @@ class AppearancePage extends StatelessWidget {
                       value: s.amoledBlack,
                       onChanged: cubit.setAmoledBlack,
                     ),
-                    SettingSwitchTile(
+                    SettingTile(
                       title: S.of(context).Dynamic_Colors,
-                      leading: const Icon(Icons.color_lens_outlined),
+                      subtitle: unavailableReason('DYNAMIC_COLORS'),
+                      leading: const Icon(Icons.info_outline),
+                      trailing: const Icon(Icons.block, size: 18),
                       isLast: true,
-                      value: s.dynamicColors,
-                      onChanged: cubit.setDynamicColors,
                     ),
 
                     SettingTile(
@@ -182,25 +183,24 @@ class AppearancePage extends StatelessWidget {
                       value: s.showDownloadedPlaylist,
                       onChanged: cubit.setShowDownloadedPlaylist,
                     ),
-                    SettingSwitchTile(
-                      title: S.of(context).ShowTopPlaylist,
-                      leading: const Icon(Icons.leaderboard),
-                      value: s.showTopPlaylist,
-                      onChanged: cubit.setShowTopPlaylist,
-                    ),
-                    SettingSwitchTile(
-                      title: S.of(context).ShowBottomPlaylist,
-                      leading: const Icon(Icons.trending_down),
-                      value: s.showBottomPlaylist,
-                      onChanged: cubit.setShowBottomPlaylist,
-                    ),
-                    SettingSwitchTile(
-                      title: S.of(context).ShowCachedPlaylist,
-                      leading: const Icon(Icons.cached),
-                      isLast: true,
-                      value: s.showCachedPlaylist,
-                      onChanged: cubit.setShowCachedPlaylist,
-                    ),
+                    SettingTile(
+                  title: S.of(context).ShowTopPlaylist,
+                  subtitle: unavailableReason('showTopPlaylist'),
+                  leading: const Icon(Icons.info_outline),
+                  trailing: const Icon(Icons.block, size: 18),
+                ),
+                    SettingTile(
+                  title: S.of(context).ShowBottomPlaylist,
+                  subtitle: unavailableReason('showBottomPlaylist'),
+                  leading: const Icon(Icons.info_outline),
+                  trailing: const Icon(Icons.block, size: 18),
+                ),
+                    SettingTile(
+                  title: S.of(context).ShowCachedPlaylist,
+                  subtitle: unavailableReason('showCachedPlaylist'),
+                  leading: const Icon(Icons.info_outline),
+                  trailing: const Icon(Icons.block, size: 18),
+                ),
                     const SizedBox(height: 100),
                   ],
                 );

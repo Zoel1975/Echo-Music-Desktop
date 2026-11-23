@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../services/settings_manager.dart';
+import '../../../services/settings_capabilities.dart';
 import '../../../../themes/app_fonts.dart';
 import '../widgets/setting_item.dart';
 import '../widgets/settings_list.dart';
@@ -105,6 +106,15 @@ class AppearanceDetailsPage extends StatelessWidget {
 
   Widget _switch(BuildContext context, SettingsManager s, String title,
       String key, bool fallback) {
+    final reason = unavailableReason(key);
+    if (reason != null) {
+      return SettingTile(
+        title: title,
+        subtitle: 'Non disponibile su Windows — $reason',
+        leading: const Icon(Icons.info_outline),
+        trailing: const Icon(Icons.block, size: 18),
+      );
+    }
     return SettingSwitchTile(
       title: title,
       leading: const Icon(Icons.tune),
@@ -115,6 +125,15 @@ class AppearanceDetailsPage extends StatelessWidget {
 
   Widget _dropdown(BuildContext context, SettingsManager s, String title,
       String key, List<String> items, String fallback) {
+    final reason = unavailableReason(key);
+    if (reason != null) {
+      return SettingTile(
+        title: title,
+        subtitle: 'Non disponibile su Windows — $reason',
+        leading: const Icon(Icons.info_outline),
+        trailing: const Icon(Icons.block, size: 18),
+      );
+    }
     final value = s.extra<String>(key, fallback);
     if (key == 'appFont') AppFonts.initialize(value);
     return SettingTile(
@@ -138,6 +157,15 @@ class AppearanceDetailsPage extends StatelessWidget {
 
   Widget _slider(BuildContext context, SettingsManager s, String title,
       String key, double min, double max, double fallback) {
+    final reason = unavailableReason(key);
+    if (reason != null) {
+      return SettingTile(
+        title: title,
+        subtitle: 'Non disponibile su Windows — $reason',
+        leading: const Icon(Icons.info_outline),
+        trailing: const Icon(Icons.block, size: 18),
+      );
+    }
     final value = s.extra<double>(key, fallback);
     return SettingTile(
       title: title,
