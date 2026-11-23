@@ -51,8 +51,8 @@ Material You dal wallpaper, RenderEffect con rifrazione reale.
 | 43 | Ambient con palette | DONE | `AmbientBackground` |
 | 44 | EQ circolare | DONE | `circular_eq_control.dart` |
 | 45 | Copertina nei MP3 | DONE | `buildMp3Args(coverUrl:)` |
-| 46 | Wrapped 9 slide animate | PART | `wrapped_page.dart` semplificato |
+| 46 | Wrapped 9 slide animate | DONE | `wrapped_stories_page.dart` (9 slide, 8,5 s, temi, radar, EQ, poster) |
 | 47 | Commenti/social | MISSING | endpoint InnerTube non portato |
 | 48 | Riconoscimento brani | PART | placeholder esplicito (ShazamKit non portabile) |
 
-DONE = 45 / 48 = **93,75%** (≥90% raggiunto).
+DONE = 46 / 48 = **95,83%** (≥90% raggiunto).

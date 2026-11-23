@@ -124,5 +124,12 @@ void main() {
     }).length;
     expect(rows.length, greaterThanOrEqualTo(48));
     expect(done / rows.length, greaterThanOrEqualTo(0.90));
+    final wrapped = File(
+            'lib/screens/settings/stats/wrapped_stories_page.dart')
+        .readAsStringSync();
+    expect(wrapped, contains('slideCount = 9'));
+    expect(wrapped, contains('slideDuration = Duration(milliseconds: 8500)'));
+    expect(wrapped, contains('_RadarMeter'));
+    expect(wrapped, contains('_EqBars'));
   });
 }

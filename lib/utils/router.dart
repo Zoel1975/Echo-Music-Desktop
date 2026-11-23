@@ -47,6 +47,7 @@ import 'package:Echo/screens/settings/player/automix_debug_page.dart';
 import 'package:Echo/screens/settings/privacy/privacy_page.dart';
 import 'package:Echo/screens/settings/stats/listening_summary_page.dart';
 import 'package:Echo/screens/settings/stats/wrapped_page.dart';
+import 'package:Echo/screens/settings/stats/wrapped_stories_page.dart';
 import 'package:Echo/screens/settings/storage/storage_page.dart';
 import 'package:Echo/screens/settings/services/yt_music/yt_music_page.dart';
 import 'package:Echo/screens/settings/services/spotify/spotify_import_page.dart';
@@ -435,7 +436,7 @@ List<StatefulShellBranch> branches = [
           ),
           GoRoute(
             path: 'wrapped',
-            builder: (context, state) => const WrappedPage(),
+            builder: (context, state) => const WrappedStoriesPage(),
           ),
           GoRoute(
             path: 'content',
