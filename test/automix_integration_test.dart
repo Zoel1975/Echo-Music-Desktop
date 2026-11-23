@@ -62,6 +62,10 @@ void main() {
       player.indexOf('/// Android SponsorBlock'),
     );
     expect(trigger, contains('await _player.play()'));
+    // The standby plays the same track as the main player: re-sync it before
+    // the handoff so the two copies are not phase-offset (audible stutter).
+    expect(trigger, contains('standby risincronizzato'));
+    expect(trigger, contains('await outPlayer.seek(mainPos)'));
     final fadeAt = trigger.indexOf('await _xfade!.start(');
     final waitAt = trigger.indexOf('await _waitForIncomingReady(');
     expect(waitAt, greaterThan(0));

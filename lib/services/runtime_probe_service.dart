@@ -1176,8 +1176,8 @@ class RuntimeProbeService {
         await Future<void>.delayed(const Duration(milliseconds: 150));
         samples.add({
           't': (i + 1) * 150,
-          'main': player.player.volume.round().toDouble() / 100,
-          'out': (player.diagnosticOutVolume * 100).round().toDouble() / 100,
+          'main': player.player.volume,
+          'out': player.diagnosticOutVolume,
           'handoff': player.diagnosticHandoffRunning,
           'fade': player.diagnosticCrossfading,
         });

@@ -709,6 +709,21 @@ class MediaPlayer extends ChangeNotifier {
           'standby riavviato al trigger: playing=${outPlayer.playing}',
         );
       }
+      // The standby was seeked at pre-arm time, after which setAudioSource /
+      // seek / play added latency while the main player kept advancing. The
+      // two copies of the same track are therefore slightly offset; fading
+      // between them produces a phasing "stutter". Re-sync while it is still
+      // muted, then let it buffer the tiny seek before the handoff ramps up.
+      final mainPos = _player.position;
+      final drift = (outPlayer.position - mainPos).abs();
+      if (drift > const Duration(milliseconds: 25)) {
+        AutomixDebug.instance.log(
+          'standby risincronizzato: drift=${drift.inMilliseconds}ms '
+          '→ ${mainPos.inMilliseconds}ms',
+        );
+        await outPlayer.seek(mainPos);
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+      }
       await _rampHandoff(
         AudioPlayerAdapter(_player),
         AudioPlayerAdapter(outPlayer),
