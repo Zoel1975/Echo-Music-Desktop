@@ -333,12 +333,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       icon: Icons.equalizer,
                       route: '/settings/player/axion',
                     ),
-                    _comingSoonTile(
+                    _integrationTile(
                       context,
                       title: 'Song recognition (Echo Find)',
                       icon: Icons.graphic_eq,
-                      feature: 'On-device audio fingerprinting needs native '
-                          'DSP / microphone capture, planned for a future update.',
+                      route: '/song_recognition',
                       isLast: true,
                     ),
                     _integrationTile(

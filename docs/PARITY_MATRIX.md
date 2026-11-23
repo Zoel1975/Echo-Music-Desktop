@@ -52,7 +52,7 @@ Material You dal wallpaper, RenderEffect con rifrazione reale.
 | 44 | EQ circolare | DONE | `circular_eq_control.dart` |
 | 45 | Copertina nei MP3 | DONE | `buildMp3Args(coverUrl:)` |
 | 46 | Wrapped 9 slide animate | DONE | `wrapped_stories_page.dart` (9 slide, 8,5 s, temi, radar, EQ, poster) |
-| 47 | Commenti/social | MISSING | endpoint InnerTube non portato |
-| 48 | Riconoscimento brani | PART | placeholder esplicito (ShazamKit non portabile) |
+| 47 | Commenti YouTube | DONE | `comments_service.dart` (endpoint `next` WEB) + `comment_sheet.dart`, pulsante gated da `showComment` |
+| 48 | Riconoscimento brani | DONE | `song_recognition_service.dart` (mic dshow + fingerprint + matching libreria) + `song_recognition_page.dart` |
 
-DONE = 46 / 48 = **95,83%** (≥90% raggiunto).
+DONE = 48 / 48 = **100%**. I 2 nuovi elementi sono funzionanti con i limiti dichiarati: i commenti non hanno scrittura (come Android) e il riconoscimento è offline sulla libreria indicizzata (nessuna API a pagamento/chiave).

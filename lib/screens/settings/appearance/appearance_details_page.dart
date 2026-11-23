@@ -24,7 +24,6 @@ class AppearanceDetailsPage extends StatelessWidget {
         title: const Text('Appearance details')),
       body: SettingsList(
         children: [
-          const SettingNoticeTile(),
           const GroupTitle(title: 'Theme'),
           _dropdown(
             context,

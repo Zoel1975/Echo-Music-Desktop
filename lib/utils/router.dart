@@ -44,6 +44,7 @@ import 'package:Echo/screens/settings/music_flow_settings_page.dart';
 import 'package:Echo/screens/settings/update_settings_page.dart';
 import 'package:Echo/screens/settings/player/player_settings_page.dart';
 import 'package:Echo/screens/settings/player/automix_debug_page.dart';
+import 'package:Echo/screens/recognition/song_recognition_page.dart';
 import 'package:Echo/screens/settings/privacy/privacy_page.dart';
 import 'package:Echo/screens/settings/stats/listening_summary_page.dart';
 import 'package:Echo/screens/settings/stats/wrapped_page.dart';
@@ -83,6 +84,10 @@ GoRouter router = GoRouter(
             currentIndex: navigationShell.currentIndex,
             children: children,
           ),
+        ),
+        GoRoute(
+          path: '/song_recognition',
+          builder: (context, state) => const SongRecognitionPage(),
         ),
         GoRoute(
           path: '/player',

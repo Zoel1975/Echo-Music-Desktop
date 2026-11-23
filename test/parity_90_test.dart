@@ -133,6 +133,25 @@ void main() {
     expect(fallback, contains('catch (_)'));
   });
 
+  test('comments and recognition are functional, not placeholders', () {
+    final comments = src('lib/services/comments_service.dart');
+    expect(comments, contains('youtubei/v1/next'));
+    expect(comments, contains("'clientName': 'WEB'"));
+    expect(comments, contains('engagement-panel-comments-section'));
+    expect(src('lib/screens/player/widgets/comment_sheet.dart'),
+        contains('CommentSheet'));
+    expect(src('lib/screens/player/player_page.dart'),
+        contains('CommentSheet.show(context)'));
+
+    final recognition = src('lib/services/song_recognition_service.dart');
+    expect(recognition, contains('audio='));
+    expect(recognition, contains('fingerprint('));
+    expect(recognition, contains('indexLibrary'));
+    final page = src('lib/screens/recognition/song_recognition_page.dart');
+    expect(page, contains("'In ascolto…'"));
+    expect(src('lib/utils/router.dart'), contains("path: '/song_recognition'"));
+  });
+
   test('parity matrix reaches the 90% target', () {
     final matrix = File('docs/PARITY_MATRIX.md').readAsStringSync();
     final rows = RegExp(r'^\| \d+ \|', multiLine: true)

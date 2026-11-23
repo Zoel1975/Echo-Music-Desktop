@@ -18,6 +18,7 @@ import 'package:palette_generator/palette_generator.dart';
 
 import '../../core/widgets/motion_effects.dart';
 import 'widgets/animated_gradient_bg.dart';
+import 'widgets/comment_sheet.dart';
 import 'widgets/player_background.dart';
 
 import '../../services/audio_source_info.dart';
@@ -586,6 +587,16 @@ class _PlayerPageState extends State<PlayerPage> {
               },
             ),
             const SizedBox(width: 8),
+            // Comments (Android gates this behind "Show comment button").
+            if (GetIt.I<SettingsManager>().extra<bool>('showComment', false))
+              AdaptiveIconButton(
+                onPressed: () => CommentSheet.show(context),
+                icon: Icon(
+                  Icons.comment_outlined,
+                  size: 24,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
             // More Options
             Builder(
               builder: (buttonContext) => AdaptiveIconButton(

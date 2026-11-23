@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart'
+    as ffmpeg_kit_flutter_new_audio;
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
@@ -13,6 +15,7 @@ import 'automix_debug.dart';
 import 'ffmpeg_audio_encoder.dart';
 import 'autoeq_service.dart';
 import 'beat_analyzer_service.dart';
+import 'comments_service.dart';
 import 'cast/cast_device.dart';
 import 'cast/cast_service.dart';
 import 'google_login_service.dart';
@@ -962,6 +965,41 @@ class RuntimeProbeService {
         }
       }
       _json(request.response, 200, {'results': out});
+      return;
+    }
+    if (path == '/comments/test' && request.method == 'GET') {
+      final id = request.uri.queryParameters['id'] ?? 'dQw4w9WgXcQ';
+      try {
+        final page = await CommentsService.instance.fetch(id);
+        _json(request.response, 200, {
+          'count': page.comments.length,
+          'next': page.nextToken != null,
+          'first': page.comments.isEmpty
+              ? null
+              : {
+                  'author': page.comments.first.author,
+                  'text': page.comments.first.text.substring(
+                      0, page.comments.first.text.length.clamp(0, 80)),
+                },
+        });
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
+      return;
+    }
+    if (path == '/recognition/dshow' && request.method == 'GET') {
+      try {
+        final session = await ffmpeg_kit_flutter_new_audio.FFmpegKit.execute(
+          '-hide_banner -f dshow -list_devices true -i dummy',
+        );
+        final logs = await session.getLogsAsString();
+        _json(request.response, 200, {
+          'exit': (await session.getReturnCode())?.toString(),
+          'log': logs.length > 1500 ? logs.substring(logs.length - 1500) : logs,
+        });
+      } catch (e) {
+        _json(request.response, 500, {'error': e.toString()});
+      }
       return;
     }
     if (path == '/automix/state' && request.method == 'GET') {

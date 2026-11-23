@@ -26,10 +26,6 @@ class ContentPage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             children: [
-              const SettingNoticeTile(
-                message: 'Filtri contenuto, romanizzazione e lingua sono importati '
-                    'dall\'app Android e non filtrano ancora i risultati desktop.',
-              ),
               const GroupTitle(title: 'Privacy'),
               SettingTile(
                 title: 'Blocked Artists',

@@ -44,7 +44,7 @@ void main() {
       expect(manager, contains('get translateLyrics'));
     });
 
-    test('settings graphics use one shared width and visible placeholders', () {
+    test('settings graphics use one shared width and no stale notices', () {
       for (final path in [
         'lib/screens/settings/appearance/appearance_details_page.dart',
         'lib/screens/settings/integrations/integration_page.dart',
@@ -57,15 +57,15 @@ void main() {
       }
       expect(src('lib/screens/settings/export_queue_page.dart'),
           contains('settingsMaxWidth'));
-      final notice =
-          src('lib/screens/settings/widgets/settings_list.dart');
-      expect(notice, contains('class SettingNoticeTile'));
-      expect(src('lib/screens/settings/music_flow_settings_page.dart'),
-          contains('SettingNoticeTile'));
-      expect(src('lib/screens/settings/content/content_page.dart'),
-          contains('SettingNoticeTile'));
-      expect(src('lib/screens/settings/player/player_settings_page.dart'),
-          contains('SettingNoticeTile'));
+      for (final path in [
+        'lib/screens/settings/music_flow_settings_page.dart',
+        'lib/screens/settings/content/content_page.dart',
+        'lib/screens/settings/player/player_settings_page.dart',
+        'lib/screens/settings/appearance/appearance_details_page.dart',
+      ]) {
+        expect(src(path), isNot(contains('SettingNoticeTile')),
+            reason: 'stale placeholder notice in $path');
+      }
     });
 
     test('account subtitle, export screen and search react correctly', () {

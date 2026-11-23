@@ -72,11 +72,11 @@ void main() {
     }
   });
 
-  test('recognition is an explicit reachable placeholder', () {
+  test('recognition is a real reachable screen', () {
     final settings = File('lib/screens/settings/settings_page.dart')
         .readAsStringSync();
     expect(settings, contains('Song recognition (Echo Find)'));
-    expect(settings, contains('future update'));
+    expect(settings, contains("route: '/song_recognition'"));
     final catalog = File('lib/screens/coming_soon/coming_soon_catalog.dart')
         .readAsStringSync();
     // The placeholder page itself is reachable through /settings/coming_soon.

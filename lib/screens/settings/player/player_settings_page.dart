@@ -39,10 +39,6 @@ class PlayerSettingsPage extends StatelessWidget {
                     vertical: 8,
                   ),
                   children: [
-                    const SettingNoticeTile(
-                      message: 'Alcune opzioni Queue/Misc provengono dall\'app '
-                          'Android e non sono ancora applicate al player desktop.',
-                    ),
                     // -------------------------------------------------- Network
                     const GroupTitle(title: 'Network & quality'),
                     SettingTile(
