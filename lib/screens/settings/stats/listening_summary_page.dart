@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../core/widgets/back_button.dart';
 
@@ -12,7 +13,7 @@ class ListeningSummaryPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
-        title: const Text('Listening Summary')),
+        title: Text(S.of(context).ListeningSummary)),
       body: ValueListenableBuilder<Box>(
         valueListenable: Hive.box('SONG_HISTORY').listenable(),
         builder: (context, box, _) {

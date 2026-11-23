@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 import 'package:provider/provider.dart';
 
@@ -76,12 +77,12 @@ class ExportQueuePage extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.folder_open),
-            tooltip: 'Apri cartella export',
+            tooltip: S.of(context).ApriCartellaExport,
             onPressed: () => _openFolder(queue),
           ),
           IconButton(
             icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Pulisci completate',
+            tooltip: S.of(context).PulisciCompletate,
             onPressed: queue.clearCompleted,
           ),
         ],
@@ -162,14 +163,14 @@ class ExportQueuePage extends StatelessWidget {
                             trailing: t.status == ExportStatus.running
                                 ? IconButton(
                                     icon: const Icon(Icons.cancel),
-                                    tooltip: 'Annulla',
+                                    tooltip: S.of(context).Annulla,
                                     onPressed: () => queue.cancel(t.id),
                                   )
                                 : (t.status == ExportStatus.failed ||
                                         t.status == ExportStatus.cancelled)
                                     ? IconButton(
                                         icon: const Icon(Icons.replay),
-                                        tooltip: 'Riprova',
+                                        tooltip: S.of(context).Riprova,
                                         onPressed: () => queue.retry(t.id),
                                       )
                                     : null,

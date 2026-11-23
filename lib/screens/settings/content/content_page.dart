@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -19,60 +20,60 @@ class ContentPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
-        title: const Text('Content')),
+        title: Text(S.of(context).Content)),
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 1000),
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             children: [
-              const GroupTitle(title: 'Privacy'),
+              GroupTitle(title: S.of(context).Privacy),
               SettingTile(
-                title: 'Blocked Artists',
-                subtitle: 'Manage hidden artists',
+                title: S.of(context).BlockedArtists,
+                subtitle: S.of(context).ManageHiddenArtists,
                 leading: const Icon(Icons.person_off),
                 isFirst: true,
                 onTap: () => context.go('/settings/content/blocked_artists'),
               ),
               SettingTile(
-                title: 'Disliked Songs',
-                subtitle: 'Manage songs you dislike',
+                title: S.of(context).DislikedSongs,
+                subtitle: S.of(context).ManageSongsYouDislike,
                 leading: const Icon(Icons.heart_broken),
                 isLast: true,
                 onTap: () => context.go('/settings/content/disliked_songs'),
               ),
-              const GroupTitle(title: 'General'),
+              GroupTitle(title: S.of(context).General),
               SettingSwitchTile(
-                title: 'Hide explicit content',
+                title: S.of(context).HideExplicitContent,
                 leading: const Icon(Icons.explicit),
                 isFirst: true,
                 value: s.hideExplicit,
                 onChanged: (v) => s.hideExplicit = v,
               ),
               SettingSwitchTile(
-                title: 'Hide video songs',
+                title: S.of(context).HideVideoSongs,
                 leading: const Icon(Icons.music_video),
                 value: s.hideVideoSongs,
                 onChanged: (v) => s.hideVideoSongs = v,
               ),
               SettingSwitchTile(
-                title: 'Hide YouTube Shorts',
+                title: S.of(context).HideYouTubeShorts,
                 leading: const Icon(Icons.smart_display),
                 value: s.hideYouTubeShorts,
                 onChanged: (v) => s.hideYouTubeShorts = v,
               ),
               SettingSwitchTile(
-                title: 'SponsorBlock (auto-skip)',
-                subtitle: 'Skip sponsored segments in videos',
+                title: S.of(context).SponsorBlockAutoSkip,
+                subtitle: S.of(context).SkipSponsoredSegmentsInVideos,
                 leading: const Icon(Icons.block),
                 isLast: true,
                 value: s.sponsorBlock,
                 onChanged: (v) => s.sponsorBlock = v,
               ),
 
-              const GroupTitle(title: 'Region'),
+              GroupTitle(title: S.of(context).Region),
               SettingTile(
-                title: 'Default content language',
+                title: S.of(context).DefaultContentLanguage,
                 subtitle: s.contentLanguage,
                 leading: const Icon(Icons.language),
                 isFirst: true,
@@ -88,7 +89,7 @@ class ContentPage extends StatelessWidget {
                 ),
               ),
               SettingTile(
-                title: 'Default content country',
+                title: S.of(context).DefaultContentCountry,
                 subtitle: s.contentCountry,
                 leading: const Icon(Icons.public),
                 isLast: true,
@@ -104,23 +105,23 @@ class ContentPage extends StatelessWidget {
                 ),
               ),
 
-              const GroupTitle(title: 'Lyrics'),
+              GroupTitle(title: S.of(context).Lyrics),
               SettingSwitchTile(
-                title: 'Lyrics romanization',
+                title: S.of(context).LyricsRomanization,
                 leading: const Icon(Icons.translate),
                 isFirst: true,
                 value: s.lyricsRomanization,
                 onChanged: (v) => s.lyricsRomanization = v,
               ),
               SettingSwitchTile(
-                title: 'Show romanized lyrics as main',
+                title: S.of(context).ShowRomanizedLyricsAsMain,
                 leading: const Icon(Icons.text_fields),
                 isLast: true,
                 value: s.romanizeAsMain,
                 onChanged: (v) => s.romanizeAsMain = v,
               ),
 
-              const GroupTitle(title: 'Network'),
+              GroupTitle(title: S.of(context).Network),
               _soon(context, 'Network IP version', 'Force IPv4 / IPv6 on Android'),
               _soon(context, 'Enable proxy', 'Route requests through a proxy server',
                   isLast: true),
@@ -136,7 +137,7 @@ class ContentPage extends StatelessWidget {
       {bool isLast = false}) {
     return SettingTile(
       title: title,
-      subtitle: 'Coming in a future update',
+      subtitle: S.of(context).ComingInAFutureUpdate,
       leading: const Icon(Icons.schedule),
       isLast: isLast,
       trailing: const Icon(Icons.schedule, size: 18),

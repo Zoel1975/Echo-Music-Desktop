@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../core/widgets/back_button.dart';
@@ -75,7 +76,7 @@ class _EchoBrainPageState extends State<EchoBrainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('EchoBrain playlists'),
+        title: Text(S.of(context).EchoBrainPlaylists),
         leading: echoBackButton(context),
       ),
       body: Padding(

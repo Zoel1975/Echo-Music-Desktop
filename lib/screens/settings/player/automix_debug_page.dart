@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/widgets/back_button.dart';
@@ -19,11 +20,11 @@ class AutomixDebugPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
-        title: const Text('Diagnostica Automix'),
+        title: Text(S.of(context).DiagnosticaAutomix),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Pulisci log',
+            tooltip: S.of(context).PulisciLog,
             onPressed: AutomixDebug.instance.clear,
           ),
         ],
@@ -44,8 +45,8 @@ class AutomixDebugPage extends StatelessWidget {
                 builder: (context, _) {
                   final settings = GetIt.I<SettingsManager>();
                   return SettingSwitchTile(
-                    title: 'Mostra overlay nel player',
-                    subtitle: 'Stato Automix in sovrimpressione',
+                    title: S.of(context).MostraOverlayNelPlayer,
+                    subtitle: S.of(context).StatoAutomixInSovrimpressione,
                     leading: const Icon(Icons.dashboard_customize_outlined),
                     value: settings.extra<bool>('automixOverlay', false),
                     onChanged: (value) =>
@@ -122,7 +123,7 @@ class AutomixDebugPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              const GroupTitle(title: 'Log eventi'),
+              GroupTitle(title: S.of(context).LogEventi),
               ...d.entries.map(
                 (e) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),

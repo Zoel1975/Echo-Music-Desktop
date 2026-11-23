@@ -19,7 +19,7 @@ void main() {
     expect(state, contains('automixHarmonicMix'));
 
     final page = src('lib/screens/settings/player/player_settings_page.dart');
-    expect(page, contains("'Automix · mixing armonico'"));
+    expect(page, contains('S.of(context).AutomixMixingArmonico'));
 
     final player = src('lib/services/media_player.dart');
     expect(player, contains('harmonic_mixing.dart'));

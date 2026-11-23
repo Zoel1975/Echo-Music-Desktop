@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 
 /// A single persisted setting field on an integration screen.
 class IntegrationField {
@@ -59,8 +60,8 @@ class IntegrationScreen {
 class IntegrationCatalog {
   IntegrationCatalog._();
 
-  static const screens = [
-    IntegrationScreen('discord', 'Discord Rich Presence', Icons.discord, [
+  static final screens = [
+    IntegrationScreen('discord', S.current.DiscordRichPresence, Icons.discord, [
       IntegrationField.toggle('discordEnabled', 'Enable Discord RPC',
           toggleFallback: false),
       IntegrationField.text('discordClientId', 'Application ID (client_id)'),
@@ -72,7 +73,7 @@ class IntegrationCatalog {
           fallback: 'Echo Music'),
       IntegrationField.toggle('discordShowPaused', 'Show when paused'),
     ]),
-    IntegrationScreen('lastfm', 'Last.fm / ListenBrainz', Icons.audiotrack, [
+    IntegrationScreen('lastfm', S.current.LastFmListenBrainz, Icons.audiotrack, [
       IntegrationField.text('lastfmUsername', 'Last.fm username'),
       IntegrationField.text('lastfmApiKey', 'Last.fm API key', obscure: true),
       IntegrationField.text('lastfmApiSecret', 'Last.fm API secret',
@@ -87,7 +88,7 @@ class IntegrationCatalog {
       IntegrationField.toggle('listenbrainzScrobble',
           'ListenBrainz scrobbling'),
     ]),
-    IntegrationScreen('jellyfin', 'Jellyfin / Navidrome', Icons.cloud, [
+    IntegrationScreen('jellyfin', S.current.JellyfinNavidrome, Icons.cloud, [
       IntegrationField.choice('cloudType', 'Server type', ['Jellyfin', 'Navidrome'],
           fallback: 'Jellyfin'),
       IntegrationField.text('jellyfinUrl', 'Server URL'),
@@ -96,19 +97,19 @@ class IntegrationCatalog {
       IntegrationField.text('navidromeUrl', 'Navidrome URL'),
       IntegrationField.toggle('cloudSync', 'Sync library on launch'),
     ]),
-    IntegrationScreen('listen_together', 'Listen Together', Icons.groups, [
+    IntegrationScreen('listen_together', S.current.ListenTogether, Icons.groups, [
       IntegrationField.text('ltUsername', 'Username', fallback: 'Listener'),
       IntegrationField.toggle('ltAutoApprove', 'Auto-approve join requests'),
       IntegrationField.text('ltServer', 'Sync server URL'),
       IntegrationField.toggle('ltTopBar', 'Show in top bar'),
     ]),
-    IntegrationScreen('extensions', 'Extensions & high-quality servers',
+    IntegrationScreen('extensions', S.current.ExtensionsHighQualityServers,
         Icons.extension, [
       IntegrationField.toggle('preferExtension', 'Prefer extension audio'),
       IntegrationField.toggle('highQuality', 'High quality (320 kbps)'),
       IntegrationField.text('extensionServer', 'Custom server URL'),
     ]),
-    IntegrationScreen('song_dna', 'Song DNA', Icons.biotech, [
+    IntegrationScreen('song_dna', S.current.SongDNA, Icons.biotech, [
       IntegrationField.toggle('songDnaEnabled', 'Show Song DNA in player'),
       IntegrationField.text('geniusToken', 'Genius API token', obscure: true),
       IntegrationField.text('wikipediaLang', 'Wikipedia language',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/widgets/back_button.dart';
@@ -65,7 +66,7 @@ class _UpdateSettingsPageState extends State<UpdateSettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('System update',
+                  Text(S.of(context).SystemUpdate,
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Text('Versione installata: $_version'),

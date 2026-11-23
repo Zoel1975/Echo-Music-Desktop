@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../services/bottom_message.dart';
@@ -52,18 +53,18 @@ class _StoragePageState extends State<StoragePage> {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             children: [
-              const GroupTitle(title: 'Song Cache'),
+              GroupTitle(title: S.of(context).SongCache),
               SettingTile(
-                title: 'Clear song cache',
+                title: S.of(context).ClearSongCache,
                 subtitle: StorageService.formatBytes(_songBytes),
                 leading: const Icon(Icons.audiotrack),
                 isFirst: true,
                 isLast: true,
                 onTap: () => _clear(_storage.clearSongCache, 'Song cache'),
               ),
-              const GroupTitle(title: 'Image Cache'),
+              GroupTitle(title: S.of(context).ImageCache),
               SettingTile(
-                title: 'Clear image cache',
+                title: S.of(context).ClearImageCache,
                 subtitle: StorageService.formatBytes(_imageBytes),
                 leading: const Icon(Icons.image),
                 isFirst: true,

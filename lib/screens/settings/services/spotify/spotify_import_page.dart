@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 
 import '../../../../core/widgets/back_button.dart';
 import '../../../../services/import_service.dart';
@@ -36,7 +37,7 @@ class _SpotifyImportPageState extends State<SpotifyImportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Import from Spotify'),
+        title: Text(S.of(context).ImportFromSpotify),
         leading: echoBackButton(context),
       ),
       body: Padding(

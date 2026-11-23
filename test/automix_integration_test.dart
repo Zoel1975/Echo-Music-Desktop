@@ -20,7 +20,7 @@ void main() {
     expect(cubit, contains('setAutomixBeatAlign'));
 
     final page = src('lib/screens/settings/player/player_settings_page.dart');
-    expect(page, contains("'Automix · allinea al beat'"));
+    expect(page, contains('S.of(context).AutomixAllineaAlBeat'));
 
     final player = src('lib/services/media_player.dart');
     expect(player, contains('BeatAnalyzerService.analyzeSong'));

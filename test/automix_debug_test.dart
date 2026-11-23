@@ -44,7 +44,7 @@ void main() {
     expect(router, contains('AutomixDebugPage'));
 
     final page = src('lib/screens/settings/player/player_settings_page.dart');
-    expect(page, contains("'Diagnostica Automix'"));
+    expect(page, contains('S.of(context).DiagnosticaAutomix'));
     expect(page, contains('/settings/player/automix_debug'));
 
     final search = src('lib/screens/settings/settings_page.dart');

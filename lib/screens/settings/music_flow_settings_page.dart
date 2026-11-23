@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../core/widgets/back_button.dart';
@@ -24,9 +25,9 @@ class _MusicFlowSettingsPageState extends State<MusicFlowSettingsPage> {
     ('musicFlowAutoNext', true, 'Auto next', 'Advance when a song ends'),
     ('musicFlowHideRecent', true, 'Hide recent', 'Do not show recently played items'),
   ];
-  static const _visuals = [
+  static final _visuals = [
     ('musicFlowAnimatedBackground', true, 'Animated background', 'Gradient follows the current track'),
-    ('musicFlowLyrics', true, 'Lyrics', 'Show synced lyrics in Music Flow'),
+    ('musicFlowLyrics', true, S.current.Lyrics, 'Show synced lyrics in Music Flow'),
     ('musicFlowCellularPrefetch', true, 'Cellular prefetch', 'Preload tracks on metered networks'),
   ];
 
@@ -51,12 +52,12 @@ class _MusicFlowSettingsPageState extends State<MusicFlowSettingsPage> {
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
-        title: const Text('Music Flow'),
+        title: Text(S.current.MusicFlow),
       ),
       body: SettingsList(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Music Flow', style: Theme.of(context).textTheme.titleMedium),
+          Text(S.current.MusicFlow, style: Theme.of(context).textTheme.titleMedium),
           ..._general.map((s) => _toggle(s.$1, s.$2, s.$3, s.$4)),
           const SizedBox(height: 16),
           Text('Appearance', style: Theme.of(context).textTheme.titleMedium),

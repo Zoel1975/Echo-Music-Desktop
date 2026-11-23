@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/widgets/back_button.dart';
@@ -112,12 +113,12 @@ class _AxionEqPageState extends State<AxionEqPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AXION / AutoEq equalizer'),
+        title: Text(S.of(context).AXIONAutoEqEqualizer),
         leading: echoBackButton(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.content_paste),
-            tooltip: 'Incolla profilo AutoEq (avanzato)',
+            tooltip: S.of(context).IncollaProfiloAutoEqAvanzato,
             onPressed: _importProfile,
           ),
         ],
@@ -252,7 +253,7 @@ class _AxionEqPageState extends State<AxionEqPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Annulla'),
+            child: Text(S.of(context).Annulla),
           ),
           FilledButton(
             onPressed: () {

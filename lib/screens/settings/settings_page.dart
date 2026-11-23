@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/services/account_refresh.dart';
@@ -33,7 +34,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Android SearchableSettings: matches top-level entries and common
   /// sub-settings, navigating straight to the right screen.
-  static const _searchableSubs = <(String, String, String)>[
+  static final _searchableSubs = <(String, String, String)>[
     ('Tema', 'Aspetto', '/settings/appearance'),
     ('Colori', 'Aspetto', '/settings/appearance'),
     ('Lingua', 'Contenuti', '/settings/content'),
@@ -45,7 +46,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ('FLAC', 'Riproduttore', '/settings/player'),
     ('Monochrome', 'Riproduttore', '/settings/player'),
     ('Loudness', 'Riproduttore', '/settings/player'),
-    ('Crossfade', 'Riproduttore', '/settings/player'),
+    (S.current.Crossfade, 'Riproduttore', '/settings/player'),
     ('Equalizzatore', 'Riproduttore', '/settings/player/equalizer'),
     ('AutoEq', 'Riproduttore', '/settings/player/axion'),
     ('Automix', 'Riproduttore', '/settings/player/automix_debug'),
@@ -89,7 +90,7 @@ class _SettingsPageState extends State<SettingsPage> {
         continue;
       }
       // Switches are settings too: the old filter only saw SettingTile, so
-      // searching e.g. "Data Saver" returned the empty state.
+      // searching e.g. S.current.DataSaver returned the empty state.
       final String? title = switch (widget) {
         SettingTile() => widget.title,
         SettingSwitchTile() => widget.title,
@@ -137,7 +138,7 @@ class _SettingsPageState extends State<SettingsPage> {
       child: AdaptiveScaffold(
         appBar: AdaptiveAppBar(
           title: Text(
-            S.of(context).Settings,
+            S.current.Settings,
             style: appBarTitleStyle(),
           ),
           automaticallyImplyLeading: false,
@@ -163,7 +164,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     // Mirrors Android SettingsScreen.kt (15 entries). Real
                     // routes where a desktop implementation exists; explicit
                     // "coming in a future update" placeholders otherwise.
-                    GroupTitle(title: "Account"),
+                    GroupTitle(title: S.current.Account),
                     // The shell keeps this page alive, so a plain build-time
                     // read left the old account name after sign-out.
                     ValueListenableBuilder<int>(
@@ -175,7 +176,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             name.isNotEmpty &&
                             CookieStore.instance.cookieHeader != null;
                         return SettingTile(
-                          title: 'Account',
+                          title: S.current.Account,
                           subtitle:
                               signedIn ? name : 'Manage login and integrations',
                           leading: const Icon(Icons.account_circle_outlined),
@@ -188,22 +189,22 @@ class _SettingsPageState extends State<SettingsPage> {
 
                     GroupTitle(title: "Smart features"),
                     SettingTile(
-                      title: 'AI lyrics & translation',
-                      subtitle: 'AI-powered lyrics and translations',
+                      title: S.current.AILyricsTranslation,
+                      subtitle: S.current.AIPoweredLyricsAndTranslations,
                       leading: const Icon(Icons.auto_awesome),
                       isFirst: true,
                       onTap: () => context.go('/settings/ai'),
                     ),
                     SettingTile(
-                      title: 'Listening Summary',
-                      subtitle: 'View your music listening statistics',
+                      title: S.current.ListeningSummary,
+                      subtitle: S.current.ViewYourMusicListeningStatistics,
                       leading: const Icon(Icons.bar_chart),
                       isLast: true,
                       onTap: () => context.go('/settings/listening_summary'),
                     ),
                     SettingTile(
-                      title: 'Echo Wrapped',
-                      subtitle: 'Your year in sound & personal music recap',
+                      title: S.current.EchoWrapped,
+                      subtitle: S.current.YourYearInSoundPersonalMusicRecap,
                       leading: const Icon(Icons.auto_stories),
                       isLast: true,
                       onTap: () => context.go('/settings/wrapped'),
@@ -211,27 +212,27 @@ class _SettingsPageState extends State<SettingsPage> {
 
                     GroupTitle(title: "Appearance & player"),
                     SettingTile(
-                      title: S.of(context).Appearence,
-                      subtitle: 'Themes, colors, and UI layout',
+                      title: S.current.Appearence,
+                      subtitle: S.current.ThemesColorsAndUILayout,
                       leading: const Icon(Icons.palette_outlined),
                       isFirst: true,
                       onTap: () => context.go('/settings/appearance'),
                     ),
                     SettingTile(
-                      title: 'Player and audio',
-                      subtitle: 'Playback, quality, and equalizer',
+                      title: S.current.PlayerAndAudio,
+                      subtitle: S.current.PlaybackQualityAndEqualizer,
                       leading: const Icon(Icons.play_arrow_rounded),
                       onTap: () => context.go('/settings/player'),
                     ),
                     SettingTile(
-                      title: 'Music Flow',
-                      subtitle: 'Resso-style vertical swipe discovery',
+                      title: S.current.MusicFlow,
+                      subtitle: S.current.RessoStyleVerticalSwipeDiscovery,
                       leading: const Icon(Icons.auto_awesome_mosaic),
                       onTap: () => context.go('/settings/music_flow'),
                     ),
                     SettingTile(
-                      title: 'Content',
-                      subtitle: 'Language, region, and providers',
+                      title: S.current.Content,
+                      subtitle: S.current.LanguageRegionAndProviders,
                       leading: const Icon(Icons.language),
                       isLast: true,
                       onTap: () => context.go('/settings/content'),
@@ -240,13 +241,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     GroupTitle(title: "Social & privacy"),
                     _integrationTile(
                       context,
-                      title: 'Listen Together',
+                      title: S.current.ListenTogether,
                       icon: Icons.groups_outlined,
                       route: '/listen_together',
                     ),
                     SettingTile(
-                      title: "Privacy",
-                      subtitle: 'History and tracking',
+                      title: S.current.Privacy,
+                      subtitle: S.current.HistoryAndTracking,
                       leading: const Icon(Icons.privacy_tip),
                       isLast: true,
                       onTap: () => context.go('/settings/privacy'),
@@ -255,26 +256,26 @@ class _SettingsPageState extends State<SettingsPage> {
                     GroupTitle(title: "Storage & services"),
                     SettingTile(
                       title: "Storage",
-                      subtitle: 'Cache and downloads',
+                      subtitle: S.current.CacheAndDownloads,
                       leading: const Icon(Icons.storage_rounded),
                       isFirst: true,
                       onTap: () => context.go('/settings/storage'),
                     ),
                     SettingTile(
                       title: "Backup and restore",
-                      subtitle: 'Export and import data',
+                      subtitle: S.current.ExportAndImportData,
                       leading: const Icon(Icons.cloud_upload_rounded),
                       onTap: () => context.go('/settings/backup_storage'),
                     ),
                     SettingTile(
                       title: "Youtube Music",
-                      subtitle: 'Streaming service configuration',
+                      subtitle: S.current.StreamingServiceConfiguration,
                       leading: const Icon(Icons.play_circle_fill),
                       onTap: () => context.go('/settings/services/ytmusic'),
                     ),
                     SettingTile(
-                      title: 'Import from Spotify',
-                      subtitle: 'Import a playlist by URL',
+                      title: S.current.ImportFromSpotify,
+                      subtitle: S.current.ImportAPlaylistByURL,
                       leading: const Icon(Icons.library_music),
                       isLast: true,
                       onTap: () =>
@@ -284,19 +285,19 @@ class _SettingsPageState extends State<SettingsPage> {
                     GroupTitle(title: "Integrations"),
                     _integrationTile(
                       context,
-                      title: 'Discord Rich Presence',
+                      title: S.current.DiscordRichPresence,
                       icon: Icons.discord,
                       route: '/discord',
                     ),
                     _integrationTile(
                       context,
-                      title: 'Last.fm / ListenBrainz',
+                      title: S.current.LastFmListenBrainz,
                       icon: Icons.audiotrack,
                       route: '/lastfm',
                     ),
                     _integrationTile(
                       context,
-                      title: 'Jellyfin / Navidrome',
+                      title: S.current.JellyfinNavidrome,
                       icon: Icons.cloud_outlined,
                       route: '/jellyfin',
                       isLast: true,
@@ -305,50 +306,50 @@ class _SettingsPageState extends State<SettingsPage> {
                     GroupTitle(title: "More from mobile"),
                     _integrationTile(
                       context,
-                      title: 'Music Flow (full)',
+                      title: S.current.MusicFlowFull,
                       icon: Icons.swipe,
                       route: '/music_flow_full',
                     ),
                     _integrationTile(
                       context,
-                      title: 'Canvas & Ambient mode',
+                      title: S.current.CanvasAmbientMode,
                       icon: Icons.animation,
                       route: '/canvas_ambient',
                     ),
                     _integrationTile(
                       context,
-                      title: 'Extensions & high-quality servers',
+                      title: S.current.ExtensionsHighQualityServers,
                       icon: Icons.extension,
                       route: '/extensions',
                     ),
                     _integrationTile(
                       context,
-                      title: 'EchoBrain playlists',
+                      title: S.current.EchoBrainPlaylists,
                       icon: Icons.auto_awesome,
                       route: '/settings/ai/brain',
                     ),
                     _integrationTile(
                       context,
-                      title: 'AXION / AutoEq equalizer',
+                      title: S.current.AXIONAutoEqEqualizer,
                       icon: Icons.equalizer,
                       route: '/settings/player/axion',
                     ),
                     _integrationTile(
                       context,
-                      title: 'Song recognition (Echo Find)',
+                      title: S.current.SongRecognitionEchoFind,
                       icon: Icons.graphic_eq,
                       route: '/song_recognition',
                       isLast: true,
                     ),
                     _integrationTile(
                       context,
-                      title: 'Song DNA',
+                      title: S.current.SongDNA,
                       icon: Icons.biotech,
                       route: '/song_dna',
                     ),
                     SettingTile(
-                      title: 'Export as MP3',
-                      subtitle: 'Background export task queue',
+                      title: S.current.ExportAsMP3,
+                      subtitle: S.current.BackgroundExportTaskQueue,
                       leading: const Icon(Icons.file_download_outlined),
                       isLast: true,
                       onTap: () => context.go('/export_queue'),
@@ -356,21 +357,21 @@ class _SettingsPageState extends State<SettingsPage> {
 
                     GroupTitle(title: "Updates & About"),
                     SettingTile(
-                      title: S.of(context).About,
-                      subtitle: 'App info and licenses',
+                      title: S.current.About,
+                      subtitle: S.current.AppInfoAndLicenses,
                       leading: const Icon(Icons.info_rounded),
                       isFirst: true,
                       onTap: () => context.go('/settings/about'),
                     ),
                     SettingTile(
-                      title: 'System update',
-                      subtitle: S.of(context).Check_For_Update,
+                      title: S.current.SystemUpdate,
+                      subtitle: S.current.Check_For_Update,
                       leading: const Icon(Icons.update_rounded),
                       onTap: () => context.go('/settings/update'),
                     ),
                     _comingSoonTile(
                       context,
-                      title: 'Supported Links',
+                      title: S.current.SupportedLinks,
                       icon: Icons.link,
                       feature: 'Android app-link settings (not applicable on '
                           'desktop).',
@@ -409,7 +410,7 @@ extension _SettingsPageHelpers on _SettingsPageState {
   }) {
     return SettingTile(
       title: title,
-      subtitle: 'Configure',
+      subtitle: S.current.Configure,
       leading: Icon(icon),
       isFirst: isFirst,
       isLast: isLast,
@@ -430,7 +431,7 @@ extension _SettingsPageHelpers on _SettingsPageState {
   }) {
     return SettingTile(
       title: title,
-      subtitle: 'Coming in a future update',
+      subtitle: S.current.ComingInAFutureUpdate,
       leading: Icon(icon),
       isFirst: isFirst,
       isLast: isLast,
@@ -456,13 +457,13 @@ class _BatteryWarningTile extends StatelessWidget {
         color: Colors.red,
       ),
       title: Text(
-        S.of(context).Battery_Optimisation_title,
+        S.current.Battery_Optimisation_title,
         style: TextStyle(
           color: Theme.of(context).colorScheme.onErrorContainer,
         ),
       ),
       subtitle: Text(
-        S.of(context).Battery_Optimisation_message,
+        S.current.Battery_Optimisation_message,
         style: tinyTextStyle(context).copyWith(
           color: Theme.of(context)
               .colorScheme

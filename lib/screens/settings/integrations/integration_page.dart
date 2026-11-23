@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 import 'package:provider/provider.dart';
 
@@ -55,8 +56,8 @@ class IntegrationPage extends StatelessWidget {
 
   Widget _cloudTest(BuildContext context, SettingsManager s) {
     return SettingTile(
-      title: 'Test connection',
-      subtitle: 'Verify the entered server credentials',
+      title: S.of(context).TestConnection,
+      subtitle: S.of(context).VerifyTheEnteredServerCredentials,
       leading: const Icon(Icons.cloud_sync),
       trailing: FilledButton(
         onPressed: () async {
@@ -89,8 +90,8 @@ class IntegrationPage extends StatelessWidget {
 
   Widget _dnaTest(BuildContext context, SettingsManager s) {
     return SettingTile(
-      title: 'Fetch song background',
-      subtitle: 'Look up a track on Genius / Wikipedia',
+      title: S.of(context).FetchSongBackground,
+      subtitle: S.of(context).LookUpATrackOnGeniusWikipedia,
       leading: const Icon(Icons.biotech),
       trailing: FilledButton(
         onPressed: () async {

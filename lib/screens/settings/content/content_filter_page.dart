@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../services/content_filter_service.dart';
@@ -45,12 +46,12 @@ class _ContentFilterPageState extends State<ContentFilterPage> {
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
-        title: Text(_isArtists ? 'Blocked Artists' : 'Disliked Songs'),
+        title: Text(_isArtists ? S.of(context).BlockedArtists : S.of(context).DislikedSongs),
         actions: [
           if (entries.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),
-              tooltip: 'Clear all',
+              tooltip: S.of(context).ClearAll,
               onPressed: () => setState(() {
                 if (_isArtists) {
                   service.clearBlockedArtists();

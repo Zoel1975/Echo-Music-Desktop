@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../core/widgets/back_button.dart';
 
@@ -14,7 +15,7 @@ class WrappedPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
-        title: const Text('Echo Wrapped')),
+        title: Text(S.of(context).EchoWrapped)),
       body: ValueListenableBuilder<Box>(
         valueListenable: Hive.box('SONG_HISTORY').listenable(),
         builder: (context, box, _) {

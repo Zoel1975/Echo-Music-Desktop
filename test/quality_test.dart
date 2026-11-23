@@ -200,7 +200,7 @@ void main() {
         reason: 'screenshots for the final 5-tab/6-filter/Cast split are required');
     final settingsSrc =
         File('lib/screens/settings/settings_page.dart').readAsStringSync();
-    expect(settingsSrc, contains("title: 'AI lyrics & translation'"));
+    expect(settingsSrc, contains('S.current.AILyricsTranslation'));
     final player =
         File('lib/screens/player/player_page.dart').readAsStringSync();
     expect(player, contains('TextScrollMode.bouncing'));

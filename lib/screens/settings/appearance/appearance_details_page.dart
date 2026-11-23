@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -11,7 +12,7 @@ import '../../../../core/widgets/back_button.dart';
 /// Fine-grained appearance options from Android `AppearanceSettings.kt`,
 /// `GlassEffectSettings.kt`, `FontSelectionScreen.kt` and `HapticsSettings.kt`.
 /// Feasible options are real persisted settings; Android-only/hardware ones
-/// route to an explicit "Coming in a future update" placeholder.
+/// route to an explicit S.of(context).ComingInAFutureUpdate placeholder.
 class AppearanceDetailsPage extends StatelessWidget {
   const AppearanceDetailsPage({super.key});
 
@@ -24,7 +25,7 @@ class AppearanceDetailsPage extends StatelessWidget {
         title: const Text('Appearance details')),
       body: SettingsList(
         children: [
-          const GroupTitle(title: 'Theme'),
+          GroupTitle(title: S.of(context).Theme),
           _dropdown(
             context,
             s,
@@ -43,7 +44,7 @@ class AppearanceDetailsPage extends StatelessWidget {
             'Google Sans Flex',
           ),
 
-          const GroupTitle(title: 'Glass effect'),
+          GroupTitle(title: S.of(context).GlassEffect),
           _switch(context, s, 'Enable Liquid Glass', 'liquidGlass', false),
           _dropdown(context, s, 'Navigation bar style', 'navBarStyle',
               ['Material', 'Apple (floating)'], 'Apple (floating)'),
@@ -57,7 +58,7 @@ class AppearanceDetailsPage extends StatelessWidget {
           _switch(context, s, 'Glass mini player', 'glassMiniPlayer', true),
           _switch(context, s, 'Glass navigation bar', 'glassNavBar', true),
 
-          const GroupTitle(title: 'Player look'),
+          GroupTitle(title: S.of(context).PlayerLook),
           _switch(context, s, 'Apple Music inspired', 'appleInspired', false),
           _switch(context, s, 'Hide volume slider', 'hideVolumeSlider', false),
           _slider(context, s, 'Thumbnail corner radius', 'thumbRadius', 0, 28, 12),
@@ -73,7 +74,7 @@ class AppearanceDetailsPage extends StatelessWidget {
           _switch(context, s, 'Show codec on player', 'showCodec', true),
           _slider(context, s, 'Mini-player swipe sensitivity', 'swipeSensitivity', 1, 10, 5),
 
-          const GroupTitle(title: 'Lyrics'),
+          GroupTitle(title: S.of(context).Lyrics),
           _dropdown(context, s, 'Word-by-word animation', 'lyricsAnimation',
               ['Fade', 'Scale', 'Slide'], 'Fade'),
           _switch(context, s, 'Apple Music lyrics blur', 'appleLyricsBlur', false),
@@ -83,7 +84,7 @@ class AppearanceDetailsPage extends StatelessWidget {
           _switch(context, s, 'Swipe to change song (lyrics)', 'lyricsSwipe', true),
           _switch(context, s, 'Show play/pause on thumbnail', 'lyricsThumbPlayPause', true),
 
-          const GroupTitle(title: 'Misc'),
+          GroupTitle(title: S.of(context).Misc),
           _dropdown(context, s, 'Default library chip', 'defaultLibChip',
               ['Songs', 'Albums', 'Artists', 'Playlists'], 'Songs'),
           _switch(context, s, 'Swipe song left to queue / right to play next',
@@ -158,7 +159,7 @@ class AppearanceDetailsPage extends StatelessWidget {
   Widget _soon(BuildContext context, String title, String feature) {
     return SettingTile(
       title: title,
-      subtitle: 'Coming in a future update',
+      subtitle: S.of(context).ComingInAFutureUpdate,
       leading: const Icon(Icons.schedule),
       trailing: const Icon(Icons.schedule, size: 18),
       onTap: () => context.go(

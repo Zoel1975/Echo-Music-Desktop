@@ -31,7 +31,7 @@ class YTMusicPage extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   children: [
-                    GroupTitle(title: "General"),
+                    GroupTitle(title: S.of(context).General),
 
                     /// Country
                     SettingTile(
@@ -143,7 +143,7 @@ class YTMusicPage extends StatelessWidget {
                       ),
                     ),
 
-                    GroupTitle(title: "Privacy"),
+                    GroupTitle(title: S.of(context).Privacy),
 
                     /// Personalised content
                     SettingSwitchTile(

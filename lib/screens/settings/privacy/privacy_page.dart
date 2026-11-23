@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../generated/l10n.dart';
@@ -50,7 +51,7 @@ class _PrivacyView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
-        title: const Text("Privacy"),
+        title: Text(S.of(context).Privacy),
       ),
       body: Center(
         child: Container(

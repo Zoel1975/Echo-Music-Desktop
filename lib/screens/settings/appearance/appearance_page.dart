@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,7 +14,7 @@ import '../../../../core/widgets/back_button.dart';
 /// Real port of Android `AppearanceSettings.kt`: Theme + Mini-player + Player
 /// + Lyrics + Misc + Auto playlists groups. Android-only visual/hardware
 /// screens (App Icon, Font, Liquid Glass, Haptics, high refresh rate) are
-/// explicit "Coming in a future update" placeholders.
+/// explicit S.of(context).ComingInAFutureUpdate placeholders.
 class AppearancePage extends StatelessWidget {
   const AppearancePage({super.key});
 
@@ -35,7 +36,7 @@ class AppearancePage extends StatelessWidget {
                 return ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   children: [
-                    const GroupTitle(title: 'Theme'),
+                    GroupTitle(title: S.of(context).Theme),
                     SettingTile(
                       title: S.of(context).Theme_Mode,
                       leading: const Icon(Icons.dark_mode),
@@ -54,7 +55,7 @@ class AppearancePage extends StatelessWidget {
                       ),
                     ),
                     SettingTile(
-                      title: 'AccentColor',
+                      title: S.of(context).AccentColor,
                       leading: const Icon(Icons.colorize_rounded),
                       trailing: CircleAvatar(
                         radius: 20,
@@ -71,7 +72,7 @@ class AppearancePage extends StatelessWidget {
                       onTap: () => Modals.showAccentSelector(context),
                     ),
                     SettingSwitchTile(
-                      title: 'Amoled Black',
+                      title: S.of(context).AmoledBlack,
                       leading: const Icon(Icons.mode_night_outlined),
                       value: s.amoledBlack,
                       onChanged: cubit.setAmoledBlack,
@@ -85,14 +86,14 @@ class AppearancePage extends StatelessWidget {
                     ),
 
                     SettingTile(
-                      title: 'Fine-grained options',
-                      subtitle: 'Glass, player, lyrics & misc customization',
+                      title: S.of(context).FineGrainedOptions,
+                      subtitle: S.of(context).GlassPlayerLyricsMiscCustomization,
                       leading: const Icon(Icons.tune),
                       onTap: () => context.go('/settings/appearance/details'),
                     ),
 
                     // Android-only visual / hardware screens.
-                    const GroupTitle(title: 'Appearance extras'),
+                    GroupTitle(title: S.of(context).AppearanceExtras),
                     _soon(context, 'App Icon', 'Choose a custom launcher icon'),
                     _soon(context, 'App Font', 'Font selection (Google Sans, Outfit, ...)'),
                     _soon(context, 'Liquid Glass (Beta)', 'Refraction/lens glass effects'),
@@ -100,18 +101,18 @@ class AppearancePage extends StatelessWidget {
                     _soon(context, 'Enable high refresh rate',
                         'Force 120 Hz display (Android-only)', isLast: true),
 
-                    const GroupTitle(title: 'Mini-player'),
+                    GroupTitle(title: S.of(context).MiniPlayer),
                     _dropdown(context,
-                        title: 'Mini-player background style',
+                        title: S.of(context).MiniPlayerBackgroundStyle,
                         icon: Icons.style,
                         value: s.miniPlayerStyle,
                         items: const ['Glass', 'Solid', 'Gradient'],
                         onChanged: cubit.setMiniPlayerStyle,
                         isFirst: true),
 
-                    const GroupTitle(title: 'Player'),
+                    GroupTitle(title: S.of(context).Player),
                     _dropdown(context,
-                        title: 'Player background style',
+                        title: S.of(context).PlayerBackgroundStyle,
                         icon: Icons.wallpaper,
                         value: PlayerBackgroundStyle.normalize(
                             s.playerBackgroundStyle),
@@ -119,16 +120,16 @@ class AppearancePage extends StatelessWidget {
                         onChanged: cubit.setPlayerBackgroundStyle,
                         isFirst: true),
                     SettingSwitchTile(
-                      title: 'Hide Player Thumbnail',
+                      title: S.of(context).HidePlayerThumbnail,
                       leading: const Icon(Icons.image_not_supported),
                       value: s.hidePlayerThumbnail,
                       onChanged: cubit.setHidePlayerThumbnail,
                       isLast: true,
                     ),
 
-                    const GroupTitle(title: 'Lyrics'),
+                    GroupTitle(title: S.of(context).Lyrics),
                     _dropdown(context,
-                        title: 'Lyrics text position',
+                        title: S.of(context).LyricsTextPosition,
                         icon: Icons.text_fields,
                         value: s.lyricsTextPosition,
                         items: const ['Center', 'Left', 'Right'],
@@ -150,16 +151,16 @@ class AppearancePage extends StatelessWidget {
                       ),
                     ),
                     SettingSwitchTile(
-                      title: 'Auto scroll lyrics',
+                      title: S.of(context).AutoScrollLyrics,
                       leading: const Icon(Icons.swap_vert),
                       value: s.lyricsAutoScroll,
                       onChanged: cubit.setLyricsAutoScroll,
                       isLast: true,
                     ),
 
-                    const GroupTitle(title: 'Misc'),
+                    GroupTitle(title: S.of(context).Misc),
                     _dropdown<int>(context,
-                        title: 'Default open tab',
+                        title: S.of(context).DefaultOpenTab,
                         icon: Icons.tab,
                         value: s.defaultTab,
                         items: const [0, 1, 2, 3],
@@ -167,34 +168,34 @@ class AppearancePage extends StatelessWidget {
                         onChanged: cubit.setDefaultTab,
                         isFirst: true),
 
-                    const GroupTitle(title: 'Auto playlists'),
+                    GroupTitle(title: S.of(context).AutoPlaylists),
                     SettingSwitchTile(
-                      title: 'Show "Liked" playlist',
+                      title: S.of(context).ShowLikedPlaylist,
                       leading: const Icon(Icons.favorite),
                       isFirst: true,
                       value: s.showLikedPlaylist,
                       onChanged: cubit.setShowLikedPlaylist,
                     ),
                     SettingSwitchTile(
-                      title: 'Show "Downloaded" playlist',
+                      title: S.of(context).ShowDownloadedPlaylist,
                       leading: const Icon(Icons.download),
                       value: s.showDownloadedPlaylist,
                       onChanged: cubit.setShowDownloadedPlaylist,
                     ),
                     SettingSwitchTile(
-                      title: 'Show "Top" playlist',
+                      title: S.of(context).ShowTopPlaylist,
                       leading: const Icon(Icons.leaderboard),
                       value: s.showTopPlaylist,
                       onChanged: cubit.setShowTopPlaylist,
                     ),
                     SettingSwitchTile(
-                      title: 'Show "Bottom" playlist',
+                      title: S.of(context).ShowBottomPlaylist,
                       leading: const Icon(Icons.trending_down),
                       value: s.showBottomPlaylist,
                       onChanged: cubit.setShowBottomPlaylist,
                     ),
                     SettingSwitchTile(
-                      title: 'Show "Cached" playlist',
+                      title: S.of(context).ShowCachedPlaylist,
                       leading: const Icon(Icons.cached),
                       isLast: true,
                       value: s.showCachedPlaylist,
@@ -215,7 +216,7 @@ class AppearancePage extends StatelessWidget {
       {bool isLast = false}) {
     return SettingTile(
       title: title,
-      subtitle: 'Coming in a future update',
+      subtitle: S.of(context).ComingInAFutureUpdate,
       leading: const Icon(Icons.schedule),
       isLast: isLast,
       trailing: const Icon(Icons.schedule, size: 18),

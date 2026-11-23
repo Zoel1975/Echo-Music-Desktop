@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../widgets/setting_item.dart';
@@ -29,9 +30,9 @@ class AiHubPage extends StatelessWidget {
                 return ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   children: [
-                    const GroupTitle(title: 'API Credentials'),
+                    GroupTitle(title: S.of(context).APICredentials),
                     SettingTile(
-                      title: 'Provider',
+                      title: S.of(context).Provider,
                       subtitle: s.provider,
                       leading: const Icon(Icons.auto_awesome),
                       isFirst: true,
@@ -47,30 +48,30 @@ class AiHubPage extends StatelessWidget {
                       ),
                     ),
                     _textTile(
-                      title: 'API Key',
+                      title: S.of(context).APIKey,
                       value: s.apiKey,
                       icon: Icons.key,
                       obscure: true,
                       onChanged: cubit.setApiKey,
                     ),
                     _textTile(
-                      title: 'Base URL',
-                      subtitle: 'Leave empty for the provider default',
+                      title: S.of(context).BaseURL,
+                      subtitle: S.of(context).LeaveEmptyForTheProviderDefault,
                       value: s.baseUrl,
                       icon: Icons.link,
                       onChanged: cubit.setBaseUrl,
                     ),
                     _textTile(
-                      title: 'Model',
+                      title: S.of(context).Model,
                       value: s.model,
                       icon: Icons.memory,
                       onChanged: cubit.setModel,
                       isLast: true,
                     ),
 
-                    const GroupTitle(title: 'Translation'),
+                    GroupTitle(title: S.of(context).Translation),
                     SettingTile(
-                      title: 'Translation Mode',
+                      title: S.of(context).TranslationMode,
                       subtitle: s.mode == 'Translate'
                           ? 'Translate meaning'
                           : 'Convert pronunciation',
@@ -88,7 +89,7 @@ class AiHubPage extends StatelessWidget {
                       ),
                     ),
                     SettingTile(
-                      title: 'Target Language',
+                      title: S.of(context).TargetLanguage,
                       subtitle: s.language,
                       leading: const Icon(Icons.language),
                       trailing: DropdownButton<String>(
@@ -103,8 +104,8 @@ class AiHubPage extends StatelessWidget {
                       ),
                     ),
                     SettingSwitchTile(
-                      title: 'Streaming responses',
-                      subtitle: 'Use SSE for faster lyrics translation',
+                      title: S.of(context).StreamingResponses,
+                      subtitle: S.of(context).UseSSEForFasterLyricsTranslation,
                       leading: const Icon(Icons.stream),
                       isLast: true,
                       value: s.streaming,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -40,10 +41,10 @@ class PlayerSettingsPage extends StatelessWidget {
                   ),
                   children: [
                     // -------------------------------------------------- Network
-                    const GroupTitle(title: 'Network & quality'),
+                    GroupTitle(title: S.of(context).NetworkQuality),
                     SettingTile(
                       title: S.of(context).Streaming_Quality,
-                      subtitle: 'Audio quality ceiling over Wi-Fi / network',
+                      subtitle: S.of(context).AudioQualityCeilingOverWiFiNetwork,
                       leading: const Icon(Icons.wifi),
                       isFirst: true,
                       trailing: DropdownButton<dynamic>(
@@ -66,8 +67,8 @@ class PlayerSettingsPage extends StatelessWidget {
                       ),
                     ),
                     SettingSwitchTile(
-                      title: 'Data Saver',
-                      subtitle: 'Force low bitrate and disable preloading',
+                      title: S.of(context).DataSaver,
+                      subtitle: S.of(context).ForceLowBitrateAndDisablePreloading,
                       leading: const Icon(Icons.data_saver_off),
                       isLast: true,
                       value: s.dataSaver,
@@ -75,10 +76,10 @@ class PlayerSettingsPage extends StatelessWidget {
                     ),
 
                     // --------------------------------------------- Audio / DSP
-                    const GroupTitle(title: 'Audio processing'),
+                    GroupTitle(title: S.of(context).AudioProcessing),
                     SettingSwitchTile(
-                      title: 'Audio normalization',
-                      subtitle: 'ReplayGain loudness normalization (via playback gain)',
+                      title: S.of(context).AudioNormalization,
+                      subtitle: S.of(context).ReplayGainLoudnessNormalizationViaPlaybackGain,
                       leading: const Icon(Icons.volume_up),
                       isFirst: true,
                       value: s.audioNormalization,
@@ -104,23 +105,23 @@ class PlayerSettingsPage extends StatelessWidget {
                     ),
                     if (s.audioNormalization)
                       SettingSwitchTile(
-                        title: 'Skip silence',
-                        subtitle: 'Trim silent parts (mpv silenceremove on desktop)',
+                        title: S.of(context).SkipSilence,
+                        subtitle: S.of(context).TrimSilentPartsMpvSilenceremoveOnDesktop,
                         leading: const Icon(Icons.fast_forward),
                         value: s.skipSilence,
                         onChanged: cubit.setSkipSilence,
                       ),
                     SettingSwitchTile(
-                      title: 'Crossfade',
-                      subtitle: 'Blend the end of a song into the next',
+                      title: S.of(context).Crossfade,
+                      subtitle: S.of(context).BlendTheEndOfASongIntoTheNext,
                       leading: const Icon(Icons.graphic_eq),
                       value: s.crossfadeEnabled,
                       onChanged: cubit.setCrossfadeEnabled,
                     ),
                     if (s.crossfadeEnabled)
                       SettingSwitchTile(
-                        title: 'Automix · allinea al beat',
-                        subtitle: 'Il blend finisce su un beat della traccia',
+                        title: S.of(context).AutomixAllineaAlBeat,
+                        subtitle: S.of(context).IlBlendFinisceSuUnBeatDellaTraccia,
                         leading: const Icon(Icons.align_vertical_center),
                         value: s.automixBeatAlign,
                         onChanged: cubit.setAutomixBeatAlign,
@@ -143,21 +144,21 @@ class PlayerSettingsPage extends StatelessWidget {
                       ),
                     if (s.crossfadeEnabled && s.automixBeatAlign)
                       SettingSwitchTile(
-                        title: 'Automix · mixing armonico',
-                        subtitle: 'Sceglie il brano successivo in tonalità compatibile (Camelot)',
+                        title: S.of(context).AutomixMixingArmonico,
+                        subtitle: S.of(context).SceglieIlBranoSuccessivoInTonalitCompatibileCame,
                         leading: const Icon(Icons.grid_3x3),
                         value: s.automixHarmonicMix,
                         onChanged: cubit.setAutomixHarmonicMix,
                       ),
                     SettingTile(
-                      title: 'Diagnostica Automix',
-                      subtitle: 'Stato, analisi beat, mix point e log eventi',
+                      title: S.of(context).DiagnosticaAutomix,
+                      subtitle: S.of(context).StatoAnalisiBeatMixPointELogEventi,
                       leading: const Icon(Icons.monitor_heart_outlined),
                       onTap: () =>
                           context.go('/settings/player/automix_debug'),
                     ),
                     SettingSwitchTile(
-                      title: 'Show 10-second seek buttons',
+                      title: S.of(context).Show10SecondSeekButtons,
                       leading: const Icon(Icons.replay_10),
                       isLast: true,
                       value: s.showSeekButtons,
@@ -165,9 +166,9 @@ class PlayerSettingsPage extends StatelessWidget {
                     ),
 
                     // ------------------------------------------- Output device
-                    const GroupTitle(title: 'Output device'),
+                    GroupTitle(title: S.of(context).OutputDevice),
                     SettingTile(
-                      title: 'Audio output',
+                      title: S.of(context).AudioOutput,
                       subtitle: s.audioDevices.isEmpty
                           ? 'Scanning devices…'
                           : _deviceName(s),
@@ -175,50 +176,50 @@ class PlayerSettingsPage extends StatelessWidget {
                       isFirst: true,
                       trailing: IconButton(
                         icon: const Icon(Icons.refresh),
-                        tooltip: 'Refresh devices',
+                        tooltip: S.of(context).RefreshDevices,
                         onPressed: cubit.refreshDevices,
                       ),
                       onTap: () => _showDevicePicker(context, s, cubit),
                     ),
 
                     // -------------------------------------------------- Queue
-                    const GroupTitle(title: 'Queue'),
+                    GroupTitle(title: S.of(context).Queue),
                     SettingSwitchTile(
-                      title: 'Persistent queue',
-                      subtitle: 'Restore the last queue on app start',
+                      title: S.of(context).PersistentQueue,
+                      subtitle: S.of(context).RestoreTheLastQueueOnAppStart,
                       leading: const Icon(Icons.restore),
                       isFirst: true,
                       value: s.persistentQueue,
                       onChanged: cubit.setPersistentQueue,
                     ),
                     SettingSwitchTile(
-                      title: 'Auto load more songs',
-                      subtitle: 'Add songs when the queue runs low',
+                      title: S.of(context).AutoLoadMoreSongs,
+                      subtitle: S.of(context).AddSongsWhenTheQueueRunsLow,
                       leading: const Icon(Icons.auto_awesome_motion),
                       value: s.autoLoadMore,
                       onChanged: cubit.setAutoLoadMore,
                     ),
                     SettingSwitchTile(
-                      title: 'Enable similar content',
-                      subtitle: 'Add similar songs at the end of the queue',
+                      title: S.of(context).EnableSimilarContent,
+                      subtitle: S.of(context).AddSimilarSongsAtTheEndOfTheQueue,
                       leading: const Icon(Icons.recommend),
                       value: s.similarContent,
                       onChanged: cubit.setSimilarContent,
                     ),
                     SettingSwitchTile(
-                      title: 'Remember shuffle and repeat',
+                      title: S.of(context).RememberShuffleAndRepeat,
                       leading: const Icon(Icons.repeat),
                       value: s.rememberShuffleRepeat,
                       onChanged: cubit.setRememberShuffleRepeat,
                     ),
                     SettingSwitchTile(
-                      title: 'Prevent duplicate tracks in queue',
+                      title: S.of(context).PreventDuplicateTracksInQueue,
                       leading: const Icon(Icons.filter_alt_off),
                       value: s.preventDuplicates,
                       onChanged: cubit.setPreventDuplicates,
                     ),
                     SettingSwitchTile(
-                      title: 'Auto skip to next song on error',
+                      title: S.of(context).AutoSkipToNextSongOnError,
                       leading: const Icon(Icons.skip_next),
                       isLast: true,
                       value: s.autoSkipOnError,
@@ -226,10 +227,10 @@ class PlayerSettingsPage extends StatelessWidget {
                     ),
 
                     // -------------------------------------------------- Misc
-                    const GroupTitle(title: 'Misc'),
+                    GroupTitle(title: S.of(context).Misc),
                     SettingSwitchTile(
-                      title: 'Progressive seek',
-                      subtitle: 'Add 5 extra seconds on each seek',
+                      title: S.of(context).ProgressiveSeek,
+                      subtitle: S.of(context).Add5ExtraSecondsOnEachSeek,
                       leading: const Icon(Icons.forward_5),
                       isFirst: true,
                       value: s.progressiveSeek,
@@ -251,7 +252,7 @@ class PlayerSettingsPage extends StatelessWidget {
                       ),
                     ),
                     SettingTile(
-                      title: 'Loudness preset',
+                      title: S.of(context).LoudnessPreset,
                       subtitle: s.loudnessPreset,
                       leading: const Icon(Icons.graphic_eq),
                       trailing: DropdownButton<String>(
@@ -267,8 +268,8 @@ class PlayerSettingsPage extends StatelessWidget {
                       ),
                     ),
                     SettingSwitchTile(
-                      title: 'Preload next song',
-                      subtitle: 'Cache the next song for gapless playback',
+                      title: S.of(context).PreloadNextSong,
+                      subtitle: S.of(context).CacheTheNextSongForGaplessPlayback,
                       leading: const Icon(Icons.downloading),
                       value: s.preloadNext,
                       onChanged: cubit.setPreloadNext,
@@ -280,7 +281,7 @@ class PlayerSettingsPage extends StatelessWidget {
                       onChanged: cubit.setCrossfadeGapless,
                     ),
                     SettingSwitchTile(
-                      title: 'Auto download on like',
+                      title: S.of(context).AutoDownloadOnLike,
                       leading: const Icon(Icons.download_for_offline),
                       isLast: true,
                       value: s.autoDownloadOnLike,
@@ -288,17 +289,17 @@ class PlayerSettingsPage extends StatelessWidget {
                     ),
 
                     // --------------------------------------------- Cast / LAN
-                    const GroupTitle(title: 'Cast & remote control'),
+                    GroupTitle(title: S.of(context).CastRemoteControl),
                     SettingSwitchTile(
-                      title: 'Google Cast',
-                      subtitle: 'Enable Cast device discovery',
+                      title: S.of(context).GoogleCast,
+                      subtitle: S.of(context).EnableCastDeviceDiscovery,
                       leading: const Icon(Icons.cast),
                       isFirst: true,
                       value: s.castEnabled,
                       onChanged: cubit.setCastEnabled,
                     ),
                     SettingSwitchTile(
-                      title: 'Remote control (LAN)',
+                      title: S.of(context).RemoteControlLAN,
                       subtitle: s.remoteControlUrl ??
                           'Control playback from another device on your Wi-Fi',
                       leading: const Icon(Icons.devices_other),
@@ -308,24 +309,24 @@ class PlayerSettingsPage extends StatelessWidget {
                     ),
 
                     // Infeasible Android internals — explicit future-update notes.
-                    const GroupTitle(title: 'Advanced playback'),
+                    GroupTitle(title: S.of(context).AdvancedPlayback),
                     SettingTile(
-                      title: 'Playback cutoff guard',
-                      subtitle: 'Pre-arm adattivo attivo (20-35 s)',
+                      title: S.of(context).PlaybackCutoffGuard,
+                      subtitle: S.of(context).PreArmAdattivoAttivo2035S,
                       leading: const Icon(Icons.timelapse),
                       isFirst: true,
                       onTap: () =>
                           context.go('/settings/player/automix_debug'),
                     ),
                     SettingTile(
-                      title: 'AXION / AutoEq engine',
-                      subtitle: '10 bande applicate al filtro audio',
+                      title: S.of(context).AXIONAutoEqEngine,
+                      subtitle: S.of(context).M10BandeApplicateAlFiltroAudio,
                       leading: const Icon(Icons.equalizer),
                       onTap: () => context.go('/settings/player/axion'),
                     ),
                     _comingSoon(
                       context,
-                      title: 'Bit-perfect USB DAC output',
+                      title: S.of(context).BitPerfectUSBDACOutput,
                       feature: 'Direct UAC1/UAC2 driver bypass (Android audio '
                           'HAL only).',
                       isLast: true,
@@ -350,7 +351,7 @@ class PlayerSettingsPage extends StatelessWidget {
   }) {
     return SettingTile(
       title: title,
-      subtitle: 'Coming in a future update',
+      subtitle: S.of(context).ComingInAFutureUpdate,
       leading: const Icon(Icons.schedule),
       isFirst: isFirst,
       isLast: isLast,
