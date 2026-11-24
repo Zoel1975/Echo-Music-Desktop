@@ -14,6 +14,7 @@ import 'bottom_message.dart';
 import 'download_manager.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:hive/hive.dart';
 
 import 'account_refresh.dart';
@@ -35,6 +36,7 @@ import 'settings_manager.dart';
 import '../screens/home/cubit/home_cubit.dart';
 import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
+import 'update_service/update_service.dart';
 import '../screens/detail/playlist_page.dart';
 import '../ytmusic/helpers.dart';
 import '../ytmusic/mixins/browsing.dart';
@@ -1492,6 +1494,20 @@ class RuntimeProbeService {
       _json(request.response, 200, {
         'connected': cast.connected.value?.name,
         'status': cast.status.value,
+      });
+      return;
+    }
+    if (path == '/update/check' && request.method == 'POST') {
+      final current = (await PackageInfo.fromPlatform()).version;
+      final update = await UpdateService.checkForUpdate();
+      final body = update?.body ?? '';
+      _json(request.response, 200, {
+        'current': current,
+        'available': update?.version.toString(),
+        'name': update?.name,
+        'downloadUrl': update?.downloadUrl,
+        'bodyPreview': body.length > 160 ? body.substring(0, 160) : body,
+        'source': UpdateService.latestReleaseApi,
       });
       return;
     }

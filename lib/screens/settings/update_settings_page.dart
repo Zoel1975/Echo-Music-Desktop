@@ -19,7 +19,7 @@ class UpdateSettingsPage extends StatefulWidget {
 class _UpdateSettingsPageState extends State<UpdateSettingsPage> {
   String _version = '...';
   bool _checking = false;
-  String _status = 'Premi "Controlla aggiornamenti" per verificare.';
+  String _status = 'Press "Check for updates" to verify.';
   UpdateInfo? _update;
 
   @override
@@ -36,7 +36,7 @@ class _UpdateSettingsPageState extends State<UpdateSettingsPage> {
   Future<void> _check() async {
     setState(() {
       _checking = true;
-      _status = 'Controllo in corso…';
+      _status = 'Checking…';
     });
     final update = await UpdateService.checkForUpdate();
     if (!mounted) return;
@@ -44,8 +44,8 @@ class _UpdateSettingsPageState extends State<UpdateSettingsPage> {
       _checking = false;
       _update = update;
       _status = update == null
-          ? 'Stai usando la versione più recente ($_version).'
-          : 'Aggiornamento disponibile: ${update.version}';
+          ? 'You are on the latest version ($_version).'
+          : 'Update available: ${update.version}';
     });
     if (update != null) UpdateService.showUpdateDialog(context, update);
   }
@@ -69,7 +69,7 @@ class _UpdateSettingsPageState extends State<UpdateSettingsPage> {
                   Text(S.of(context).SystemUpdate,
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text('Versione installata: $_version'),
+                  Text('Installed version: $_version'),
                   const SizedBox(height: 12),
                   Text(_status),
                 ],
@@ -86,7 +86,7 @@ class _UpdateSettingsPageState extends State<UpdateSettingsPage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.update),
-            label: Text(_checking ? 'Controllo…' : 'Controlla aggiornamenti'),
+            label: Text(_checking ? 'Checking…' : 'Check for updates'),
           ),
           const SizedBox(height: 100),
         ],
