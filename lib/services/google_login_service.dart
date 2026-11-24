@@ -113,8 +113,9 @@ class GoogleLoginService {
     );
   }
 
-  /// Launch a browser with remote debugging. `--remote-allow-origins=*` is
-  /// required by Chrome 111+ for the WebSocket CDP connection to succeed.
+  /// Launch a browser with remote debugging. Chrome 111+ needs
+  /// `--remote-allow-origins` for the WebSocket CDP connection; it is pinned to
+  /// the local debugging origin so a random website cannot drive the browser.
   Future<bool> openBrowser({
     required String profileDir,
     List<String>? executables,
@@ -141,7 +142,7 @@ class GoogleLoginService {
       // appear to do nothing.
       _browser = await Process.start(exe, [
         '--remote-debugging-port=$port',
-        '--remote-allow-origins=*',
+        '--remote-allow-origins=http://127.0.0.1:$port',
         '--user-data-dir=$profileDir',
         '--no-first-run',
         '--no-default-browser-check',
@@ -233,7 +234,7 @@ class GoogleLoginService {
     try {
       await Process.start(exe, [
         '--remote-debugging-port=$port',
-        '--remote-allow-origins=*',
+        '--remote-allow-origins=http://127.0.0.1:$port',
         '--user-data-dir=$profileDir',
         '--no-first-run',
         '--no-default-browser-check',

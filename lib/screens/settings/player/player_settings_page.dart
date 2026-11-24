@@ -301,7 +301,8 @@ class PlayerSettingsPage extends StatelessWidget {
                     SettingSwitchTile(
                       title: S.of(context).RemoteControlLAN,
                       subtitle: s.remoteControlUrl ??
-                          'Control playback from another device on your Wi-Fi',
+                          'Control playback from another device on your Wi-Fi. '
+                              'Unauthenticated: enable only on a trusted network.',
                       leading: const Icon(Icons.devices_other),
                       isLast: true,
                       value: s.remoteControlEnabled,

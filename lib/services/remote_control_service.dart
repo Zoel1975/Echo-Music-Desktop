@@ -20,6 +20,10 @@ import 'yt_audio_stream.dart';
 /// song, playing flag) on the UDP discovery channel. Peers with the same
 /// account fingerprint are linked automatically. [probePlaying] returns the
 /// live playback state to any peer that asks.
+/// Escapes untrusted metadata before it is interpolated into the remote
+/// control HTML page. Song titles come from network metadata/local filenames.
+String escapeRemoteHtml(String value) => const HtmlEscape().convert(value);
+
 class RemoteControlService {
   HttpServer? _server;
   RawDatagramSocket? _discovery;
@@ -265,6 +269,10 @@ class RemoteControlService {
       ..headers.contentType = isJson
           ? ContentType('application', 'json')
           : ContentType('text', 'html', charset: 'utf-8')
+      ..headers.add('X-Content-Type-Options', 'nosniff')
+      ..headers.add('X-Frame-Options', 'DENY')
+      ..headers.add('Referrer-Policy', 'no-referrer')
+      ..headers.add('Cache-Control', 'no-store')
       ..write(body);
     request.response.close();
   }
@@ -282,7 +290,7 @@ a{display:inline-block;background:#262126;color:#f2edef;text-decoration:none;pad
 a:hover{background:#ed5564}
 small{display:block;color:#6e6268;margin-top:2rem}
 </style></head><body>
-<div><h1>$title</h1><p>$artist &middot; $playing</p>
+<div><h1>${escapeRemoteHtml(title)}</h1><p>${escapeRemoteHtml(artist)} &middot; ${escapeRemoteHtml(playing)}</p>
 <div class="row">
 <a href="/previous">&#9198;</a><a href="/play">&#9654;</a>
 <a href="/pause">&#10074;&#10074;</a><a href="/next">&#9197;</a>

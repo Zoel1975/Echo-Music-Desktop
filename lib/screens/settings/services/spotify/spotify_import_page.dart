@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:Echo/generated/l10n.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../../core/widgets/back_button.dart';
 import '../../../../services/import_service.dart';
@@ -16,16 +19,34 @@ class SpotifyImportPage extends StatefulWidget {
 
 class _SpotifyImportPageState extends State<SpotifyImportPage> {
   final _url = TextEditingController();
+  final _secret = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (Hive.isBoxOpen('SETTINGS')) {
+      _secret.text = Hive.box('SETTINGS')
+              .get('SPOTIFY_CLIENT_SECRET', defaultValue: '')
+              ?.toString() ??
+          '';
+    }
+  }
 
   @override
   void dispose() {
     _url.dispose();
+    _secret.dispose();
     super.dispose();
   }
 
   void _import() {
     final url = _url.text.trim();
     if (url.isEmpty) return;
+    // Stored locally, never compiled into the distributed binary.
+    if (Hive.isBoxOpen('SETTINGS')) {
+      unawaited(
+          Hive.box('SETTINGS').put('SPOTIFY_CLIENT_SECRET', _secret.text.trim()));
+    }
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -57,6 +78,22 @@ class _SpotifyImportPageState extends State<SpotifyImportPage> {
                 hintText: 'https://open.spotify.com/playlist/...',
                 border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _secret,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Spotify client secret',
+                hintText: 'Your own app credentials',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Stored locally on this device only. It is not bundled in the '
+              'installer; without it Spotify playlist import is unavailable.',
+              style: TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(

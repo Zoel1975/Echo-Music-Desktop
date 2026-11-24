@@ -103,7 +103,9 @@ void main() {
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SpotifyImportPage()));
     expect(find.text('Import from Spotify'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
+    expect(find.text('Playlist URL'), findsOneWidget);
+    expect(find.text('Spotify client secret'), findsOneWidget);
     expect(find.text('Import playlist'), findsOneWidget);
   });
 }
