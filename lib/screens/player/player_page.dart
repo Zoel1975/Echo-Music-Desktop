@@ -163,7 +163,15 @@ class _PlayerPageState extends State<PlayerPage> {
         backgroundColor: Colors.black,
         appBar: AppBar(
           leading: AdaptiveIconButton(
-            onPressed: () => context.pop(),
+            onPressed: () {
+              // A deep-linked player may be the first route: popping it would
+              // throw GoError "There is nothing to pop".
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
             icon: const Icon(Icons.expand_more, color: Colors.white),
           ),
           backgroundColor: Colors.transparent,
