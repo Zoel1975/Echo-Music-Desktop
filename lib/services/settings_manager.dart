@@ -182,8 +182,11 @@ class SettingsManager extends ChangeNotifier implements TranslationSettings {
             0, _themeModes.length - 1)];
     _language = _languages.firstWhere(
         (language) =>
-            language['value'] == _box.get('LANGUAGE', defaultValue: 'en-IN'),
-        orElse: () => _languages.first);
+            language['value'] == _box.get('LANGUAGE', defaultValue: 'en'),
+        orElse: () => _languages.firstWhere(
+      (language) => language['value'] == 'en',
+      orElse: () => _languages.first,
+    ));
     _autofetchSongs = _box.get('AUTOFETCH_SONGS', defaultValue: true);
     _accentColor = _box.get('ACCENT_COLOR') != null
         ? Color(_box.get('ACCENT_COLOR'))

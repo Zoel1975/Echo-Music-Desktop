@@ -117,6 +117,16 @@ void main() {
         contains("extra<bool>('glassPlayer'"));
   });
 
+  test('the default UI and catalog language is English', () {
+    final manager = src('lib/services/settings_manager.dart');
+    final helpers = src('lib/ytmusic/helpers.dart');
+    expect(manager, contains("defaultValue: 'en')"),
+        reason: 'fresh installs must start in English');
+    expect(manager, isNot(contains("defaultValue: 'en-IN'")));
+    expect(helpers, contains("defaultValue: 'en')"));
+    expect(helpers, isNot(contains("defaultValue: 'en-IN'")));
+  });
+
   test('unportable toggles are disabled with an explicit note in the UI', () {
     final details =
         src('lib/screens/settings/appearance/appearance_details_page.dart');

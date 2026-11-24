@@ -55,7 +55,7 @@ Map<String, dynamic> initializeContext() {
         // Music catalog locale, independent of the app UI language/region.
         "hl": settings.get('CONTENT_LANGUAGE')?.toString().isNotEmpty == true
             ? settings.get('CONTENT_LANGUAGE').toString()
-            : settings.get('LANGUAGE', defaultValue: 'en-IN'),
+            : settings.get('LANGUAGE', defaultValue: 'en'),
         "gl": settings.get('CONTENT_COUNTRY')?.toString().isNotEmpty == true
             ? settings.get('CONTENT_COUNTRY').toString()
             : settings.get('LOCATION', defaultValue: 'IN'),
