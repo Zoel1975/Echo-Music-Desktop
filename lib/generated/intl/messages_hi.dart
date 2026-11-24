@@ -392,5 +392,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "YourYearInSoundPersonalMusicRecap": MessageLookupByLibrary.simpleMessage("आपका वर्ष ध्वनि में और व्यक्तिगत संगीत सारांश"),
     "JoinRoom": MessageLookupByLibrary.simpleMessage("रूम में शामिल हों"),
     "PendingRequests": MessageLookupByLibrary.simpleMessage("लंबित अनुरोध"),
+    "AddAudioFiles": MessageLookupByLibrary.simpleMessage("ऑडियो फ़ाइलें जोड़ें"),
+    "AddDownloadedSongs": MessageLookupByLibrary.simpleMessage("डाउनलोड किए गए गाने जोड़ें"),
+    "NoExportsYet": MessageLookupByLibrary.simpleMessage("अभी कोई निर्यात नहीं"),
+    "NoDownloadedSongs": MessageLookupByLibrary.simpleMessage("कोई डाउनलोड किया गया गाना नहीं"),
+    "DownloadManagerUnavailable": MessageLookupByLibrary.simpleMessage("डाउनलोड मैनेजर उपलब्ध नहीं है"),
+    "ExportingToMp3": MessageLookupByLibrary.simpleMessage("MP3 में निर्यात हो रहा है"),
+    "ExportSavedToFolder": MessageLookupByLibrary.simpleMessage("MP3 आपके संगीत फ़ोल्डर में सहेजा गया"),
+    "ExportFailed": MessageLookupByLibrary.simpleMessage("निर्यात विफल"),
+    "OpenFolder": MessageLookupByLibrary.simpleMessage("फ़ोल्डर खोलें"),
+    "DownloadComplete": MessageLookupByLibrary.simpleMessage("डाउनलोड पूरा हुआ"),
+    "DownloadFailed": MessageLookupByLibrary.simpleMessage("डाउनलोड विफल"),
   };
 }

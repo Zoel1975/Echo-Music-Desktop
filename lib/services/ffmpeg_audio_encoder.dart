@@ -128,7 +128,7 @@ class FfmpegAudioEncoder implements AudioEncoder {
               ? trace!.trim()
               : tail.trim().isNotEmpty
                   ? tail
-                  : 'FFmpeg non è riuscito a convertire il file');
+                  : 'FFmpeg could not convert the file');
       throw EncodeException(detail, returnCode: code?.getValue());
     }
     onProgress?.call(1.0);

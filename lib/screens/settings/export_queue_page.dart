@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:Echo/generated/l10n.dart';
@@ -11,6 +9,7 @@ import '../../services/download_manager.dart';
 import '../../services/export_task_queue.dart';
 import '../../services/settings_manager.dart';
 import '../../../core/widgets/back_button.dart';
+import '../../utils/export_feedback.dart';
 import 'widgets/settings_list.dart';
 
 /// Real MP3 export screen: local audio files and downloaded songs are
@@ -29,7 +28,8 @@ class ExportQueuePage extends StatelessWidget {
     }
   }
 
-  Future<void> _addDownloaded(BuildContext context, ExportTaskQueue queue) async {
+  Future<void> _addDownloaded(
+      ScaffoldMessengerState messenger, ExportTaskQueue queue) async {
     try {
       final downloaded = GetIt.I<DownloadManager>();
       final songs = downloaded.downloads.value
@@ -37,8 +37,8 @@ class ExportQueuePage extends StatelessWidget {
           .where((s) => s['status']?.toString() == 'DOWNLOADED')
           .toList();
       if (songs.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nessun brano scaricato')),
+        messenger.showSnackBar(
+          SnackBar(content: Text(S.current.NoDownloadedSongs)),
         );
         return;
       }
@@ -50,35 +50,26 @@ class ExportQueuePage extends StatelessWidget {
         }
       }
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gestore download non disponibile')),
+      messenger.showSnackBar(
+        SnackBar(content: Text(S.current.DownloadManagerUnavailable)),
       );
     }
-  }
-
-  Future<void> _openFolder(ExportTaskQueue queue) async {
-    try {
-      if (Platform.isWindows) {
-        await Process.run('explorer', [queue.exportDir.path]);
-      } else if (Platform.isLinux) {
-        await Process.run('xdg-open', [queue.exportDir.path]);
-      }
-    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     final queue = context.watch<ExportTaskQueue>();
     final settings = context.watch<SettingsManager>();
+    final messenger = ScaffoldMessenger.of(context);
     return Scaffold(
       appBar: AppBar(
         leading: echoBackButton(context),
-        title: const Text('Esporta MP3'),
+        title: Text(S.of(context).ExportAsMP3),
         actions: [
           IconButton(
             icon: const Icon(Icons.folder_open),
             tooltip: S.of(context).ApriCartellaExport,
-            onPressed: () => _openFolder(queue),
+            onPressed: () => ExportFeedback.openFolder(queue.exportDir.path),
           ),
           IconButton(
             icon: const Icon(Icons.delete_sweep),
@@ -102,12 +93,12 @@ class ExportQueuePage extends StatelessWidget {
                     FilledButton.icon(
                       onPressed: () => _pickFiles(queue),
                       icon: const Icon(Icons.add),
-                      label: const Text('Aggiungi file audio'),
+                      label: Text(S.of(context).AddAudioFiles),
                     ),
                     OutlinedButton.icon(
-                      onPressed: () => _addDownloaded(context, queue),
+                      onPressed: () => _addDownloaded(messenger, queue),
                       icon: const Icon(Icons.download),
-                      label: const Text('Aggiungi brani scaricati'),
+                      label: Text(S.of(context).AddDownloadedSongs),
                     ),
                     DropdownButton<int>(
                       value: settings.exportBitrateKbps,
@@ -125,9 +116,23 @@ class ExportQueuePage extends StatelessWidget {
                   ],
                 ),
               ),
+              // Tell the user where the MP3s land: the previous screen never
+              // mentioned the destination, so "Export started" was the only
+              // feedback they got.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  queue.exportDir.path,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
+                ),
+              ),
               Expanded(
                 child: queue.tasks.isEmpty
-                    ? const Center(child: Text('Nessuna esportazione'))
+                    ? Center(child: Text(S.of(context).NoExportsYet))
                     : ListView.separated(
                         itemCount: queue.tasks.length,
                         separatorBuilder: (_, __) => const Divider(height: 1),
@@ -146,7 +151,8 @@ class ExportQueuePage extends StatelessWidget {
                                   ? Colors.red
                                   : null,
                             ),
-                            title: Text(t.targetPath.split(RegExp(r'[/\\]')).last),
+                            title: Text(
+                                t.targetPath.split(RegExp(r'[/\\]')).last),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -156,24 +162,28 @@ class ExportQueuePage extends StatelessWidget {
                                 ),
                                 if (t.error != null)
                                   Text(t.error!,
-                                      style: const TextStyle(color: Colors.red)),
+                                      style:
+                                          const TextStyle(color: Colors.red)),
                                 LinearProgressIndicator(value: t.progress),
                               ],
                             ),
                             trailing: t.status == ExportStatus.running
                                 ? IconButton(
                                     icon: const Icon(Icons.cancel),
-                                    tooltip: S.of(context).Annulla,
+                                    tooltip: S.of(context).Cancel,
                                     onPressed: () => queue.cancel(t.id),
                                   )
                                 : (t.status == ExportStatus.failed ||
                                         t.status == ExportStatus.cancelled)
                                     ? IconButton(
                                         icon: const Icon(Icons.replay),
-                                        tooltip: S.of(context).Riprova,
+                                        tooltip: S.of(context).Retry,
                                         onPressed: () => queue.retry(t.id),
                                       )
                                     : null,
+                            onTap: t.status == ExportStatus.done
+                                ? () => ExportFeedback.openFolder(t.targetPath)
+                                : null,
                           );
                         },
                       ),

@@ -16,6 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'generated/l10n.dart';
+import 'core/app_messenger.dart';
 import 'services/audio_fallback.dart';
 import 'services/error_log.dart';
 import 'services/cast/cast_service.dart';
@@ -320,6 +321,7 @@ class Echo extends StatelessWidget {
       child: MaterialApp.router(
         title: 'Echo Music',
         routerConfig: router,
+        scaffoldMessengerKey: appScaffoldMessengerKey,
         locale: Locale(settings.language['value']!),
         localizationsDelegates: const [
           S.delegate,

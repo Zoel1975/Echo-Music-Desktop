@@ -1212,7 +1212,7 @@ class S {
   /// `Annulla`
   String get Annulla {
     return Intl.message(
-      'Annulla',
+      'Cancel',
       name: 'Annulla',
       desc: '',
       args: [],
@@ -1242,7 +1242,7 @@ class S {
   /// `Apri cartella export`
   String get ApriCartellaExport {
     return Intl.message(
-      'Apri cartella export',
+      'Open export folder',
       name: 'ApriCartellaExport',
       desc: '',
       args: [],
@@ -2132,7 +2132,7 @@ class S {
   /// `Pre-arm adattivo attivo (20-35 s)`
   String get PreArmAdattivoAttivo2035S {
     return Intl.message(
-      'Pre-arm adattivo attivo (20-35 s)',
+      'Adaptive pre-arm active (20-35 s)',
       name: 'PreArmAdattivoAttivo2035S',
       desc: '',
       args: [],
@@ -2192,7 +2192,7 @@ class S {
   /// `Pulisci completate`
   String get PulisciCompletate {
     return Intl.message(
-      'Pulisci completate',
+      'Clear completed',
       name: 'PulisciCompletate',
       desc: '',
       args: [],
@@ -2292,7 +2292,7 @@ class S {
   /// `Riprova`
   String get Riprova {
     return Intl.message(
-      'Riprova',
+      'Retry',
       name: 'Riprova',
       desc: '',
       args: [],
@@ -2302,7 +2302,7 @@ class S {
   /// `Sceglie il brano successivo in tonalità compatibile (Camelot)`
   String get SceglieIlBranoSuccessivoInTonalitCompatibileCame {
     return Intl.message(
-      'Sceglie il brano successivo in tonalità compatibile (Camelot)',
+      'Picks the next track in a compatible key (Camelot)',
       name: 'SceglieIlBranoSuccessivoInTonalitCompatibileCame',
       desc: '',
       args: [],
@@ -2618,6 +2618,105 @@ class S {
     return Intl.message('Pending requests', name: 'PendingRequests', desc: '', args: []);
   }
 
+  /// `Add audio files`
+  String get AddAudioFiles {
+    return Intl.message(
+      'Add audio files',
+      name: 'AddAudioFiles',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `Add downloaded songs`
+  String get AddDownloadedSongs {
+    return Intl.message(
+      'Add downloaded songs',
+      name: 'AddDownloadedSongs',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `No exports yet`
+  String get NoExportsYet {
+    return Intl.message(
+      'No exports yet',
+      name: 'NoExportsYet',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `No downloaded songs`
+  String get NoDownloadedSongs {
+    return Intl.message(
+      'No downloaded songs',
+      name: 'NoDownloadedSongs',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `Download manager unavailable`
+  String get DownloadManagerUnavailable {
+    return Intl.message(
+      'Download manager unavailable',
+      name: 'DownloadManagerUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `Exporting to MP3`
+  String get ExportingToMp3 {
+    return Intl.message(
+      'Exporting to MP3',
+      name: 'ExportingToMp3',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `MP3 saved to your Music folder`
+  String get ExportSavedToFolder {
+    return Intl.message(
+      'MP3 saved to your Music folder',
+      name: 'ExportSavedToFolder',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `Export failed`
+  String get ExportFailed {
+    return Intl.message(
+      'Export failed',
+      name: 'ExportFailed',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `Open folder`
+  String get OpenFolder {
+    return Intl.message(
+      'Open folder',
+      name: 'OpenFolder',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `Download complete`
+  String get DownloadComplete {
+    return Intl.message(
+      'Download complete',
+      name: 'DownloadComplete',
+      desc: '',
+      args: [],
+    );
+  }
+  /// `Download failed`
+  String get DownloadFailed {
+    return Intl.message(
+      'Download failed',
+      name: 'DownloadFailed',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

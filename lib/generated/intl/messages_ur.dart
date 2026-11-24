@@ -390,5 +390,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "YourYearInSoundPersonalMusicRecap": MessageLookupByLibrary.simpleMessage("آپ کا سال آواز میں اور ذاتی موسیقی خلاصہ"),
     "JoinRoom": MessageLookupByLibrary.simpleMessage("کمرے میں شامل ہوں"),
     "PendingRequests": MessageLookupByLibrary.simpleMessage("زیر التواء درخواستیں"),
+    "AddAudioFiles": MessageLookupByLibrary.simpleMessage("آڈیو فائلیں شامل کریں"),
+    "AddDownloadedSongs": MessageLookupByLibrary.simpleMessage("ڈاؤن لوڈ شدہ گانے شامل کریں"),
+    "NoExportsYet": MessageLookupByLibrary.simpleMessage("ابھی کوئی برآمد نہیں"),
+    "NoDownloadedSongs": MessageLookupByLibrary.simpleMessage("کوئی ڈاؤن لوڈ شدہ گانا نہیں"),
+    "DownloadManagerUnavailable": MessageLookupByLibrary.simpleMessage("ڈاؤن لوڈ مینیجر دستیاب نہیں"),
+    "ExportingToMp3": MessageLookupByLibrary.simpleMessage("MP3 میں برآمد کیا جا رہا ہے"),
+    "ExportSavedToFolder": MessageLookupByLibrary.simpleMessage("MP3 آپ کے میوزک فولڈر میں محفوظ ہو گیا"),
+    "ExportFailed": MessageLookupByLibrary.simpleMessage("برآمد ناکام"),
+    "OpenFolder": MessageLookupByLibrary.simpleMessage("فولڈر کھولیں"),
+    "DownloadComplete": MessageLookupByLibrary.simpleMessage("ڈاؤن لوڈ مکمل"),
+    "DownloadFailed": MessageLookupByLibrary.simpleMessage("ڈاؤن لوڈ ناکام"),
   };
 }

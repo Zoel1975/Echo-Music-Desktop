@@ -23,8 +23,6 @@ import 'package:Echo/screens/import_dialog.dart';
 import '../generated/l10n.dart';
 import '../services/bottom_message.dart';
 import '../services/download_manager.dart';
-import '../services/audio_encoder.dart';
-import '../services/export_task_queue.dart';
 import '../services/library.dart';
 import '../services/media_player.dart';
 import '../services/settings_manager.dart';
@@ -33,6 +31,8 @@ import '../themes/text_styles.dart';
 import 'adaptive_widgets/adaptive_widgets.dart';
 import 'format_duration.dart';
 import '../utils/extensions.dart';
+import '../utils/export_feedback.dart';
+import '../utils/download_feedback.dart';
 
 class Modals {
   static Future<T?> showGlassWindow<T>({
@@ -935,10 +935,11 @@ class _AppleMusicStylePopup extends StatelessWidget {
                               icon: AdaptiveIcons.download,
                               title: S.of(context).Download,
                               onTap: () {
+                                final messenger =
+                                    ScaffoldMessenger.of(context);
                                 Navigator.pop(context);
-                                BottomMessage.showText(
-                                    context, S.of(context).Download_Started);
-                                GetIt.I<DownloadManager>().downloadSong(song);
+                                unawaited(DownloadFeedback.download(
+                                    messenger, song));
                               },
                             ),
                           _menuItem(
@@ -1153,9 +1154,9 @@ BottomModalLayout _playerOptionsModal(BuildContext context, Map song) {
               title: Text(S.of(context).Download),
               leading: Icon(AdaptiveIcons.download),
               onTap: () {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
-                BottomMessage.showText(context, S.of(context).Download_Started);
-                GetIt.I<DownloadManager>().downloadSong(song);
+                unawaited(DownloadFeedback.download(messenger, song));
               },
             ),
 
@@ -1338,9 +1339,9 @@ BottomModalLayout _songBottomModal(BuildContext context, Map song) {
               title: Text(S.of(context).Download),
               leading: Icon(AdaptiveIcons.download),
               onTap: () {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
-                BottomMessage.showText(context, S.of(context).Download_Started);
-                GetIt.I<DownloadManager>().downloadSong(song);
+                unawaited(DownloadFeedback.download(messenger, song));
               },
             ),
           AdaptiveListTile(
@@ -2410,16 +2411,14 @@ errorWidget: (context, url, error) => const Icon(Icons.music_note),
           _buildAction(
             context,
             icon: Icons.audiotrack,
-            title: 'Esporta in MP3',
-            onTap: () async {
+            title: S.of(context).ExportAsMP3,
+            onTap: () {
+              // Resolve the messenger before popping: the sheet is gone by the
+              // time the export finishes, but the progress and completion must
+              // still reach the user.
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
-              try {
-                await GetIt.I<ExportTaskQueue>()
-                    .enqueueSong(Map<String, dynamic>.from(song));
-                BottomMessage.showText(context, 'Esportazione MP3 avviata');
-              } on EncodeException catch (e) {
-                BottomMessage.showText(context, e.message);
-              }
+              unawaited(ExportFeedback.exportSong(messenger, song));
             },
           ),
         if (GetIt.I<SettingsManager>().extra<bool>('songDnaEnabled', false))

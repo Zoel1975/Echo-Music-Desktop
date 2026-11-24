@@ -400,5 +400,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "YourYearInSoundPersonalMusicRecap": MessageLookupByLibrary.simpleMessage("Tu año en sonido y resumen musical personal"),
     "JoinRoom": MessageLookupByLibrary.simpleMessage("Unirse a la sala"),
     "PendingRequests": MessageLookupByLibrary.simpleMessage("Solicitudes pendientes"),
+    "AddAudioFiles": MessageLookupByLibrary.simpleMessage("Añadir archivos de audio"),
+    "AddDownloadedSongs": MessageLookupByLibrary.simpleMessage("Añadir canciones descargadas"),
+    "NoExportsYet": MessageLookupByLibrary.simpleMessage("Aún no hay exportaciones"),
+    "NoDownloadedSongs": MessageLookupByLibrary.simpleMessage("No hay canciones descargadas"),
+    "DownloadManagerUnavailable": MessageLookupByLibrary.simpleMessage("Gestor de descargas no disponible"),
+    "ExportingToMp3": MessageLookupByLibrary.simpleMessage("Exportando a MP3"),
+    "ExportSavedToFolder": MessageLookupByLibrary.simpleMessage("MP3 guardado en tu carpeta Música"),
+    "ExportFailed": MessageLookupByLibrary.simpleMessage("Error al exportar"),
+    "OpenFolder": MessageLookupByLibrary.simpleMessage("Abrir carpeta"),
+    "DownloadComplete": MessageLookupByLibrary.simpleMessage("Descarga completada"),
+    "DownloadFailed": MessageLookupByLibrary.simpleMessage("Error en la descarga"),
   };
 }

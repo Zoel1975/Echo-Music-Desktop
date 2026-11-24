@@ -388,5 +388,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "YourYearInSoundPersonalMusicRecap": MessageLookupByLibrary.simpleMessage("Ses içinde yılınız ve kişisel müzik özeti"),
     "JoinRoom": MessageLookupByLibrary.simpleMessage("Odaya katıl"),
     "PendingRequests": MessageLookupByLibrary.simpleMessage("Bekleyen istekler"),
+    "AddAudioFiles": MessageLookupByLibrary.simpleMessage("Ses dosyaları ekle"),
+    "AddDownloadedSongs": MessageLookupByLibrary.simpleMessage("İndirilen şarkıları ekle"),
+    "NoExportsYet": MessageLookupByLibrary.simpleMessage("Henüz dışa aktarma yok"),
+    "NoDownloadedSongs": MessageLookupByLibrary.simpleMessage("İndirilmiş şarkı yok"),
+    "DownloadManagerUnavailable": MessageLookupByLibrary.simpleMessage("İndirme yöneticisi kullanılamıyor"),
+    "ExportingToMp3": MessageLookupByLibrary.simpleMessage("MP3'e aktarılıyor"),
+    "ExportSavedToFolder": MessageLookupByLibrary.simpleMessage("MP3 Müzik klasörünüze kaydedildi"),
+    "ExportFailed": MessageLookupByLibrary.simpleMessage("Dışa aktarma başarısız"),
+    "OpenFolder": MessageLookupByLibrary.simpleMessage("Klasörü aç"),
+    "DownloadComplete": MessageLookupByLibrary.simpleMessage("İndirme tamamlandı"),
+    "DownloadFailed": MessageLookupByLibrary.simpleMessage("İndirme başarısız"),
   };
 }

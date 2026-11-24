@@ -8,6 +8,9 @@ import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart'
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../generated/l10n.dart';
+import '../core/app_messenger.dart';
+import '../utils/export_feedback.dart';
+import 'bottom_message.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:hive/hive.dart';
@@ -1456,6 +1459,40 @@ class RuntimeProbeService {
         'connected': cast.connected.value?.name,
         'status': cast.status.value,
       });
+      return;
+    }
+    if (path == '/toast' && request.method == 'POST') {
+      final messenger = appScaffoldMessengerKey.currentState;
+      if (messenger == null) {
+        _json(request.response, 503, {'error': 'no messenger'});
+        return;
+      }
+      final text = request.uri.queryParameters['text'] ?? '';
+      final kind = request.uri.queryParameters['kind'] ?? 'text';
+      final exportDir = GetIt.I<ExportTaskQueue>().exportDir.path;
+      final task = ExportTask(
+        id: 'probe',
+        sourcePath: '$exportDir${Platform.pathSeparator}probe.m4a',
+        targetPath:
+            '$exportDir${Platform.pathSeparator}${text.isEmpty ? 'Probe' : text}.mp3',
+        bitrateKbps: 192,
+        tags: const {},
+        status: ExportStatus.done,
+        progress: 1,
+        stage: 'Done',
+      );
+      switch (kind) {
+        case 'export-progress':
+          ExportFeedback.progress(
+              messenger, GetIt.I<ExportTaskQueue>(), task, text);
+        case 'export-done':
+          ExportFeedback.done(messenger, task);
+        case 'export-failed':
+          ExportFeedback.failed(messenger, text);
+        default:
+          BottomMessage.showOn(messenger, text);
+      }
+      _json(request.response, 200, {'kind': kind, 'text': text});
       return;
     }
     if (path == '/goto' && request.method == 'POST') {

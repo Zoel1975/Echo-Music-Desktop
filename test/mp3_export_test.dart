@@ -67,11 +67,91 @@ void main() {
     expect(queue, contains('FfmpegAudioEncoder'));
 
     final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
-    expect(modal, contains("'Esporta in MP3'"));
+    expect(modal, contains('ExportFeedback.exportSong'));
+    expect(modal, contains('S.of(context).ExportAsMP3'));
+    expect(modal, isNot(contains('Esporta in MP3')));
+    expect(modal, isNot(contains('Esportazione MP3 avviata')));
+
+    // Export feedback must be visible and actionable: live progress plus the
+    // destination file. The old flow only flashed an invisible toast.
+    final feedback = File('lib/utils/export_feedback.dart').readAsStringSync();
+    expect(feedback, contains('LinearProgressIndicator'));
+    expect(feedback, contains('ExportSavedToFolder'));
+    expect(feedback, contains('OpenFolder'));
+    expect(feedback, contains('ExportFailed'));
 
     final doc = File('docs/MP3_EXPORT.md').readAsStringSync();
     expect(doc, contains('FFmpeg'));
     expect(doc, contains('LGPL'));
     expect(doc, contains('Flacora'));
+  });
+
+  test('toasts are readable instead of painting transparent text', () {
+    final message = File('lib/services/bottom_message.dart').readAsStringSync();
+    // scaffoldBackgroundColor is Colors.transparent on Windows and used to be
+    // reused as the text colour, which made every toast look empty.
+    expect(message, isNot(contains('inactiveBackgroundColor')));
+    expect(message, contains('estimateBrightnessForColor'));
+    expect(message, contains('SnackBarAction'));
+  });
+
+  test('export stages and errors are English', () {
+    final queue =
+        File('lib/services/export_task_queue.dart').readAsStringSync();
+    for (final stage in [
+      "'Queued'",
+      "'Converting to MP3'",
+      "'Done'",
+      "'Cancelled'",
+      "'Failed'",
+    ]) {
+      expect(queue, contains(stage), reason: 'missing stage $stage');
+    }
+    for (final legacy in [
+      'In coda',
+      'Conversione MP3',
+      'Annullata',
+      'Brano non disponibile offline',
+      'Brano non scaricato',
+      'File sorgente mancante',
+      'FFmpeg non ha prodotto alcun file',
+    ]) {
+      expect(queue, isNot(contains(legacy)), reason: 'italian leftover: $legacy');
+    }
+    final encoder =
+        File('lib/services/ffmpeg_audio_encoder.dart').readAsStringSync();
+    expect(encoder, isNot(contains('non è riuscito')));
+  });
+
+  test('the English catalog is English for the export screen', () {
+    final arb = File('lib/l10n/intl_en.arb').readAsStringSync();
+    expect(arb, contains('"Open export folder"'));
+    expect(arb, contains('"Clear completed"'));
+    expect(arb, contains('"Exporting to MP3"'));
+    expect(arb, contains('"MP3 saved to your Music folder"'));
+    for (final legacy in [
+      '"Apri cartella export"',
+      '"Pulisci completate"',
+      '"Annulla": "Annulla"',
+      '"Riprova": "Riprova"',
+    ]) {
+      expect(arb, isNot(contains(legacy)), reason: 'italian leftover: $legacy');
+    }
+  });
+
+  test('the download menu reports the real outcome instead of staying silent',
+      () {
+    final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
+    expect(modal, contains('DownloadFeedback.download'));
+    // The song download action used to fire and forget: failures were only
+    // written to debugPrint.
+    final feedback =
+        File('lib/utils/download_feedback.dart').readAsStringSync();
+    expect(feedback, contains('DownloadComplete'));
+    expect(feedback, contains('DownloadFailed'));
+    expect(feedback, contains("'DOWNLOADED'"));
+    final arb = File('lib/l10n/intl_en.arb').readAsStringSync();
+    expect(arb, contains('"Download complete"'));
+    expect(arb, contains('"Download failed"'));
   });
 }

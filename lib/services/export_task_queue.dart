@@ -25,7 +25,7 @@ class ExportTask {
     this.status = ExportStatus.queued,
     this.progress,
     this.error,
-    this.stage = 'In coda',
+    this.stage = 'Queued',
     this.sessionId,
   });
 
@@ -139,6 +139,9 @@ class ExportTaskQueue extends ChangeNotifier {
     String sourcePath, {
     Map<String, dynamic>? song,
     String? fileName,
+    /// Called as soon as the task exists, before transcoding starts. The UI
+    /// uses it to attach a live progress bar to the new task.
+    void Function(ExportTask task)? onTask,
   }) async {
     if (!_exportDir.existsSync()) {
       await _exportDir.create(recursive: true);
@@ -170,15 +173,19 @@ class ExportTaskQueue extends ChangeNotifier {
     );
     _tasks.add(task);
     notifyListeners();
+    onTask?.call(task);
     await _drain();
     return _tasks.firstWhere((t) => t.id == task.id);
   }
 
   /// Exports a downloaded song (offline) by resolving its cached file path.
-  Future<ExportTask> enqueueSong(Map<String, dynamic> song) async {
+  Future<ExportTask> enqueueSong(
+    Map<String, dynamic> song, {
+    void Function(ExportTask task)? onTask,
+  }) async {
     final videoId = song['videoId']?.toString();
     if (!GetIt.I.isRegistered<DownloadManager>() || videoId == null) {
-      throw const EncodeException('Brano non disponibile offline');
+      throw const EncodeException('Track not available offline');
     }
     final downloaded = GetIt.I<DownloadManager>().downloads.value
         .whereType<Map>()
@@ -188,12 +195,12 @@ class ExportTaskQueue extends ChangeNotifier {
         );
     final path = downloaded['path']?.toString();
     if (path == null || !File(path).existsSync()) {
-      throw const EncodeException('Brano non scaricato');
+      throw const EncodeException('Track is not downloaded');
     }
     final meta = Map<String, dynamic>.from(downloaded);
     if (meta['title'] == null) meta['title'] = song['title'];
     if (meta['artists'] == null) meta['artists'] = song['artists'];
-    return enqueue(path, song: meta);
+    return enqueue(path, song: meta, onTask: onTask);
   }
 
   Future<void> _drain() async {
@@ -203,7 +210,7 @@ class ExportTaskQueue extends ChangeNotifier {
       final i = _tasks.indexWhere((t) => t.status == ExportStatus.queued);
       var task = _tasks[i].copyWith(
         status: ExportStatus.running,
-        stage: 'Conversione MP3',
+        stage: 'Converting to MP3',
         progress: 0.0,
       );
       _tasks[i] = task;
@@ -212,7 +219,9 @@ class ExportTaskQueue extends ChangeNotifier {
       final tempPath = '${task.targetPath}.part';
       try {
         final source = File(task.sourcePath);
-        if (!source.existsSync()) throw const EncodeException('File sorgente mancante');
+        if (!source.existsSync()) {
+          throw const EncodeException('Source file is missing');
+        }
         await _encoder.encode(
           inputPath: task.sourcePath,
           outputPath: tempPath,
@@ -233,7 +242,7 @@ class ExportTaskQueue extends ChangeNotifier {
         if (_cancelled.contains(task.id)) continue;
         final temp = File(tempPath);
         if (!temp.existsSync() || await temp.length() == 0) {
-          throw const EncodeException('FFmpeg non ha prodotto alcun file');
+          throw const EncodeException('FFmpeg produced no output');
         }
         final target = File(task.targetPath);
         if (target.existsSync()) await target.delete();
@@ -241,7 +250,7 @@ class ExportTaskQueue extends ChangeNotifier {
         _cancelled.remove(task.id);
         _tasks[i] = _tasks[i].copyWith(
           status: ExportStatus.done,
-          stage: 'Completa',
+          stage: 'Done',
           progress: 1.0,
         );
       } catch (e) {
@@ -252,7 +261,7 @@ class ExportTaskQueue extends ChangeNotifier {
         } catch (_) {}
         _tasks[i] = _tasks[i].copyWith(
           status: wasCancelled ? ExportStatus.cancelled : ExportStatus.failed,
-          stage: wasCancelled ? 'Annullata' : 'Errore',
+          stage: wasCancelled ? 'Cancelled' : 'Failed',
           error: wasCancelled ? null : e.toString(),
         );
       }
@@ -273,7 +282,7 @@ class ExportTaskQueue extends ChangeNotifier {
     }
     _tasks[i] = _tasks[i].copyWith(
       status: ExportStatus.cancelled,
-      stage: 'Annullata',
+      stage: 'Cancelled',
     );
     notifyListeners();
   }
@@ -284,7 +293,7 @@ class ExportTaskQueue extends ChangeNotifier {
     _cancelled.remove(id);
     _tasks[i] = _tasks[i].copyWith(
       status: ExportStatus.queued,
-      stage: 'In coda',
+      stage: 'Queued',
       progress: 0.0,
       error: null,
     );
