@@ -25,7 +25,7 @@ Scope: `lib/screens/settings/**`, `lib/services/settings_manager.dart`, and the 
 
 A later audit found 57 persisted options with no consumer. All feasible ones are now wired with real Flutter hooks — theme accent/AMOLED, queue deduplication, shuffle/repeat persistence, history trimming, crossfade gapless, preload, auto-download on like, content filters, lyrics options, default tab, mini-player style, appearance gestures, Last.fm likes, Song DNA, cloud sync, Listen Together, extension settings, and more. See `test/settings_wiring_test.dart`.
 
-Eight options remain explicitly disabled with a Windows-specific reason in `settings_capabilities.dart`: wallpaper-based Dynamic Colors, haptics, three `RenderEffect` effects, and three automatic playlists with no desktop equivalent. They are rendered as informational tiles, not silent toggles.
+Five options remain explicitly disabled with a Windows-specific reason in `settings_capabilities.dart`: wallpaper-based Dynamic Colors, haptics, and three `RenderEffect` effects. They are rendered as informational tiles, not silent toggles. The automatic Top / Bottom / Cached playlist toggles are implemented with `services/auto_playlists.dart` (Top/Bottom from `SONG_HISTORY` play counts, Cached from downloaded files) and appear in the Library when enabled.
 
 Options with real effects include: theme, YT Music language/country, streaming/download quality, Data Saver, high quality, crossfade, loudness, skip silence, SponsorBlock, autofetch, personalized content, history/privacy, seek buttons, Cast/remote, lyrics size/spacing, codec label, AI API keys, Discord/Last.fm/ListenBrainz, storage/backup/update/export.
 

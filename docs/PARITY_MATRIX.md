@@ -57,4 +57,4 @@ DONE = 48 / 48 = **100%**. The two most recent items are functional with their d
 
 ## Settings coverage
 
-The settings audit found 57 persisted options with no consumer. All feasible ones are now wired to real Flutter widgets or services; `test/settings_wiring_test.dart` verifies this. Eight options remain explicitly disabled with a Windows-specific reason in `settings_capabilities.dart`: wallpaper-based Dynamic Colors, haptics, three `RenderEffect` effects, and three automatic playlists with no desktop equivalent.
+The settings audit found 57 persisted options with no consumer. All feasible ones are now wired to real Flutter widgets or services; `test/settings_wiring_test.dart` verifies this. Five options remain explicitly disabled with a Windows-specific reason in `settings_capabilities.dart`: wallpaper-based Dynamic Colors, haptics, and three `RenderEffect` effects. The automatic Top / Bottom / Cached playlists are built from `SONG_HISTORY` play counts and downloaded files by `services/auto_playlists.dart`.

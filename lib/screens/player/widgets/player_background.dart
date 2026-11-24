@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:provider/provider.dart';
 import 'package:Echo/services/settings_manager.dart';
 
 import 'animated_gradient_bg.dart';
@@ -64,6 +65,16 @@ class PlayerBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // "Glass player" is read from SettingsManager in _liquidGlass(). Rebuild
+    // when it changes without requiring a Provider ancestor.
+    if (!GetIt.I.isRegistered<SettingsManager>()) return _buildBackground(context);
+    return AnimatedBuilder(
+      animation: GetIt.I<SettingsManager>(),
+      builder: (context, _) => _buildBackground(context),
+    );
+  }
+
+  Widget _buildBackground(BuildContext context) {
     final resolved = PlayerBackgroundStyle.normalize(style);
     return switch (resolved) {
       PlayerBackgroundStyle.defaultStyle => _solid(context),
@@ -97,21 +108,27 @@ class PlayerBackground extends StatelessWidget {
         ],
       );
 
-  Widget _artworkBlur(BuildContext context, double sigma, double scrim) =>
-      Stack(
-        children: [
-          if (artwork != null)
-            Positioned.fill(
-              child: ImageFilterView(sigma: sigma, child: artwork!),
-            )
-          else
-            Positioned.fill(child: _gradientOnly()),
+  Widget _artworkBlur(BuildContext context, double sigma, double scrim) {
+    // "Glass player" disables blur/translucency for every glass-style
+    // background, not only the liquid-glass variant.
+    if (!GetIt.I<SettingsManager>().extra<bool>('glassPlayer', true)) {
+      return _solid(context);
+    }
+    return Stack(
+      children: [
+        if (artwork != null)
           Positioned.fill(
-            child: Container(color: Colors.black.withValues(alpha: scrim)),
-          ),
-          child,
-        ],
-      );
+            child: ImageFilterView(sigma: sigma, child: artwork!),
+          )
+        else
+          Positioned.fill(child: _gradientOnly()),
+        Positioned.fill(
+          child: Container(color: Colors.black.withValues(alpha: scrim)),
+        ),
+        child,
+      ],
+    );
+  }
 
   Widget _gradientOnly() => AnimatedGradientBackground(
         colors: _palette,

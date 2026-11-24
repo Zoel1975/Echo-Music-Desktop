@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/core/utils/service_locator.dart';
 import 'package:Echo/services/settings_manager.dart';
+import 'package:Echo/services/auto_playlists.dart';
+import 'package:Echo/services/media_player.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:Echo/utils/playlist_thumbnail.dart';
 
@@ -141,6 +143,70 @@ class _LibraryBody extends StatelessWidget {
             ),
           );
         },
+      });
+    }
+
+    // Android's automatic playlists, built from data already on disk.
+    final autoData = <String, List<Map<String, dynamic>>>{
+      'Top played': AutoPlaylists.top(),
+      'Least played': AutoPlaylists.bottom(),
+      'Cached': AutoPlaylists.cached(),
+    };
+    const autoKeys = {
+      'Top played': 'showTopPlaylist',
+      'Least played': 'showBottomPlaylist',
+      'Cached': 'showCachedPlaylist',
+    };
+    const autoIcons = {
+      'Top played': Icons.leaderboard,
+      'Least played': Icons.trending_down,
+      'Cached': Icons.cached,
+    };
+    for (final entry in autoData.entries) {
+      if (!GetIt.I<SettingsManager>()
+          .extra<bool>(autoKeys[entry.key]!, false)) {
+        continue;
+      }
+      final songs = entry.value;
+      gridItems.add({
+        'title': entry.key,
+        'subtitle': '${songs.length} songs',
+        'icon': autoIcons[entry.key]!,
+        'onTap': () => showDialog<void>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(entry.key),
+                content: SizedBox(
+                  width: 360,
+                  child: songs.isEmpty
+                      ? const Text('No songs available yet')
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: songs.length,
+                          itemBuilder: (_, i) => ListTile(
+                            title: Text(songs[i]['title']?.toString() ?? ''),
+                            subtitle: Text(
+                              songs[i]['artist']?.toString() ?? '',
+                            ),
+                          ),
+                        ),
+                ),
+                actions: [
+                  if (songs.isNotEmpty)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        GetIt.I<MediaPlayer>().playAll(songs, index: 0);
+                      },
+                      child: const Text('Play all'),
+                    ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ),
       });
     }
 

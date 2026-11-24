@@ -10,7 +10,7 @@ void main() {
     final entries = RegExp(r"^\s*'([A-Za-z0-9_]+)':\s*'([^']+)'", multiLine: true)
         .allMatches(registry)
         .toList();
-    expect(entries.length, greaterThanOrEqualTo(8));
+    expect(entries.length, greaterThanOrEqualTo(5));
     for (final m in entries) {
       expect(m.group(2)!.trim().length, greaterThan(15),
           reason: '${m.group(1)} needs a real explanation');
@@ -82,6 +82,9 @@ void main() {
       'navBarStyle',
       'appleInspired',
       'listenTogetherTop',
+      'showTopPlaylist',
+      'showBottomPlaylist',
+      'showCachedPlaylist',
     ]) {
       expect(registry, isNot(contains("'$key':")),
           reason: '$key is implemented and must not be disabled');
@@ -95,6 +98,23 @@ void main() {
     expect(main, contains('amoled: settings.amoledBlack'));
     expect(theme, contains('amoled'));
     expect(theme, contains('surface: Colors.black'));
+  });
+
+  test('appearance widgets rebuild when a setting changes', () {
+    // Previously the widgets read GetIt without listening, so toggling
+    // rotation / glass did nothing until a full app restart.
+    expect(src('lib/screens/player/player_page.dart'),
+        contains('context.watch<SettingsManager>()'));
+    for (final path in [
+      'lib/screens/shell/widgets/bottom_player.dart',
+      'lib/core/widgets/floating_nav.dart',
+      'lib/screens/player/widgets/player_background.dart',
+    ]) {
+      expect(src(path), contains('AnimatedBuilder'),
+          reason: '$path must listen to SettingsManager');
+    }
+    expect(src('lib/screens/player/widgets/player_background.dart'),
+        contains("extra<bool>('glassPlayer'"));
   });
 
   test('unportable toggles are disabled with an explicit note in the UI', () {

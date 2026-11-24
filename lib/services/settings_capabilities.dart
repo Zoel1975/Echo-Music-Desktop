@@ -1,10 +1,11 @@
 /// Settings that still cannot work in the Windows build.
 ///
-/// Only eight options remain: the Android platform services they need do not
-/// exist on Windows (wallpaper palette, vibration motor, RenderEffect) or the
-/// desktop library has no equivalent auto-playlist. Every other Android option
-/// is wired to a real Flutter widget or service; these are shown disabled in
-/// the UI with the explicit reason below, never as silent no-ops.
+/// Only five options remain: the Android platform services they need do not
+/// exist on Windows (wallpaper palette, vibration motor, RenderEffect). Every
+/// other Android option — including the automatic Top/Bottom/Cached playlists
+/// built from local history and downloads — is wired to a real Flutter widget
+/// or service. These are shown disabled in the UI with the explicit reason
+/// below, never as silent no-ops.
 const Map<String, String> unavailableSettings = {
   'hapticIntensity':
       'Feedback aptico non disponibile: Windows non espone un motore di vibrazione.',
@@ -17,12 +18,6 @@ const Map<String, String> unavailableSettings = {
   'DYNAMIC_COLORS':
       'Material You richiede WallpaperColors di Android; Windows non fornisce '
       'la palette del wallpaper di sistema.',
-  'showTopPlaylist':
-      'Playlist automatica "Top" non presente nella libreria desktop.',
-  'showBottomPlaylist':
-      'Playlist automatica "Bottom" non presente nella libreria desktop.',
-  'showCachedPlaylist':
-      'Playlist automatica "Cached" non presente nella libreria desktop.',
 };
 
 /// True when the key has a working implementation in the Windows build.

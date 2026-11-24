@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../services/settings_manager.dart';
 
 import '../theme/motion_tokens.dart';
@@ -43,7 +44,19 @@ class EchoFloatingNavBar extends StatelessWidget {
   final List<EchoNavDestination> destinations;
 
   @override
+  @override
   Widget build(BuildContext context) {
+    // Glass / navigation style preferences are read from SettingsManager via
+    // GetIt. AnimatedBuilder subscribes to the ChangeNotifier without needing
+    // a Provider ancestor (tests and embedded surfaces may not have one).
+    if (!GetIt.I.isRegistered<SettingsManager>()) return _buildBar(context);
+    return AnimatedBuilder(
+      animation: GetIt.I<SettingsManager>(),
+      builder: (context, _) => _buildBar(context),
+    );
+  }
+
+  Widget _buildBar(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     // No BackdropFilter: on Windows/Impeller it leaked the blur outside the
     // pill and blurred the whole app. Same look, stable layered colors.

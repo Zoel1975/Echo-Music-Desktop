@@ -56,7 +56,18 @@ class _BottomPlayerState extends State<BottomPlayer> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    // Rebuild when appearance settings (mini-player style, glass) change,
+    // without requiring a Provider ancestor.
+    if (!GetIt.I.isRegistered<SettingsManager>()) return _buildPlayer(context);
+    return AnimatedBuilder(
+      animation: GetIt.I<SettingsManager>(),
+      builder: (context, _) => _buildPlayer(context),
+    );
+  }
+
+  Widget _buildPlayer(BuildContext context) {
     final mediaPlayer = GetIt.I<MediaPlayer>();
     return StreamBuilder(
         stream: mediaPlayer.currentTrackStream,

@@ -152,6 +152,10 @@ class _PlayerPageState extends State<PlayerPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Appearance preferences (rotation, crop, glass, play button style, ...)
+    // are read from SettingsManager below. Watching it here rebuilds the
+    // player as soon as a setting changes, instead of only on full restart.
+    context.watch<SettingsManager>();
     // The player can be opened before anything is playing (e.g. from a deep
     // link). The rest of the tree dereferences currentSong in many places.
     if (currentSong == null) {
