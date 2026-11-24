@@ -52,6 +52,17 @@ class ListenTogetherService {
   ListenState? _lastState;
   String _room = 'echo';
 
+  /// Android's Listen Together auto-approval preference. When false, guest
+  /// updates are ignored until explicitly approved by the host.
+  bool autoApprove = true;
+  final Set<String> _approvedUsers = <String>{};
+  final Set<String> _pendingUsers = <String>{};
+  Set<String> get pendingUsers => Set.unmodifiable(_pendingUsers);
+  void approve(String username) {
+    _approvedUsers.add(username);
+    _pendingUsers.remove(username);
+  }
+
   bool get isHosting => _server != null;
   ListenState? get state => _lastState;
 
@@ -77,7 +88,15 @@ class ListenTogetherService {
     if (isPost) {
       utf8.decoder.bind(request).join().then((body) {
         try {
-          _lastState = ListenState.fromJson(jsonDecode(body) as Map<String, dynamic>);
+          final incoming =
+              ListenState.fromJson(jsonDecode(body) as Map<String, dynamic>);
+          final allowed = autoApprove || _approvedUsers.contains(incoming.username);
+          if (!allowed) {
+            _pendingUsers.add(incoming.username);
+            debugPrint('[listen-together] pending join: ${incoming.username}');
+          } else {
+            _lastState = incoming;
+          }
         } catch (_) {}
       });
     }

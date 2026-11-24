@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/core/utils/service_locator.dart';
 import 'package:Echo/services/settings_manager.dart';
 import 'package:Echo/utils/internet_guard.dart';
@@ -102,6 +103,46 @@ class _LibraryBody extends StatelessWidget {
       'icon': Icons.cloud_done,
       'onTap': () => context.push('/ytm_library'),
     });
+
+    // Cloud library synced from Jellyfin / Navidrome when enabled.
+    if (GetIt.I<SettingsManager>().extra<bool>('cloudSync', false)) {
+      final cached = Hive.isBoxOpen('CLOUD_LIBRARY')
+          ? Hive.box('CLOUD_LIBRARY').get('songs')
+          : null;
+      final count = cached is List ? cached.length : 0;
+      gridItems.add({
+        'title': 'Cloud library',
+        'subtitle': '$count brani sincronizzati',
+        'icon': Icons.cloud_sync,
+        'onTap': () {
+          final songs = cached is List ? cached : const [];
+          showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Cloud library'),
+              content: SizedBox(
+                width: 320,
+                child: songs.isEmpty
+                    ? const Text('Nessun brano sincronizzato')
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: songs.length,
+                        itemBuilder: (_, i) => ListTile(
+                          title: Text(songs[i]['title']?.toString() ?? ''),
+                          subtitle: Text(songs[i]['artist']?.toString() ?? ''),
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Chiudi'))
+              ],
+            ),
+          );
+        },
+      });
+    }
 
     // Static Items — Android's "Show Liked / Downloaded playlist" toggles.
     final librarySettings = GetIt.I<SettingsManager>();

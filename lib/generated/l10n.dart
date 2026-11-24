@@ -2609,6 +2609,15 @@ class S {
     );
   }
 
+  /// `Join room`
+  String get JoinRoom {
+    return Intl.message('Join room', name: 'JoinRoom', desc: '', args: []);
+  }
+  /// `Pending requests`
+  String get PendingRequests {
+    return Intl.message('Pending requests', name: 'PendingRequests', desc: '', args: []);
+  }
+
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

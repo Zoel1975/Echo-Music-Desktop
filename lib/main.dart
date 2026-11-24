@@ -40,6 +40,7 @@ import 'services/cookie_store.dart';
 import 'services/stream_resolver.dart';
 import 'services/media_player.dart';
 import 'services/settings_manager.dart';
+import 'services/monochrome_service.dart';
 import 'utils/router.dart';
 import 'ytmusic/ytmusic.dart';
 import 'services/yt_audio_stream.dart';
@@ -207,7 +208,32 @@ Future<void> _startApp() async {
   final audioDevices = AudioDeviceService();
   GetIt.I.registerSingleton<AudioDeviceService>(audioDevices);
   // Restore the output device the user picked in a previous session.
-  if (settingsManager.audioDeviceId.isNotEmpty) {
+  // Android's "Sync library on launch" preference: fetch cloud songs in the
+// background and cache them locally for the library browser.
+if (settingsManager.extra<bool>('cloudSync', false)) {
+  unawaited(() async {
+    final cloud = GetIt.I<CloudService>();
+    final type = settingsManager.extra<String>('cloudType', 'Jellyfin');
+    final url = type == 'Jellyfin'
+        ? settingsManager.extra<String>('jellyfinUrl', '')
+        : settingsManager.extra<String>('navidromeUrl', '');
+    final songs = await cloud.fetchSongs(
+      type: type,
+      url: url,
+      user: settingsManager.extra<String>('jellyfinUser', ''),
+      password: settingsManager.extra<String>('jellyfinPass', ''),
+    );
+    if (songs.isNotEmpty) {
+      final box = await Hive.openBox('CLOUD_LIBRARY');
+      await box.put('songs', songs);
+    }
+  }());
+}
+// Android extension settings: custom server URL + preference for the best
+// available source. Data Saver still takes priority in ExtensionQuality.
+MonochromeService.configureBase(
+    settingsManager.extra<String>('extensionServer', ''));
+if (settingsManager.audioDeviceId.isNotEmpty) {
     unawaited(audioDevices.selectDevice(settingsManager.audioDeviceId));
   }
   // Google Cast device picker (Android: CastButton + CastConnectionHandler).
@@ -216,7 +242,10 @@ Future<void> _startApp() async {
   GetIt.I.registerSingleton<SongDnaService>(SongDnaService());
   GetIt.I.registerSingleton<CloudService>(CloudService());
   GetIt.I.registerSingleton<DiscordRpcService>(DiscordRpcService());
-  GetIt.I.registerSingleton<ListenTogetherService>(ListenTogetherService());
+  final listenTogether = ListenTogetherService();
+listenTogether.autoApprove =
+    settingsManager.extra<bool>('ltAutoApprove', false);
+GetIt.I.registerSingleton<ListenTogetherService>(listenTogether);
   final remoteControl = RemoteControlService();
   GetIt.I.registerSingleton<RemoteControlService>(remoteControl);
   // Cast and LAN-remote both expose the real playback endpoint; restore either

@@ -10,7 +10,7 @@ void main() {
     final entries = RegExp(r"^\s*'([A-Za-z0-9_]+)':\s*'([^']+)'", multiLine: true)
         .allMatches(registry)
         .toList();
-    expect(entries.length, greaterThan(15));
+    expect(entries.length, greaterThanOrEqualTo(8));
     for (final m in entries) {
       expect(m.group(2)!.trim().length, greaterThan(15),
           reason: '${m.group(1)} needs a real explanation');
@@ -72,6 +72,16 @@ void main() {
       'swipeSensitivity',
       'swipeQueue',
       'swipeRemove',
+      'lastfmLikes',
+      'songDnaEnabled',
+      'cloudSync',
+      'ltServer',
+      'ltAutoApprove',
+      'preferExtension',
+      'extensionServer',
+      'navBarStyle',
+      'appleInspired',
+      'listenTogetherTop',
     ]) {
       expect(registry, isNot(contains("'$key':")),
           reason: '$key is implemented and must not be disabled');

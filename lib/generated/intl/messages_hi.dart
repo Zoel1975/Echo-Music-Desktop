@@ -390,5 +390,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "VerifyTheEnteredServerCredentials": MessageLookupByLibrary.simpleMessage("दर्ज किए गए सर्वर क्रेडेंशियल सत्यापित करें"),
     "ViewYourMusicListeningStatistics": MessageLookupByLibrary.simpleMessage("अपने सुनने के आंकड़े देखें"),
     "YourYearInSoundPersonalMusicRecap": MessageLookupByLibrary.simpleMessage("आपका वर्ष ध्वनि में और व्यक्तिगत संगीत सारांश"),
+    "JoinRoom": MessageLookupByLibrary.simpleMessage("रूम में शामिल हों"),
+    "PendingRequests": MessageLookupByLibrary.simpleMessage("लंबित अनुरोध"),
   };
 }

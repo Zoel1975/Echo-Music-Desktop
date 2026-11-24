@@ -131,6 +131,48 @@ class ScrobbleService {
         ),
       );
 
+  /// Android's "Send Likes/Unlikes to Last.fm" (`track.love` /
+  /// `track.unlove`). Uses the same signed request shape as scrobbling.
+  static Map<String, String> lastfmLoveParams({
+    required String method,
+    required String apiKey,
+    required String sessionKey,
+    required String secret,
+    required String artist,
+    required String track,
+  }) {
+    final p = <String, String>{
+      'method': method,
+      'api_key': apiKey,
+      'sk': sessionKey,
+      'artist': artist,
+      'track': track,
+      'format': 'json',
+    };
+    p['api_sig'] = lastfmSignature(p, secret);
+    return p;
+  }
+
+  Future<bool> sendLove({
+    required String apiKey,
+    required String sessionKey,
+    required String secret,
+    required String artist,
+    required String track,
+    required bool loved,
+  }) =>
+      _post(
+        Uri.parse(lastfmEndpoint),
+        body: lastfmLoveParams(
+          method: loved ? 'track.love' : 'track.unlove',
+          apiKey: apiKey,
+          sessionKey: sessionKey,
+          secret: secret,
+          artist: artist,
+          track: track,
+        ),
+      );
+
   Future<bool> submitListenBrainz({
     required String token,
     required String artist,

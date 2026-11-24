@@ -1166,7 +1166,8 @@ class MediaPlayer extends ChangeNotifier {
       final quality = ExtensionQuality.resolve(
         dataSaver: settings.dataSaver,
         // Android ExtensionManager "high quality (320 kbps)" toggle.
-        highQuality: settings.extra<bool>('highQuality', false),
+        highQuality: settings.extra<bool>('highQuality', false) ||
+              settings.extra<bool>('preferExtension', false),
         configured: settings.streamingQuality.name.toLowerCase(),
       );
       // FLAC quality (Monochrome public API): find a lossless match for the

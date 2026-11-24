@@ -577,5 +577,9 @@
   "ViewYourMusicListeningStatistics": "Dinleme istatistiklerinizi görüntüleyin",
   "@ViewYourMusicListeningStatistics": {},
   "YourYearInSoundPersonalMusicRecap": "Ses içinde yılınız ve kişisel müzik özeti",
-  "@YourYearInSoundPersonalMusicRecap": {}
+  "@YourYearInSoundPersonalMusicRecap": {},
+  "JoinRoom": "Odaya katıl",
+  "@JoinRoom": {},
+  "PendingRequests": "Bekleyen istekler",
+  "@PendingRequests": {}
 }

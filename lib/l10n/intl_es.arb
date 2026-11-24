@@ -577,5 +577,9 @@
   "ViewYourMusicListeningStatistics": "Ver tus estadísticas de escucha",
   "@ViewYourMusicListeningStatistics": {},
   "YourYearInSoundPersonalMusicRecap": "Tu año en sonido y resumen musical personal",
-  "@YourYearInSoundPersonalMusicRecap": {}
+  "@YourYearInSoundPersonalMusicRecap": {},
+  "JoinRoom": "Unirse a la sala",
+  "@JoinRoom": {},
+  "PendingRequests": "Solicitudes pendientes",
+  "@PendingRequests": {}
 }

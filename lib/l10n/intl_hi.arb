@@ -577,5 +577,9 @@
   "ViewYourMusicListeningStatistics": "अपने सुनने के आंकड़े देखें",
   "@ViewYourMusicListeningStatistics": {},
   "YourYearInSoundPersonalMusicRecap": "आपका वर्ष ध्वनि में और व्यक्तिगत संगीत सारांश",
-  "@YourYearInSoundPersonalMusicRecap": {}
+  "@YourYearInSoundPersonalMusicRecap": {},
+  "JoinRoom": "रूम में शामिल हों",
+  "@JoinRoom": {},
+  "PendingRequests": "लंबित अनुरोध",
+  "@PendingRequests": {}
 }

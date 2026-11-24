@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import '../../services/settings_manager.dart';
 
 import '../theme/motion_tokens.dart';
@@ -62,7 +63,14 @@ class EchoFloatingNavBar extends StatelessWidget {
                 )
               : scheme.surface;
         }(),
-        borderRadius: BorderRadius.circular(EchoTokens.floatingBarRadius),
+        borderRadius: BorderRadius.circular(
+          GetIt.I.isRegistered<SettingsManager>() &&
+                  GetIt.I<SettingsManager>()
+                          .extra<String>('navBarStyle', 'Apple (floating)') ==
+                      'Material'
+              ? 4
+              : EchoTokens.floatingBarRadius,
+        ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
         boxShadow: [
           BoxShadow(
@@ -74,7 +82,8 @@ class EchoFloatingNavBar extends StatelessWidget {
       ),
       child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: List.generate(destinations.length, (i) {
+            children: [
+              ...List.generate(destinations.length, (i) {
               final d = destinations[i];
               final isSelected = i == selected;
               final color = isSelected ? scheme.primary : scheme.onSurface;
@@ -108,6 +117,16 @@ class EchoFloatingNavBar extends StatelessWidget {
                 ),
               );
             }),
+              if (GetIt.I.isRegistered<SettingsManager>() &&
+                  GetIt.I<SettingsManager>()
+                      .extra<bool>('listenTogetherTop', false))
+                IconButton(
+                  tooltip: 'Ascolto condiviso',
+                  icon: const Icon(Icons.groups, size: 20),
+                  onPressed: () => context
+                      .go('/settings/integrations/listen_together'),
+                ),
+            ],
       ),
     );
   }

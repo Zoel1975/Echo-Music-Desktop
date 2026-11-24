@@ -386,5 +386,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "VerifyTheEnteredServerCredentials": MessageLookupByLibrary.simpleMessage("Girilen sunucu kimlik bilgilerini doğrula"),
     "ViewYourMusicListeningStatistics": MessageLookupByLibrary.simpleMessage("Dinleme istatistiklerinizi görüntüleyin"),
     "YourYearInSoundPersonalMusicRecap": MessageLookupByLibrary.simpleMessage("Ses içinde yılınız ve kişisel müzik özeti"),
+    "JoinRoom": MessageLookupByLibrary.simpleMessage("Odaya katıl"),
+    "PendingRequests": MessageLookupByLibrary.simpleMessage("Bekleyen istekler"),
   };
 }

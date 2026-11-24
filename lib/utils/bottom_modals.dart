@@ -5,6 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration_picker/duration_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:Echo/services/song_dna_service.dart';
+import 'package:Echo/services/settings_manager.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -130,6 +133,66 @@ class Modals {
         width: 400,
         height: 600,
         child: _SongWindowContent(song: song),
+      ),
+    );
+  }
+
+  /// Android's Song DNA bottom sheet, using the already-ported Genius +
+  /// Wikipedia service and the credentials entered in Integrations.
+  static Future<void> _showSongDna(BuildContext context, Map song) async {
+    final settings = GetIt.I<SettingsManager>();
+    final dna = GetIt.I<SongDnaService>();
+    final artist = song['artist']?.toString() ??
+        (song['artists'] is List && song['artists'].isNotEmpty
+            ? song['artists'].first['name']?.toString() ?? ''
+            : '');
+    final query = '${song['title'] ?? ''} $artist'.trim();
+    final future = dna
+        .fetchGeniusTitle(
+            token: settings.extra<String>('geniusToken', ''), query: query)
+        .then((title) async {
+      final summary = title == null
+          ? null
+          : await dna.fetchWikipedia(
+              lang: settings.extra<String>('wikipediaLang', 'en'),
+              title: title);
+      return (title: title, summary: summary);
+    });
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: FutureBuilder<({String? title, String? summary})>(
+            future: future,
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return const SizedBox(
+                  height: 160,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final data = snap.data!;
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Song DNA', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 12),
+                    Text(query, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Text(data.title ?? 'Nessun risultato Genius (controlla il token)'),
+                    const SizedBox(height: 12),
+                    Text(data.summary ?? 'Nessun riassunto Wikipedia disponibile'),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -2359,10 +2422,20 @@ errorWidget: (context, url, error) => const Icon(Icons.music_note),
               }
             },
           ),
-        _buildAction(
-          context,
-          icon: AdaptiveIcons.library_add,
-          title: S.of(context).Add_To_Playlist,
+        if (GetIt.I<SettingsManager>().extra<bool>('songDnaEnabled', false))
+    _buildAction(
+      context,
+      icon: Icons.biotech,
+      title: 'Song DNA',
+      onTap: () {
+        Navigator.pop(context);
+        unawaited(Modals._showSongDna(context, song));
+      },
+    ),
+  _buildAction(
+      context,
+      icon: AdaptiveIcons.library_add,
+      title: S.of(context).Add_To_Playlist,
           onTap: () {
             Navigator.pop(context);
             Modals.addToPlaylist(context, song);

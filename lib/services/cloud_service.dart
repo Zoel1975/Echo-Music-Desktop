@@ -70,4 +70,56 @@ class CloudService {
       return false;
     }
   }
+
+  /// Android's cloud library sync: fetch the audio items from the configured
+  /// server. The result is a plain song map list so callers can persist it.
+  Future<List<Map<String, dynamic>>> fetchSongs({
+    required String type,
+    required String url,
+    required String user,
+    required String password,
+  }) async {
+    final normalized = normalizeUrl(url);
+    if (normalized.isEmpty || !(await (type == 'Jellyfin'
+        ? checkJellyfin(url: url, user: user, password: password)
+        : checkNavidrome(url: url, user: user, password: password)))) {
+      return const [];
+    }
+    try {
+      if (type == 'Jellyfin') {
+        final r = await _client.get(
+          Uri.parse('$normalized/Items?IncludeItemTypes=Audio&Recursive=true&Limit=500'),
+          headers: {
+            'X-Emby-Authorization': jellyfinAuth(user: user, password: password)
+          },
+        ).timeout(const Duration(seconds: 15));
+        if (r.statusCode != 200) return const [];
+        final items = (jsonDecode(r.body) as Map)['Items'];
+        if (items is! List) return const [];
+        return items.whereType<Map>().map((i) => <String, dynamic>{
+          'videoId': 'jellyfin://${i['Id']}',
+          'title': i['Name']?.toString() ?? 'Unknown',
+          'artist': i['AlbumArtist']?.toString() ?? '',
+          'album': i['Album']?.toString() ?? '',
+        }).toList();
+      }
+      final basic = base64.encode(utf8.encode('$user:$password'));
+      final r = await _client.get(
+        Uri.parse('$normalized/rest/search3.view?u=$user&f=json&songCount=500'),
+        headers: {'Authorization': 'Basic $basic'},
+      ).timeout(const Duration(seconds: 15));
+      if (r.statusCode != 200) return const [];
+      final songs = (jsonDecode(r.body) as Map)['subsonic-response']?['searchResult3']?['song'];
+      if (songs is! List) return const [];
+      return songs.whereType<Map>().map((i) => <String, dynamic>{
+        'videoId': 'navidrome://${i['id']}',
+        'title': i['title']?.toString() ?? 'Unknown',
+        'artist': i['artist']?.toString() ?? '',
+        'album': i['album']?.toString() ?? '',
+      }).toList();
+    } catch (e) {
+      debugPrint('[cloud] sync failed: $e');
+      return const [];
+    }
+  }
 }

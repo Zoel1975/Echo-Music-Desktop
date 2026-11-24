@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:Echo/services/cast/cast_service.dart';
 import 'package:Echo/services/download_manager.dart';
 import 'package:Echo/services/settings_manager.dart';
+import 'package:Echo/services/scrobble_service.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -611,6 +612,29 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
                     } else {
                       await value.delete(currentSong!.extras!['videoId']);
                     }
+                    // Android's "Send Likes/Unlikes" preference.
+                    final prefs = GetIt.I<SettingsManager>();
+                    if (prefs.extra<bool>('lastfmLikes', false)) {
+                      final song = currentSong!.extras!;
+                      final apiKey = prefs.extra<String>('lastfmApiKey', '');
+                      final session = prefs.extra<String>('lastfmSessionKey', '');
+                      final secret = prefs.extra<String>('lastfmApiSecret', '');
+                      if (apiKey.isNotEmpty && session.isNotEmpty) {
+                        unawaited(GetIt.I<ScrobbleService>().sendLove(
+                          apiKey: apiKey,
+                          sessionKey: session,
+                          secret: secret,
+                          artist: song['artist']?.toString() ??
+                              (song['artists'] is List &&
+                                      song['artists'].isNotEmpty
+                                  ? song['artists'].first['name']?.toString() ??
+                                      ''
+                                  : ''),
+                          track: song['title']?.toString() ?? currentSong!.title,
+                          loved: item == null,
+                        ));
+                      }
+                    }
                   },
                 );
               },
@@ -762,7 +786,11 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
               height: 64,
               width: 64,
               decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(50)),
+          color: playerSettings.extra<bool>('appleInspired', false)
+              ? Theme.of(context).colorScheme.primary
+              : Colors.white,
+          borderRadius: BorderRadius.circular(
+              playerSettings.extra<bool>('appleInspired', false) ? 18 : 50)),
               child: ValueListenableBuilder(
                 valueListenable: mediaPlayer.buttonState,
                 builder: (context, ButtonState value, child) {

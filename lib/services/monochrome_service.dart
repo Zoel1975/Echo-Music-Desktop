@@ -50,7 +50,12 @@ class MonochromeTrack {
 class MonochromeService {
   MonochromeService._();
 
-  static const base = 'https://tracks.monochrome.st';
+  static const defaultBase = 'https://tracks.monochrome.st';
+  static String base = defaultBase;
+
+  /// Android's custom extension server URL. Empty restores the public API.
+  static void configureBase(String? url) =>
+      base = (url == null || url.trim().isEmpty) ? defaultBase : url.trim();
   static final http.Client _client = http.Client();
   static final Map<String, List<MonochromeTrack>> _cache = {};
   static final Map<String, FlacStreamInfo> _flacInfoCache = {};

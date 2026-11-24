@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../services/settings_manager.dart';
 import '../../../services/settings_capabilities.dart';
 import '../../../services/cloud_service.dart';
+import '../../../services/listen_together_service.dart';
 import '../../../services/song_dna_service.dart';
 import '../widgets/setting_item.dart';
 import '../widgets/settings_list.dart';
@@ -47,11 +48,64 @@ class IntegrationPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if (screen.route == 'jellyfin') _cloudTest(context, settings),
+          if (screen.route == 'listen_together') _ltControls(context, settings),
           if (screen.route == 'song_dna') _dnaTest(context, settings),
           ...screen.fields.map((f) => _field(context, settings, f)),
           const SizedBox(height: 100),
         ],
       ),
+    );
+  }
+
+  /// Uses the persisted "Sync server URL" to join a remote room and exposes
+  /// the host's approval queue for the Auto-approve preference.
+  Widget _ltControls(BuildContext context, SettingsManager s) {
+    final lt = GetIt.I<ListenTogetherService>();
+    return Column(
+      children: [
+        SettingTile(
+          title: S.of(context).JoinRoom,
+          subtitle: s.extra<String>('ltServer', '').isEmpty
+              ? 'Server predefinito 127.0.0.1:8900'
+              : s.extra<String>('ltServer', ''),
+          leading: const Icon(Icons.group_add),
+          trailing: FilledButton(
+            child: const Text('Join'),
+            onPressed: () async {
+              final state = ListenState(
+                username: s.extra<String>('ltUsername', 'Listener'),
+                songId: '',
+                title: '',
+                positionMs: 0,
+                playing: false,
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              );
+              final remote = await lt.joinAndSync(
+                  s.extra<String>('ltServer', ''), state);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(remote == null
+                        ? 'Connessione al gruppo non riuscita'
+                        : 'In ascolto con ${remote.username}')));
+              }
+            },
+          ),
+        ),
+        if (!s.extra<bool>('ltAutoApprove', false) && lt.pendingUsers.isNotEmpty)
+          SettingTile(
+            title: S.of(context).PendingRequests,
+            subtitle: lt.pendingUsers.join(', '),
+            leading: const Icon(Icons.how_to_reg),
+            trailing: TextButton(
+              child: const Text('Approva tutto'),
+              onPressed: () {
+                for (final u in lt.pendingUsers.toList()) {
+                  lt.approve(u);
+                }
+              },
+            ),
+          ),
+      ],
     );
   }
 
