@@ -41,7 +41,7 @@ Cookies are stored locally: later launches do not require signing in again.
 
 ## 4. Age-restricted tracks
 
-If a track is age-restricted, the app plays it directly in-app without opening a browser. It:
+If a track is age-restricted, the app plays it directly in-app without opening a browser. It could ask for additional auth, do that and it should work inside the app. It:
 
 - reads the real `signatureTimestamp` from YouTube;
 - sends a `/player` request with the authenticated YouTube Music context;
