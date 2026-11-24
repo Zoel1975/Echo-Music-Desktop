@@ -1,6 +1,6 @@
 # Automix — phase 3 (DJ blend + ducking)
 
-Port of Echo Android's Automix. This build contains phase 3.
+Port of Echo Android's Automix. This build contains phase 3 of 3 so it's completed for me (open for suggestions etc...).
 
 ## What is included
 
