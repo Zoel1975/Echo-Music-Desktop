@@ -1,9 +1,6 @@
 # Mobile ↔ Desktop linking protocol
 
-Link is done "tramite YouTube Music nello stato di riproduzione": the desktop
-announces its signed-in account (YT Music) + current playback state on the LAN
-UDP discovery channel, and any peer on the same Wi-Fi with the same account
-fingerprint is linked automatically.
+Linking uses the YouTube Music playback state: the desktop announces its signed-in account and current playback state on the LAN UDP discovery channel, and any peer on the same Wi-Fi with the same account fingerprint links automatically.
 
 ## Desktop side (implemented)
 

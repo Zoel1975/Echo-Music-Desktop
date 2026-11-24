@@ -1,46 +1,57 @@
-# Automix — phase 3 (DJ blend + ducking)
+# Automix
 
-Port of Echo Android's Automix. This build contains phase 3 of 3 so it's completed for me (open for suggestions etc...).
+Port of Echo Android's Automix. All three phases are implemented: beat analysis, beat and key matching, and the DJ blend with ducking.
 
-## What is included
+## Analysis
 
-- `lib/services/beat_analysis.dart`: port of `BeatAnalyzer` (radix-2 FFT, spectral flux, autocorrelation for BPM 60–180 with 70–140 folding, comb filter for beat phase). Pure and testable.
-- `lib/services/beat_analyzer_service.dart`: decodes a 30 s window at 22050 Hz mono with FFmpeg Kit (already present for MP3 export), runs the analysis, and caches the result per video id in Hive (`BEAT_ANALYSIS`).
-- `automixTriggerMs()`: moves the start of the crossfade so the end of the blend lands on a beat of the outgoing track, near its dynamic **mix-out** (energy scan of the tail with `-sseof`);
-- **phase 2**: the incoming track is also analyzed during pre-arm; `beatAlignedStartMs()` computes the entry offset so one of its beats lands exactly at the end of the fade (phase matching), starting from the dynamic **mix-in** (energy scan of the intro);
-- **Automix · beat align** setting (Player, enabled by default when crossfade is on);
-- diagnostic probe `POST /beat/analyze` (with `ECHO_DIAG=1`) that generates a 120 BPM click track and verifies decoding plus analysis end to end.
-- **phase 3**: a **16-beat** DJ blend (`djBlendDurationMs`, clamped 4–15 s) instead of a fixed duration; **low-shelf ducking** on the outgoing track (`bass=f=150:g=-8`) applied only when the standby player is created, because mpv's `af` chain is a per-player snapshot; key detection (Krumhansl–Schmuckler) as `keyLabel`;
-- **harmonic mixing** (`harmonic_mixing.dart`): the key is converted to the Camelot wheel (1A–12A / 1B–12B) and used to choose the next track from the first three in the queue. Score: same key 1.0, relative major/minor 0.85, perfect fifth (descending on the wheel) 0.7, otherwise 0. The best candidate is moved right after the current track with `moveAudioSource`. Setting **Automix · harmonic mixing** in Player (on by default) and the result are visible in diagnostics. Candidate analysis is limited to 3 s each so it does not consume the pre-arm lead.
+`lib/services/beat_analysis.dart` ports `BeatAnalyzer`: radix-2 FFT, spectral flux, autocorrelation for BPM 60–180 with 70–140 folding, and a comb filter for beat phase. It is pure Dart and covered by unit tests.
+
+`lib/services/beat_analyzer_service.dart` decodes a 30 s window at 22 050 Hz mono with FFmpeg Kit, runs the analysis and caches it per video id in Hive (`BEAT_ANALYSIS`).
+
+`automixTriggerMs()` moves the fade start so the end of the blend lands on a beat of the outgoing track, near its dynamic mix-out (energy scan of the tail with `-sseof`). During pre-arm the incoming track is analysed too; `beatAlignedStartMs()` picks an entry offset so one of its beats lands at the end of the fade, starting from the dynamic mix-in.
+
+Key detection uses Krumhansl–Schmuckler and is exposed as `keyLabel`.
+
+## Settings
+
+- **Automix · beat align** — on by default when crossfade is enabled
+- **Automix · harmonic mixing** — on by default
+
+Harmonic mixing (`harmonic_mixing.dart`) maps the key to the Camelot wheel (1A–12A / 1B–12B) and chooses the next track from the first three in the queue. Same key scores 1.0, relative major/minor 0.85, perfect fifth (descending on the wheel) 0.7, otherwise 0. The best candidate is moved after the current track with `moveAudioSource`. Candidate analysis is limited to 3 s so it does not eat the pre-arm lead. The result appears in diagnostics.
+
+Phase 3 adds a 16-beat DJ blend (`djBlendDurationMs`, clamped to 4–15 s) and low-shelf ducking on the outgoing track (`bass=f=150:g=-8`). The filter is applied only when the standby player is created, because mpv's `af` chain is a per-player snapshot.
 
 ## Glitch-free transitions
 
-Automix transitions use the same crossfade engine as manual track changes:
+Automix uses the same crossfade engine as manual changes:
 
-- the handoff between the main and standby players lasts **220 ms** with a constant-power curve;
-- both volumes are applied in parallel on every tick and progress is recomputed from the stopwatch, so a skipped tick cannot leave a coarse volume step;
-- final volumes are written explicitly at the end (and forced on timeout), so the main player is always silent when it seeks to the next track;
-- the standby is re-synchronized to the exact main-player position at the trigger, so two offset copies of the same song cannot produce a phasing glitch;
-- before the fade begins, the incoming stream is awaited until it is playing and buffered — the outgoing standby covers the wait at full volume.
+- 220 ms constant-power handoff between main and standby players
+- both volumes applied in parallel on every tick, with progress recomputed from the stopwatch so a skipped tick cannot leave a volume step
+- final volumes written explicitly, and forced on timeout, so the main player is silent when it seeks to the next track
+- standby re-synchronised to the exact main position at the trigger, avoiding phasing
+- incoming stream awaited until it is playing and buffered; the outgoing standby stays audible at full volume during the wait
 
-See [`CROSSFADE.md`](CROSSFADE.md) for details.
+See [`CROSSFADE.md`](CROSSFADE.md).
 
-## Diagnostics (port of the Android debug overlay)
+## Diagnostics
 
-- **Settings → Player → Automix diagnostics** shows state (IDLE, MONITOR, ARMED, HANDOFF, FADING), crossfade/automix active, lead/blend/trigger, levels, BPM/key/mix points for outgoing and incoming, tempo ratio, and the event log (last 150 entries).
-- The log is also written to `%LOCALAPPDATA%\com.echo\Echo Music\automix.log`.
-- Switch **Show overlay in player** reproduces Android's monospace overlay (state, BPM in/out, key, next mix).
-- With `ECHO_DIAG=1`: `GET /automix/state` returns all state as JSON, `POST /settings/crossfade?enabled=1&seconds=5` enables crossfade, `POST /beat/analyze-song?id=VIDEO_ID` analyzes a song without a queue (verifies IN/OUT), and `POST /queue/crossfade-test` simulates an automatic transition.
+**Settings → Player → Automix diagnostics** shows state (IDLE, MONITOR, ARMED, HANDOFF, FADING), crossfade/automix active, lead, blend, trigger, levels, BPM/key/mix points for both tracks, tempo ratio, and the last 150 log entries. The log is also written to `%LOCALAPPDATA%\com.echo\Echo Music\automix.log`. **Show overlay in player** reproduces the Android monospace overlay.
 
-Analysis did not start because `StreamResolver` is a static singleton and the service checked `GetIt.I.isRegistered<StreamResolver>()`, which was always false. It now uses `StreamResolver.instance` directly; FFmpeg decoding includes the YouTube User-Agent and records exit code/logs on failure.
+With `ECHO_DIAG=1`:
 
-The pre-arm has a guard against concurrent calls from the position stream and, if media_kit does not expose `bufferedPosition`, proceeds anyway and retries `play()` at the trigger: before this fix every pre-arm was cancelled and automatic crossfade never started.
+- `GET /automix/state` — full state as JSON
+- `POST /settings/crossfade?enabled=1&seconds=5` — enable crossfade
+- `POST /beat/analyze-song?id=VIDEO_ID` — analyse a song without a queue
+- `POST /queue/crossfade-test` — simulate an automatic transition
 
-## Phase 3 limitations
+`POST /beat/analyze` generates a 120 BPM click track and checks decoding and analysis end to end.
 
-- Android's ducking is per-sample with a ramp (no zipper noise); here it is a static filter on the outgoing player, masked by the incoming fade-in. It is not a per-sample IIR but avoids muddy bass.
-- Harmonic comparison only considers the 3 next tracks in the queue, not the whole library or radio recommendations.
+Two bugs found during integration are fixed: analysis now uses `StreamResolver.instance` instead of a failing GetIt lookup, and pre-arm no longer cancels on a missing `bufferedPosition` but retries `play()` at the trigger. FFmpeg decoding sends the YouTube User-Agent and records exit code and logs on failure.
+
+## Limits
+
+Android ducking is per-sample with a ramp. Here it is a static filter on the outgoing player, masked by the incoming fade-in. Harmonic comparison considers only the next three queued tracks, not the whole library or radio recommendations.
 
 ## Tests
 
-`test/beat_analysis_test.dart` covers FFT, BPM detection on a synthetic track, silence, trigger alignment, and cache round-trip. `test/automix_integration_test.dart` verifies the wiring from settings to the transition, including the incoming-ready wait and standby re-sync.
+`test/beat_analysis_test.dart` covers FFT, BPM on a synthetic track, silence, trigger alignment and cache round-trips. `test/automix_integration_test.dart` covers settings-to-transition wiring, the incoming-ready wait and standby re-sync.

@@ -1,183 +1,150 @@
-# Feature guide
+# Features
 
-This guide describes **what Echo Music Desktop does** and **how to use it**. For implementation details see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+What the app does and where to find each control. Implementation notes are in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 Contents:
+
 1. [Account and session](#1-account-and-session)
-2. [Library, playlists, and search](#2-library-playlists-and-search)
-3. [Playback and player](#3-playback-and-player)
+2. [Library, playlists, search](#2-library-playlists-search)
+3. [Player](#3-player)
 4. [Automix and crossfade](#4-automix-and-crossfade)
-5. [Lyrics, EQ, and DSP](#5-lyrics-eq-and-dsp)
-6. [Downloads, export, and formats](#6-downloads-export-and-formats)
-7. [Discovery and social features](#7-discovery-and-social-features)
+5. [Lyrics, EQ, DSP](#5-lyrics-eq-dsp)
+6. [Downloads and export](#6-downloads-and-export)
+7. [Discovery and social](#7-discovery-and-social)
 8. [Wrapped](#8-wrapped)
-9. [Cast, remote control, and devices](#9-cast-remote-control-and-devices)
+9. [Cast, remote, devices](#9-cast-remote-devices)
 10. [Settings and diagnostics](#10-settings-and-diagnostics)
-11. [Non-portable features](#11-non-portable-features)
+11. [Not portable](#11-not-portable)
 
 ---
 
 ## 1. Account and session
 
-**Sign in with Google / YouTube Music.** On first launch click **Sign in**: the app opens a dedicated Chrome profile, completes the login, and stores the cookies in a local jar. Subsequent launches require no action.
+Sign in on first launch. The app opens a dedicated Chrome profile, completes the login, and keeps the cookies in a local jar. Later launches need no sign-in.
 
-**What is stored:** authentication cookies, visitor id, preferences, listening history, playlists you created, and cached PoTokens (12 hours). Everything stays on your computer.
+Stored locally: authentication cookies, visitor id, preferences, listening history, playlists you create, and PoTokens (12 hours).
 
-**Sign out.** Use **Settings → Account**. Local data (downloads, preferences) remains, but the online library is unavailable until you sign in again.
+Sign out in **Settings → Account**. Downloads and preferences stay; the online library needs a new sign-in.
 
-**Age-restricted tracks.** The app plays them directly in-app:
+Age-restricted tracks play in the app:
 
 1. the real `signatureTimestamp` is read from YouTube;
-2. the `/player` request is sent with the authenticated YouTube Music context and mobile flags (`videoCheckOk`, `html5Preference`);
-3. the response contains only `signatureCipher` formats, deciphered with the player JS via Node.js;
-4. `pot=` and `cpn=` are appended to the media URL and playback starts.
+2. the `/player` request uses the authenticated YouTube Music context and the mobile flags `videoCheckOk` and `html5Preference`;
+3. `signatureCipher` formats are deciphered with the player JS through Node;
+4. `pot=` and `cpn=` are added to the media URL before playback.
 
 No browser window opens. See [`AGE_GATE.md`](AGE_GATE.md).
 
 ---
 
-## 2. Library, playlists, and search
+## 2. Library, playlists, search
 
-**Library.** Six filters: songs, albums, artists, playlists, podcasts, downloads. The view matches the Android app, with cover art, sorting, and in-view search.
+The library has six filters: songs, albums, artists, playlists, podcasts, downloads. It supports cover art, sorting and in-view search.
 
-**Playlists.** Open a playlist and tap a song: **the whole playlist becomes the playback queue**, starting at that song. You can reorder, remove, and save changes.
+Open a playlist and tap a song. The whole playlist becomes the queue, starting at that song. You can reorder, remove and save changes.
 
-**Search.** Searches the online library and local files at the same time, with results grouped by type (songs, albums, artists, playlists, users).
+Search covers the online library and local files at the same time. Results are grouped by type.
 
-**Smart playlists.** EchoBrain generates automatic playlists; Music Flow offers 7 toggles to customize the feed.
-
-**Persistent queue.** The queue is saved, so closing and reopening the app resumes where you left off.
+EchoBrain generates automatic playlists. Music Flow adds seven feed toggles. The queue is saved, so reopening the app resumes where you left off.
 
 ---
 
-## 3. Playback and player
+## 3. Player
 
-**Audio engine.** The player uses media_kit/mpv with a dedicated DSP chain. It supports MP3, M4A, FLAC, OGG, OPUS, and local files.
+Playback uses media_kit/mpv with a DSP chain. It handles MP3, M4A, FLAC, OGG, OPUS and local files.
 
-**Three layouts.** The player adapts to the window size: compact, normal, and extended, with scaled controls and artwork.
+The layout adapts to the window: compact, normal and extended. Controls include play/pause, next/previous, shuffle, repeat, volume, favourites, queue, lyrics, comments and options.
 
-**Controls.** Play/pause, next/previous, shuffle, repeat, volume, favorites, queue, lyrics, comments, and options. The mini-player at the bottom shows cover art, a scrolling title (marquee), and essential glass-styled controls.
+The mini-player shows cover art, a scrolling title and the main controls. Click it to open the full player.
 
-**7 backgrounds.** The player can use seven animated backgrounds with a palette extracted from the cover art.
-
-**Micro-interactions.** Wavy sliders, HeartBurst on like, shimmer while loading, circular EQ, and smooth transitions.
-
-**Source label.** A label always shows the source and codec (for example `WEB_REMIX · Opus 160 kbps`, `FLAC monochrome`, `Local file`).
+Seven backgrounds use a palette taken from the cover art. The player also has wavy sliders, HeartBurst on like, shimmer while loading and a circular EQ. A label always shows the source and codec, for example `WEB_REMIX · Opus 160 kbps`, `FLAC monochrome` or `Local file`.
 
 ---
 
 ## 4. Automix and crossfade
 
-Automix is the system that makes track transitions seamless, inspired by Echo Android.
+Crossfade starts when the current track is about to end. The duration is configurable; Automix uses a 16-beat DJ blend of 4–15 s.
 
-**Crossfade.** When the current song is about to end, the app starts fading into the next one. The duration is configurable; in Automix mode a 16-beat DJ blend is used (4–15 s).
+The standby player is prepared 20 s early, up to 35 s if preparation is slow, so the work happens outside the fade. A 220 ms constant-power handoff moves audio to the standby player before the blend.
 
-**Adaptive pre-arm.** The standby player is prepared **20 seconds early** (up to 35 s if preparation is slow), not inside the fade window. This removes the mid-transition freeze.
+BPM, beat phase and key come from FFT and spectral flux, and are cached per track. Energy scans find the mix-in and mix-out points. The entry offset is chosen so a beat of the incoming track lands at the end of the fade. Low frequencies of the outgoing track are ducked to avoid bass build-up.
 
-**220 ms handoff.** Before the actual crossfade, audio moves from the main player to the standby player with a constant-power 220 ms ramp. No volume jumps.
+Keys are mapped to the Camelot wheel (1A–12A / 1B–12B). The next track is picked from the first three in the queue.
 
-**Beat analysis.** BPM, beat phase, and musical key are computed for every track with FFT and spectral flux. Results are cached.
-
-**Dynamic mix-in / mix-out.** The intro and outro are analyzed for energy to find the ideal entry and exit points instead of using fixed values.
-
-**Beat matching.** The entry offset of the next track is chosen so one of its beats lands exactly at the end of the fade.
-
-**Ducking.** The outgoing track is attenuated in the low frequencies so the two bass lines do not build up.
-
-**Harmonic mixing.** The key is converted to the Camelot wheel (1A–12A / 1B–12B) and used to pick the next song from the first three in the queue.
-
-**Diagnostics.** **Settings → Player → Automix diagnostics** shows state, lead, trigger, levels, BPM in/out, key, and the event log. An overlay can also be shown inside the player.
-
-See [`AUTOMIX.md`](AUTOMIX.md) and [`CROSSFADE.md`](CROSSFADE.md).
+**Settings → Player → Automix diagnostics** shows state, lead, trigger, levels, BPM in/out, key and the event log. An overlay can be shown in the player. See [`AUTOMIX.md`](AUTOMIX.md) and [`CROSSFADE.md`](CROSSFADE.md).
 
 ---
 
-## 5. Lyrics, EQ, and DSP
+## 5. Lyrics, EQ, DSP
 
-**Lyrics.** Twelve providers, word-by-word sync, translation, and reflow-free rendering.
+Twelve lyrics providers support word sync, translation and stable rendering.
 
-**Equalizer.** 10 bands with presets, AutoEq search, and the Axion page.
+The equalizer has 10 bands with presets, AutoEq search and the Axion page. The DSP chain adds gain, loudness-based normalization and Mono/Stereo options.
 
-**DSP.** Filter chain with gain, loudness-based volume normalization, and Mono/Stereo options.
-
-**Sleep timer.** Stop playback after a chosen time or at the end of the current track.
+The sleep timer stops playback after a chosen time or at the end of the track.
 
 ---
 
-## 6. Downloads, export, and formats
+## 6. Downloads and export
 
-**Offline downloads.** Download songs and playlists for listening without a connection.
+Download songs and playlists from their menus for offline listening.
 
-**MP3 export.** Converts local or downloaded files to MP3 with ID3v2.3 tags and embedded cover art. The write is safe: a `.part` file is renamed only on success. You can cancel and retry.
+MP3 export converts local or downloaded files with ID3v2.3 tags and embedded cover art. Output goes to a `.part` file that is renamed only on success; cancel and retry work on that state.
 
-**Monochrome FLAC.** An option for monochrome FLAC sources, with automatic YouTube fallback and Data Saver priority.
+Monochrome FLAC is available as a streaming quality. If it has no match, is rate-limited or is unreachable, playback falls back to YouTube.
 
-**Limitation.** Export works on local and already-downloaded files; it does not convert a stream directly while playing.
+Export does not convert a live stream directly; the file must already be on disk.
 
 ---
 
-## 7. Discovery and social features
+## 7. Discovery and social
 
-**Explore.** Discover sections, new releases, charts, and mixes.
+Explore has sections, new releases, charts and mixes. Podcasts come from YouTube Music.
 
-**Podcast.** Access YouTube Music podcasts.
+Comments open from the player. They show author, avatar, text, likes and replies. Writing comments is not supported in the Android reference either.
 
-**Comments.** Open the comments of a playing track from the player: author, avatar, text, likes, and replies, exactly like the Android app. Writing comments is not implemented in the reference either.
-
-**Song recognition ("Echo Find").** Records 8 seconds from the microphone, computes a spectral fingerprint, and compares it against your indexed local library. Works offline with no paid API. You must first index your local songs with **Index library**; the result shows title, artist, and a match percentage, with a **Play** button.
+Song recognition ("Echo Find") records 8 seconds from the microphone, builds a spectral fingerprint and compares it with your indexed local songs. Index the library first in **Settings → Song recognition**. The result shows title, artist and a match percentage, with a Play button. It works offline and only identifies indexed songs.
 
 ---
 
 ## 8. Wrapped
 
-**YouTube Music Wrapped** uses your real history (`FEmusic_history`), not local Echo data.
+Wrapped uses real `FEmusic_history` data, not local Echo data.
 
-Nine animated slides in the Android style:
-
-1. Cover art and introduction;
-2. Total minutes listened (estimated from track durations);
-3. Top artists;
-4. Top songs;
-5. Dominant genres;
-6. Listening radars;
-7. Animated EQ bars;
-8. Colorful recap poster (5 selectable colors);
-9. Closing and sharing.
-
-Each slide stays for 8.5 seconds with a progress bar. An explicit empty state is shown when the account has no history.
+Nine slides: cover and introduction, total minutes (estimated from track durations), top artists, top songs, genres, listening radars, animated EQ bars, a recap poster with five colours, and closing/share. Each slide stays 8.5 s with a progress bar. Accounts with no history show an empty state.
 
 ---
 
-## 9. Cast, remote control, and devices
+## 9. Cast, remote, devices
 
-**Cast.** Discovers Chromecast and smart TVs over mDNS and DIAL, opens the picker, and starts playback directly on the device using CastV2.
+Cast discovers Chromecast and smart TVs over mDNS and DIAL, shows a picker, and starts playback through CastV2 on the device.
 
-**Remote control.** A local control server lets you manage playback from another device on the same network.
+The LAN remote control starts only when enabled in settings. It has no authentication, so enable it only on a trusted network.
 
-**Device link.** Connect two instances to synchronize actions and state.
+Device link connects two instances to share playback state. It uses the account fingerprint announced on the LAN; see [`DEVICE_LINK_PROTOCOL.md`](DEVICE_LINK_PROTOCOL.md).
 
 ---
 
 ## 10. Settings and diagnostics
 
-Fifteen settings entries, the same as the Android app, with **global search** at the top. Options that do not apply on Windows are shown as explicit placeholders, never hidden.
+The 15 Android settings entries are present, with global search at the top. Options that cannot work on Windows appear as disabled tiles with the reason, not as silent toggles.
 
-The main sections are: Account, Appearance, Player, Content, Music Flow, Network, Updates, Info.
+Main sections: Account, Appearance, Player, Content, Music Flow, Network, Updates, Info.
 
-**Automix diagnostics** and **diagnostic mode** (`ECHO_DIAG=1`) let you inspect the app's internal state through a local server.
+Automix diagnostics and diagnostic mode (`ECHO_DIAG=1`) expose internal state through a loopback-only HTTP server.
 
 ---
 
-## 11. Non-portable features
+## 11. Not portable
 
-Some Android features have no Windows equivalent and are declared non-portable in the parity matrix:
+These Android features have no Windows equivalent and are excluded from the parity count:
 
-- home screen widgets;
-- Android media notification and Quick Settings tile;
-- haptic feedback;
-- ringtones;
-- bit-perfect USB output;
-- Material You palette derived from the system wallpaper;
-- real `RenderEffect` refraction.
+- home screen widgets
+- Media3 notification and Quick Settings tile
+- haptics
+- ringtones
+- bit-perfect USB output
+- wallpaper-based Material You colours
+- real `RenderEffect` refraction
 
-Everything else — **48 features out of 48** — is implemented. See [`PARITY_MATRIX.md`](PARITY_MATRIX.md).
+Everything else is implemented: 48 of 48 portable features. See [`PARITY_MATRIX.md`](PARITY_MATRIX.md).

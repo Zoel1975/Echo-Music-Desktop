@@ -27,8 +27,6 @@ A later audit found 57 persisted options with no consumer. All feasible ones are
 
 Five options remain explicitly disabled with a Windows-specific reason in `settings_capabilities.dart`: wallpaper-based Dynamic Colors, haptics, and three `RenderEffect` effects. They are rendered as informational tiles, not silent toggles. The automatic Top / Bottom / Cached playlist toggles are implemented with `services/auto_playlists.dart` (Top/Bottom from `SONG_HISTORY` play counts, Cached from downloaded files) and appear in the Library when enabled.
 
-Options with real effects include: theme, YT Music language/country, streaming/download quality, Data Saver, high quality, crossfade, loudness, skip silence, SponsorBlock, autofetch, personalized content, history/privacy, seek buttons, Cast/remote, lyrics size/spacing, codec label, AI API keys, Discord/Last.fm/ListenBrainz, storage/backup/update/export.
-
 ## Tests
 
-`test/settings_fixes_test.dart`, `test/settings_wiring_test.dart`, `test/crossfade_engine_test.dart`, `test/mp3_export_test.dart`, `test/audio_source_info_test.dart`. `flutter analyze`: 0 errors. `flutter test`: 363 passing, 6 skipped.
+`test/settings_fixes_test.dart`, `test/settings_wiring_test.dart`, `test/crossfade_engine_test.dart`, `test/mp3_export_test.dart`, `test/audio_source_info_test.dart`. `flutter analyze`: 0 errors. `flutter test`: 391 passing, 6 skipped.

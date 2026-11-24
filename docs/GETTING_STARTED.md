@@ -1,94 +1,78 @@
 # Getting started
 
-A practical guide to installing, configuring, and using Echo Music Desktop.
+Install the app, sign in, and start listening.
 
-## 1. Installation
+## Install
 
-### Installer (recommended)
+From the [Releases page](https://github.com/ItsZale0/Echo-Music-Desktop/releases/latest):
 
-1. Go to the [Releases page](https://github.com/ItsZale0/Echo-Music-Desktop/releases/latest).
-2. Download **`EchoMusicSetup.exe`**.
-3. Run it. The wizard is available in English and Italian.
-4. Choose whether to install the Desktop and Start Menu shortcuts, then complete the setup.
-5. Launch **Echo Music** from the Start Menu or the desktop shortcut.
+1. Download `EchoMusicSetup.exe`.
+2. Run it. The wizard is in English and Italian.
+3. Choose the Desktop and Start Menu shortcuts, then finish.
+4. Start Echo Music from the Start Menu or the desktop shortcut.
 
-The installer also creates an uninstaller, available in **Apps & features**.
+The uninstaller is under **Apps & features**.
 
-### Portable build
+For the portable build, download `EchoMusicPortable.zip`, extract it (for example to `C:\EchoMusic`) and run `echo.exe`. It does not touch the registry.
 
-1. Download **`EchoMusicPortable.zip`**.
-2. Extract everything into a folder, for example `C:\EchoMusic`.
-3. Run `echo.exe` from that folder.
+## Sign in
 
-The portable build does not modify the registry and can be copied to another machine.
+On first launch click **Sign in**. A Chrome window opens with a dedicated profile. Sign in with the Google account tied to your YouTube Music library and confirm the permissions. The app detects the session after a few seconds and loads the library, history and playlists.
 
-## 2. Signing in to your account
+Cookies are stored locally, so later launches need no sign-in. Two-factor authentication is completed in the Chrome window.
 
-1. On first launch click **Sign in**.
-2. A Chrome window opens with a dedicated profile. Sign in with your Google account associated with YouTube Music.
-3. If requested, confirm the permissions. After a few seconds the app detects the session and loads your library, history, and playlists.
+## Listen
 
-Cookies are stored locally: later launches do not require signing in again.
+- Click a song in Home or Library to play it.
+- In a playlist, clicking a song sets the whole playlist as the queue, starting at that song.
+- The mini-player at the bottom has play/pause and quick controls. Click the cover art to open the full player.
+- The player has lyrics, comments, queue, favourites and options.
 
-> **Note:** if you use two-factor authentication, complete it normally in the Chrome window. The app does not request it directly.
+## Age-restricted tracks
 
-## 3. Listening to your music
+The app plays them in-app without opening a browser. It reads the real `signatureTimestamp`, sends the `/player` request with the authenticated YouTube Music context, deciphers `signatureCipher` formats with the player JS, and adds `pot=` and `cpn=` to the media URL.
 
-- Click a song in **Home** or **Library** to start playback.
-- If you open a **playlist** and tap a song, the whole playlist becomes the queue, starting at that song.
-- Use the **mini-player** at the bottom for play/pause and quick controls; click the cover art to open the full player.
-- The player provides lyrics, comments, queue, favorites, and advanced options.
+If the Google account is not verified as an adult, YouTube may still refuse playback. Age verification must be done on the Google account. See [`AGE_GATE.md`](AGE_GATE.md).
 
-## 4. Age-restricted tracks
+## Automix and crossfade
 
-If a track is age-restricted, the app plays it directly in-app without opening a browser. It could ask for additional auth, do that and it should work inside the app. It:
+In **Settings → Player**:
 
-- reads the real `signatureTimestamp` from YouTube;
-- sends a `/player` request with the authenticated YouTube Music context;
-- deciphers the `signatureCipher` formats with the player JS;
-- applies the `pot=` and `cpn=` tokens to the audio URL.
+1. enable Crossfade and set the duration, or let Automix use a 16-beat DJ blend;
+2. enable Beat align and Harmonic mixing;
+3. play a playlist.
 
-If your account is not verified as an adult, YouTube may still refuse playback: age verification must be completed on the Google account and cannot be bypassed by the client. See [`AGE_GATE.md`](AGE_GATE.md).
+Open **Automix diagnostics** to see state, lead, trigger, BPM, key and the event log.
 
-## 5. Automix and crossfade
+## Lyrics, EQ, downloads
 
-1. Go to **Settings → Player**.
-2. Enable **Crossfade** and choose the duration, or let Automix use a 16-beat DJ blend.
-3. Enable **Beat align** and **Harmonic mixing** for musically coherent transitions.
-4. Play a playlist and listen: transitions happen without interruption.
+- Lyrics: click the lyrics icon in the player. The provider and translation are configurable.
+- EQ: **Settings → Player → Equalizer**. Adjust ten bands or load an AutoEq preset.
+- Downloads: choose **Download** from a song or playlist menu. Files stay available offline.
+- MP3 export: **Settings → Tools → Export MP3**. Select local or downloaded files; cover art is included.
 
-To see what is happening, open **Automix diagnostics**: state, lead, trigger, BPM, key, and event log.
+## Wrapped
 
-## 6. Lyrics, EQ, and downloads
+Open Wrapped from Home or the menu. Nine slides use your YouTube Music history. They advance every 8.5 s, or you can move between them with the buttons.
 
-- **Lyrics**: click the lyrics icon in the player. You can choose the provider and the translation.
-- **EQ**: **Settings → Player → Equalizer**. Adjust the 10 bands or load an AutoEq preset.
-- **Downloads**: choose **Download** from a song or playlist menu. Files remain available offline.
-- **MP3 export**: **Settings → Tools → Export MP3**. Select local or downloaded files; cover art is included.
+## Comments and recognition
 
-## 7. Wrapped
+Comments open from the player. Enable **Show comment button** in Settings → Appearance first.
 
-Open **Wrapped** from Home or the menu. Nine slides show your real YouTube Music data. Use the buttons to navigate or let them advance automatically every 8.5 seconds.
+For song recognition, open **Settings → Song recognition**, click **Index library**, and wait for it to finish. The microphone button then records 8 s, builds a fingerprint, and looks for a match among the indexed songs. It cannot identify songs outside that local index.
 
-## 8. Comments and song recognition
+## Cast
 
-- **Comments**: click the comment icon in the player (the "Show comment button" option must be enabled in Settings → Appearance).
-- **Song recognition**: open **Settings → Song recognition**, click **Index library**, and wait for it to finish. Then click the microphone: the app records 8 seconds, computes the fingerprint, and looks for a match among the indexed songs.
+Click the Cast icon in the player. The app searches over mDNS and DIAL. Select a TV or Chromecast to play the audio on that device.
 
-Recognition works **offline on your library only**: it cannot identify arbitrary songs, only those you indexed.
+## Troubleshooting
 
-## 9. Cast
-
-Click the Cast icon in the player. The app searches the network (mDNS + DIAL). Select your TV or Chromecast: audio plays directly on the device.
-
-## 10. Troubleshooting
-
-| Symptom | What to do |
+| Symptom | Check |
 |---|---|
-| A song does not start | Check your connection and that the account is still valid. See the log at `%LOCALAPPDATA%\com.echo\Echo Music\error.log`. |
-| An age-gated song does not play | Verify that your Google account is age-verified. |
-| Automix does not start | Open Automix diagnostics and check that crossfade and automix are enabled. |
-| Lyrics do not load | Try another provider in the lyrics settings. |
-| The app does not open | Reinstall using the latest installer; local data is preserved. |
+| A song does not start | Connection and account validity. Log: `%LOCALAPPDATA%\com.echo\Echo Music\error.log` |
+| Age-gated song does not play | Google account age verification |
+| Automix does not start | Automix diagnostics; crossfade and automix enabled |
+| Lyrics do not load | Another provider in the lyrics settings |
+| App does not open | Reinstall with the latest installer; local data is kept |
 
-For bug reports, open an issue on [GitHub](https://github.com/ItsZale0/Echo-Music-Desktop/issues).
+Report bugs on [GitHub](https://github.com/ItsZale0/Echo-Music-Desktop/issues).
