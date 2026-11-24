@@ -13,6 +13,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'file_storage.dart';
 import 'settings_manager.dart';
 import 'stream_client.dart';
+import 'stream_resolver.dart';
 
 Box _box = Hive.box('DOWNLOADS');
 YoutubeExplode ytExplode = YoutubeExplode();
@@ -190,11 +191,11 @@ class DownloadManager {
         throw Exception('Storage permissions not granted.');
       }
 
-      AudioOnlyStreamInfo audioSource = await _getSongInfo(song['videoId'],
+      DownloadStreamInfo audioSource = await _getSongInfo(song['videoId'],
           quality:
               GetIt.I<SettingsManager>().downloadQuality.name.toLowerCase());
 
-      int total = audioSource.size.totalBytes;
+      int total = audioSource.contentLength;
       BytesBuilder received = BytesBuilder();
 
       Stream<List<int>> stream =
@@ -327,20 +328,31 @@ class DownloadManager {
     }
   }
 
-  Future<AudioOnlyStreamInfo> _getSongInfo(String videoId,
+  /// Uses the same resolver as playback (with PoToken/visitor data and client
+  /// fallbacks). youtube_explode's single androidVr manifest was a frequent
+  /// source of "Download failed" for songs the player could play normally.
+  Future<DownloadStreamInfo> _getSongInfo(String videoId,
       {String quality = 'high'}) async {
     try {
-      StreamManifest manifest = await ytExplode.videos.streamsClient
-          .getManifest(videoId,
-              requireWatchPage: true, ytClients: [YoutubeApiClient.androidVr]);
-      List<AudioOnlyStreamInfo> streamInfos = manifest.audioOnly
+      final resolved = await StreamResolver.instance.resolve(
+        videoId,
+        quality: quality == 'low' ? 'low' : 'high',
+      );
+      return DownloadStreamInfo(Uri.parse(resolved.url), resolved.contentLength);
+    } catch (e) {
+      // Secondary path: the legacy manifest sometimes succeeds when a player
+      // client is temporarily unavailable.
+      final manifest = await ytExplode.videos.streamsClient.getManifest(videoId,
+          requireWatchPage: true, ytClients: [YoutubeApiClient.androidVr]);
+      final streamInfos = manifest.audioOnly
           .where((a) => a.container == StreamContainer.mp4)
           .sortByBitrate()
-          .reversed
           .toList();
-      return quality == 'low' ? streamInfos.first : streamInfos.last;
-    } catch (e) {
-      rethrow;
+      if (streamInfos.isEmpty) {
+        throw Exception('No downloadable audio stream for $videoId');
+      }
+      final info = quality == 'low' ? streamInfos.first : streamInfos.last;
+      return DownloadStreamInfo(info.url, info.size.totalBytes.toInt());
     }
   }
 }
