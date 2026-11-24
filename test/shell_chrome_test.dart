@@ -98,4 +98,46 @@ void main() {
     // Anchored near the bottom (bottom: 76 with ~56px bar height).
     expect(size.height - rect.bottom, closeTo(76, 8));
   });
+
+  testWidgets('section bar slides into the empty mini-player dock',
+      (tester) async {
+    const size = Size(800, 600);
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final hasPlayer = ValueNotifier<bool>(true);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EchoShellChrome(
+            content: const SizedBox.expand(),
+            bottom: const SizedBox(),
+            hasPlayer: hasPlayer,
+            selected: 0,
+            destinations: destinations(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    var rect = tester.getRect(find.byType(EchoFloatingNavBar));
+    expect(size.height - rect.bottom, closeTo(76, 8),
+        reason: 'with a track, the bar sits above the mini player');
+
+    hasPlayer.value = false;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    rect = tester.getRect(find.byType(EchoFloatingNavBar));
+    expect(size.height - rect.bottom, closeTo(12, 8),
+        reason: 'no track: the bar takes the player space');
+
+    hasPlayer.value = true;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    rect = tester.getRect(find.byType(EchoFloatingNavBar));
+    expect(size.height - rect.bottom, closeTo(76, 8),
+        reason: 'the bar moves back up when a track starts');
+  });
 }

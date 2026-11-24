@@ -1,17 +1,21 @@
 ﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:Echo/core/widgets/floating_nav.dart';
-import 'package:Echo/services/audio_fallback.dart';
-import 'package:Echo/services/update_service/update_service.dart';
 
+import '../../core/widgets/floating_nav.dart';
 import '../../generated/l10n.dart';
+import '../../services/audio_fallback.dart';
+import '../../services/media_player.dart';
+import '../../services/update_service/update_service.dart';
 import 'echo_shell_chrome.dart';
 import 'widgets/bottom_player.dart';
 
 /// App shell: one navigation surface only — the floating glass bar.
 /// The desktop NavigationRail and the narrow NavigationBar were removed so
-/// the options bar is no longer duplicated. The mini player docks below it.
+/// the options bar is no longer duplicated. The mini player docks below it,
+/// and the section bar slides down into that space when it is empty.
 class AppShell extends StatefulWidget {
   const AppShell({
     Key? key,
@@ -31,10 +35,32 @@ class _AppShellState extends State<AppShell> {
   /// highlight the correct tab.
   static int? lastBranchIndex;
 
+  /// Whether the mini player occupies the bottom dock. When it doesn't, the
+  /// floating section bar slides down into that space.
+  final ValueNotifier<bool> _hasPlayer = ValueNotifier<bool>(false);
+  MediaPlayer? _player;
+
   @override
   void initState() {
     super.initState();
     UpdateService.autoCheck(context);
+    if (GetIt.I.isRegistered<MediaPlayer>()) {
+      _player = GetIt.I<MediaPlayer>();
+      _player!.currentSongNotifier.addListener(_syncPlayerPresence);
+      _syncPlayerPresence();
+    }
+  }
+
+  void _syncPlayerPresence() {
+    final visible = _player?.currentSongNotifier.value != null;
+    if (_hasPlayer.value != visible) _hasPlayer.value = visible;
+  }
+
+  @override
+  void dispose() {
+    _player?.currentSongNotifier.removeListener(_syncPlayerPresence);
+    _hasPlayer.dispose();
+    super.dispose();
   }
 
   void _goBranch(int index) {
@@ -117,6 +143,7 @@ class _AppShellState extends State<AppShell> {
             child: EchoShellChrome(
               content: widget.navigationShell,
               bottom: const BottomPlayer(),
+              hasPlayer: _hasPlayer,
               selected: shellIndex,
               destinations: _destinations(context),
             ),
