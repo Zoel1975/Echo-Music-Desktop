@@ -1308,6 +1308,15 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/player/clear' && request.method == 'POST') {
+      await GetIt.I<MediaPlayer>().stop();
+      _json(request.response, 200, {
+        'current': GetIt.I<MediaPlayer>().currentSongNotifier.value?.id,
+        'hasPlayer':
+            GetIt.I<MediaPlayer>().currentSongNotifier.value != null,
+      });
+      return;
+    }
     if (path == '/current' && request.method == 'GET') {
       final song = GetIt.I<MediaPlayer>().currentSongNotifier.value;
       _json(request.response, 200, {
