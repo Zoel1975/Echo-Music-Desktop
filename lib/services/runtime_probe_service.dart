@@ -11,6 +11,7 @@ import '../generated/l10n.dart';
 import '../core/app_messenger.dart';
 import '../utils/export_feedback.dart';
 import 'bottom_message.dart';
+import 'download_manager.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:hive/hive.dart';
@@ -1380,6 +1381,30 @@ class RuntimeProbeService {
       } catch (e) {
         _json(request.response, 200, {'videoId': id, 'error': e.toString()});
       }
+      return;
+    }
+    if (path == '/download/test' && request.method == 'POST') {
+      final id = request.uri.queryParameters['id'] ?? 'dQw4w9WgXcQ';
+      final manager = GetIt.I<DownloadManager>();
+      await manager.downloadSong({
+        'videoId': id,
+        'title': 'Download probe',
+        'artist': 'Probe',
+        'artists': [
+          {'name': 'Probe'}
+        ],
+        'duration': 210000,
+      });
+      Map? stored;
+      for (final download in manager.downloads.value.whereType<Map>()) {
+        if (download['videoId']?.toString() == id) stored = download;
+      }
+      _json(request.response, 200, {
+        'videoId': id,
+        'status': stored?['status'],
+        'path': stored?['path'],
+        'error': manager.lastDownloadError,
+      });
       return;
     }
     if (path == '/play' && request.method == 'POST') {

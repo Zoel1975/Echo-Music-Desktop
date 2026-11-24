@@ -41,7 +41,12 @@ class DownloadFeedback {
     if (stored != null && stored['status']?.toString() == 'DOWNLOADED') {
       BottomMessage.showOn(messenger, S.current.DownloadComplete);
     } else {
-      BottomMessage.showOn(messenger, S.current.DownloadFailed);
+      final detail = manager.lastDownloadError;
+      final message = (detail == null || detail.isEmpty)
+          ? S.current.DownloadFailed
+          : '${S.current.DownloadFailed}: ${detail.length > 140 ? '${detail.substring(0, 140)}…' : detail}';
+      BottomMessage.showOn(messenger, message,
+          duration: const Duration(seconds: 8));
     }
   }
 }

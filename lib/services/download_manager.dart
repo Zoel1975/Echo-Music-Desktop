@@ -21,6 +21,9 @@ class DownloadManager {
   Client client = Client();
   ValueNotifier<List<Map>> downloads = ValueNotifier([]);
   ValueNotifier<Map<String, Map>> downloadsByPlaylist = ValueNotifier({});
+  /// Last failure from [_downloadSong]; surfaced to the UI and the diagnostic
+  /// probe so a "Download failed" toast can name the real cause.
+  String? lastDownloadError;
   final Map<String, ValueNotifier<double>> _activeDownloadProgress = {};
   static const String songsPlaylistId = 'songs';
   final int maxConcurrentDownloads = 3; // Limit concurrent downloads
@@ -175,6 +178,7 @@ class DownloadManager {
   }
 
   Future<void> _downloadSong(Map song) async {
+    lastDownloadError = null;
     try {
       await _updateSongMetadata(song['videoId'], {
         ...song,
@@ -213,6 +217,7 @@ class DownloadManager {
         throw Exception("File saving failed");
       }
     } catch (e) {
+      lastDownloadError = e.toString();
       debugPrint("Error in _downloadSong: $e");
       await _updateSongMetadata(song['videoId'], {
         'status': 'DELETED',
