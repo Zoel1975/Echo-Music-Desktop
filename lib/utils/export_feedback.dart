@@ -60,11 +60,6 @@ class ExportFeedback {
         behavior: SnackBarBehavior.floating,
         backgroundColor: _background(messenger.context),
         content: _ExportProgress(queue: queue, taskId: task.id, title: title),
-        action: SnackBarAction(
-          label: S.current.Cancel,
-          textColor: _foreground(messenger.context),
-          onPressed: () => queue.cancel(task.id),
-        ),
       ),
     );
   }
@@ -95,12 +90,28 @@ class ExportFeedback {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: _foreground(messenger.context)),
             ),
+            // In-app button instead of SnackBarAction: the action row was not
+            // visible on the Windows runner, so users had no way to reach the
+            // saved file from the toast.
+            Row(
+              children: [
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => openFolder(task.targetPath),
+                  icon: Icon(Icons.folder_open,
+                      size: 16, color: _foreground(messenger.context)),
+                  label: Text(S.current.OpenFolder),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _foreground(messenger.context),
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
           ],
-        ),
-        action: SnackBarAction(
-          label: S.current.OpenFolder,
-          textColor: _foreground(messenger.context),
-          onPressed: () => openFolder(task.targetPath),
         ),
       ),
     );
@@ -186,6 +197,23 @@ class _ExportProgress extends StatelessWidget {
               minHeight: 3,
               color: foreground,
               backgroundColor: foreground.withOpacity(0.25),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                const Spacer(),
+                TextButton(
+                  onPressed: () => queue.cancel(taskId),
+                  child: Text(S.current.Cancel),
+                  style: TextButton.styleFrom(
+                    foregroundColor: foreground,
+                    minimumSize: Size.zero,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
             ),
           ],
         );
