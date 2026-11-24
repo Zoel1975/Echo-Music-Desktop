@@ -488,8 +488,12 @@ Widget _artwork({
   required void Function(ImageProvider) onImageReady,
 }) {
   final settings = GetIt.I<SettingsManager>();
-  final fit =
-      settings.extra<bool>('cropArt', true) ? BoxFit.cover : BoxFit.contain;
+  final rotating = settings.extra<bool>('rotatingThumb', false);
+  // A contain-fit image leaves gaps that become visible while spinning and
+  // break the circular clip; force cover for the rotating record.
+  final fit = rotating || settings.extra<bool>('cropArt', true)
+      ? BoxFit.cover
+      : BoxFit.contain;
   final sensitivity = settings.extra<double>('swipeSensitivity', 5).clamp(1, 10);
   final threshold = 900.0 / sensitivity;
   return SongSwipeDetector(
@@ -498,7 +502,7 @@ Widget _artwork({
     onNext: () => GetIt.I<MediaPlayer>().player.seekToNext(),
     onPrevious: () => GetIt.I<MediaPlayer>().player.seekToPrevious(),
     child: RotatingArt(
-      enabled: settings.extra<bool>('rotatingThumb', false),
+      enabled: rotating,
       child: SongThumbnail(
         song: song,
         fit: fit,

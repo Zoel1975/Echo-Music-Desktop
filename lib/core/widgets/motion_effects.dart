@@ -273,9 +273,14 @@ class _RotatingArtState extends State<RotatingArt>
   @override
   Widget build(BuildContext context) {
     final spin = _spin;
-    return spin == null
-        ? widget.child
-        : RotationTransition(turns: spin, child: widget.child);
+    if (spin == null) return widget.child;
+    // A rotating square clipped by the artwork's rounded rectangle produces a
+    // broken polygon (its corners leave the container at 45 degrees). Clip to
+    // a circle instead: a square rotated about its center always covers its
+    // own inscribed circle, so the result is a clean spinning record.
+    return ClipOval(
+      child: RotationTransition(turns: spin, child: widget.child),
+    );
   }
 }
 

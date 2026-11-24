@@ -117,6 +117,15 @@ void main() {
         contains("extra<bool>('glassPlayer'"));
   });
 
+  test('rotating artwork is clipped as a circle, not a polygon', () {
+    final effects = src('lib/core/widgets/motion_effects.dart');
+    expect(effects, contains('ClipOval'));
+    expect(effects, contains('RotationTransition'));
+    final page = src('lib/screens/player/player_page.dart');
+    expect(page, contains('final rotating ='));
+    expect(page, contains('rotating ||'));
+  });
+
   test('the default UI and catalog language is English', () {
     final manager = src('lib/services/settings_manager.dart');
     final helpers = src('lib/ytmusic/helpers.dart');
