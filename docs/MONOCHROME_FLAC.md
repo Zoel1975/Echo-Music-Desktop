@@ -1,7 +1,7 @@
 # Monochrome FLAC — lossless quality option
 
 Echo Desktop can use [Monochrome](https://monochrome.st/) as a lossless audio
-source. It is exposed in **Impostazioni → Riproduttore → Streaming Quality**
+source. It is exposed in **Settings → Player → Streaming Quality**
 as `FLAC (Monochrome)`, alongside `HIGH` and `LOW`.
 
 ## How it works

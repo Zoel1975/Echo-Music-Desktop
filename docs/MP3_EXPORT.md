@@ -1,32 +1,32 @@
-# Export MP3
+# MP3 export
 
 ## Backend
 
-L'export audio usa `ffmpeg_kit_flutter_new_audio` 3.0.0: build **audio-only LGPL-3.0** di FFmpeg 8.1.3 (include LAME/MP3, nessun codec GPL). Su Windows le DLL vengono scaricate in fase di build e il plugin installa le notifiche di licenza in `licenses/ffmpeg_kit_flutter_new_audio/` accanto a `echo.exe`: la directory viene inclusa nell'installer Inno Setup grazie alla copia ricorsiva di `build/windows/x64/runner/Release`.
+Audio export uses `ffmpeg_kit_flutter_new_audio` 3.0.0: an **audio-only LGPL-3.0** FFmpeg build (includes LAME/MP3, no GPL codecs). On Windows the DLLs are downloaded at build time and the plugin installs license notices in `licenses/ffmpeg_kit_flutter_new_audio/` next to `echo.exe`: the directory is included in the Inno Setup installer through the recursive copy of `build/windows/x64/runner/Release`.
 
-**Flacora non è stato usato**: è un orchestratore GUI Rust che scarica FLAC da Tidal/Qobuz/Amazon/Deezer tramite estensioni esterne, non ha CLI/API/libreria e il suo output accetta solo file `.flac`. Non può codificare MP3.
+**Flacora was not used**: it is a Rust GUI orchestrator that downloads FLAC from Tidal/Qobuz/Amazon/Deezer through external extensions, has no CLI/API/library, and only accepts `.flac` as output. It cannot encode MP3.
 
-## Cosa può essere esportato
+## What can be exported
 
-- File audio locali selezionati con il file picker nella schermata **Impostazioni → Esporta MP3**.
-- Brani già scaricati: pulsante "Aggiungi brani scaricati" nella stessa schermata oppure **Esporta in MP3** nel menu del brano scaricato (long-press/click destro).
+- Local audio files selected with the file picker in **Settings → Export MP3**.
+- Already-downloaded songs: the "Add downloaded songs" button in the same screen, or **Export as MP3** in the song menu (right-click / long press).
 
-Non vengono esportati brani in streaming: l'export funziona offline sui file già presenti su disco.
+Streaming songs are not exported: export works offline on files already on disk.
 
 ## Pipeline
 
-1. `ExportTaskQueue.enqueue()` (o `enqueueSong()`) crea un task con nome `Artista - Titolo.mp3`, caratteri Windows non validi rimossi e suffisso `(1)` in caso di collisione.
-2. Il bitrate viene letto da `SettingsManager.exportBitrateKbps` (default 192 kbps, modificabile 128/192/256/320 nella schermata Export).
-3. `FfmpegAudioEncoder` esegue:
+1. `ExportTaskQueue.enqueue()` (or `enqueueSong()`) creates a task named `Artist - Title.mp3`, with invalid Windows characters removed and a `(1)` suffix on collision.
+2. The bitrate comes from `SettingsManager.exportBitrateKbps` (192 kbps by default, selectable 128/192/256/320 in the Export screen).
+3. `FfmpegAudioEncoder` runs:
    `-stats_period 0.2 -nostdin -y -i <input> -vn -map 0:a:0 -c:a libmp3lame -b:a <n>k -map_metadata 0 -id3v2_version 3 [-metadata ...] -f mp3 <target>.part`
-4. L'output viene scritto in un file temporaneo `.part` e solo al successo rinominato nel `.mp3` finale: un errore o un annullamento non lascia file MP3 fasulli. **`-f mp3` è obbligatorio**: FFmpeg non riesce a dedurre il contenitore dall'estensione `.part` e senza questo flag l'export falliva sempre con exit 1 (`Unable to choose an output format`).
-5. Progresso: statistiche FFmpeg (`statistics.getTime() / duration`) con aggiornamenti ogni 0,2 s. Se la durata non è nota (file aggiunti con il file picker), viene letta con `FFprobeKit.getMediaInformation()`: la barra mostra così una percentuale reale invece di restare indeterminata. La schermata mostra anche `stadio · bitrate · percentuale`.
-6. Annullamento: `FFmpegKit.cancel(sessionId)`; il task passa allo stato "Annullata". "Riprova" rimette il task in coda.
+4. Output is written to a temporary `.part` file and only renamed to the final `.mp3` on success: an error or cancellation never leaves a fake MP3. **`-f mp3` is mandatory**: FFmpeg cannot infer the container from the `.part` extension, and without this flag export always failed with exit 1 (`Unable to choose an output format`).
+5. Progress comes from FFmpeg statistics (`statistics.getTime() / duration`) with updates every 0.2 s. When the duration is unknown (files added with the file picker), it is read with `FFprobeKit.getMediaInformation()`: the bar therefore shows a real percentage instead of an indeterminate animation. The screen also shows `stage · bitrate · percentage`.
+6. Cancellation: `FFmpegKit.cancel(sessionId)`; the task moves to the "Cancelled" state. **Retry** puts the task back in the queue.
 
-I file sono salvati in `Downloads/Echo/Music` (stessa cartella dei brani scaricati). Il pulsante cartella apre la destinazione.
+Files are saved in `Downloads/Echo/Music` (the same folder as downloaded songs). The folder button opens the destination.
 
-## Test
+## Tests
 
-- `test/mp3_export_test.dart`: argomenti FFmpeg, named wiring, presenza docs/licenza.
-- `test/feasible_ports_test.dart`: coda con encoder fake (transcode, naming, failure, cancel/retry, atomicità `.part`).
-- Gate: `flutter analyze` 0 errori, `flutter test` tutti verdi, `flutter build windows --release`.
+- `test/mp3_export_test.dart`: FFmpeg arguments, named wiring, docs/license presence, and the explicit `-f mp3` regression check.
+- `test/feasible_ports_test.dart`: queue with a fake encoder (transcode, naming, failure, cancel/retry, `.part` atomicity).
+- Gates: `flutter analyze` 0 errors, `flutter test` all green, `flutter build windows --release`.

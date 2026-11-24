@@ -1,183 +1,183 @@
-# Guida alle funzioni
+# Feature guide
 
-Questa guida descrive **cosa fa** Echo Music Desktop e **come si usa**. Per i dettagli di implementazione vedi [`ARCHITECTURE.md`](ARCHITECTURE.md).
+This guide describes **what Echo Music Desktop does** and **how to use it**. For implementation details see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-Indice:
-1. [Account e sessione](#1-account-e-sessione)
-2. [Libreria, playlist e ricerca](#2-libreria-playlist-e-ricerca)
-3. [Riproduzione e player](#3-riproduzione-e-player)
-4. [Automix e crossfade](#4-automix-e-crossfade)
-5. [Testi, EQ e DSP](#5-testi-eq-e-dsp)
-6. [Download, export e formati](#6-download-export-e-formati)
-7. [Scoperta e funzioni sociali](#7-scoperta-e-funzioni-sociali)
+Contents:
+1. [Account and session](#1-account-and-session)
+2. [Library, playlists, and search](#2-library-playlists-and-search)
+3. [Playback and player](#3-playback-and-player)
+4. [Automix and crossfade](#4-automix-and-crossfade)
+5. [Lyrics, EQ, and DSP](#5-lyrics-eq-and-dsp)
+6. [Downloads, export, and formats](#6-downloads-export-and-formats)
+7. [Discovery and social features](#7-discovery-and-social-features)
 8. [Wrapped](#8-wrapped)
-9. [Cast, remote e dispositivi](#9-cast-remote-e-dispositivi)
-10. [Impostazioni e diagnostica](#10-impostazioni-e-diagnostica)
-11. [Funzioni non portabili](#11-funzioni-non-portabili)
+9. [Cast, remote control, and devices](#9-cast-remote-control-and-devices)
+10. [Settings and diagnostics](#10-settings-and-diagnostics)
+11. [Non-portable features](#11-non-portable-features)
 
 ---
 
-## 1. Account e sessione
+## 1. Account and session
 
-**Accesso con Google/YouTube Music.** Al primo avvio clicchi **Accedi**: l'app apre un profilo Chrome dedicato, completa il login e salva i cookie in un jar locale. Le sessioni successive non richiedono alcuna azione.
+**Sign in with Google / YouTube Music.** On first launch click **Sign in**: the app opens a dedicated Chrome profile, completes the login, and stores the cookies in a local jar. Subsequent launches require no action.
 
-**Cosa viene salvato:** cookie di autenticazione, visitor id, preferenze, cronologia di ascolto, playlist create, token PoToken in cache (12 ore). Tutto resta sul tuo computer.
+**What is stored:** authentication cookies, visitor id, preferences, listening history, playlists you created, and cached PoTokens (12 hours). Everything stays on your computer.
 
-**Sign-out.** Da **Impostazioni → Account** puoi disconnetterti. I dati locali (download, preferenze) restano, ma la libreria online non è più accessibile finché non accedi di nuovo.
+**Sign out.** Use **Settings → Account**. Local data (downloads, preferences) remains, but the online library is unavailable until you sign in again.
 
-**Brani con limite d'età.** Se un brano è age-restricted, l'app:
+**Age-restricted tracks.** The app plays them directly in-app:
 
-1. legge il `signatureTimestamp` reale dal sito YouTube;
-2. manda la richiesta `/player` con il contesto YouTube Music autenticato e i flag mobile (`videoCheckOk`, `html5Preference`);
-3. riceve i formati cifrati (`signatureCipher`) e li decifra con il player JS, usando Node.js;
-4. applica `pot=` e `cpn=` all'URL del media e avvia la riproduzione **direttamente in app**.
+1. the real `signatureTimestamp` is read from YouTube;
+2. the `/player` request is sent with the authenticated YouTube Music context and mobile flags (`videoCheckOk`, `html5Preference`);
+3. the response contains only `signatureCipher` formats, deciphered with the player JS via Node.js;
+4. `pot=` and `cpn=` are appended to the media URL and playback starts.
 
-Nessuna finestra del browser si apre. Vedi [`AGE_GATE.md`](AGE_GATE.md).
-
----
-
-## 2. Libreria, playlist e ricerca
-
-**Libreria.** Sei filtri: brani, album, artisti, playlist, podcast, download. La vista è la stessa dell'app Android, con copertine, ordinamenti e ricerca interna.
-
-**Playlist.** Apri una playlist e tocca un brano: **l'intera playlist diventa la coda di riproduzione**, partendo dal brano toccato. Puoi riordinare, rimuovere e salvare modifiche.
-
-**Ricerca.** Cerca simultaneamente nella libreria online e nei file locali. I risultati sono divisi per tipo (brani, album, artisti, playlist, utenti).
-
-**Playlist intelligenti.** EchoBrain genera playlist automatiche; Music Flow offre 7 toggle per personalizzare il feed.
-
-**Coda persistente.** La coda viene salvata: se chiudi e riapri l'app, riprendi da dove eri.
+No browser window opens. See [`AGE_GATE.md`](AGE_GATE.md).
 
 ---
 
-## 3. Riproduzione e player
+## 2. Library, playlists, and search
 
-**Motore audio.** Il player usa media_kit/mpv con una catena DSP dedicata. Supporta MP3, M4A, FLAC, OGG, OPUS e file locali.
+**Library.** Six filters: songs, albums, artists, playlists, podcasts, downloads. The view matches the Android app, with cover art, sorting, and in-view search.
 
-**Tre layout.** Il player si adatta alla dimensione della finestra: compatto, normale e esteso, con controlli e copertine ridimensionati.
+**Playlists.** Open a playlist and tap a song: **the whole playlist becomes the playback queue**, starting at that song. You can reorder, remove, and save changes.
 
-**Controlli.** Play/pausa, avanti/indietro, shuffle, repeat, volume, preferiti, coda, testi, commenti, opzioni. Il mini-player in basso mostra copertina, titolo scorrevole (marquee) e controlli essenziali con effetto vetro.
+**Search.** Searches the online library and local files at the same time, with results grouped by type (songs, albums, artists, playlists, users).
 
-**7 background.** Il player può usare sette diversi sfondi animati, con palette colori estratta dalla copertina.
+**Smart playlists.** EchoBrain generates automatic playlists; Music Flow offers 7 toggles to customize the feed.
 
-**Micro-effetti.** Slider ondulati,HeartBurst quando metti un like, shimmer nei caricamenti, EQ circolare e transizioni fluide.
-
-**Sorgente audio.** Un'etichetta mostra sempre sorgente e codec (es. `WEB_REMIX · Opus 160 kbps`, `FLAC monochrome`, `File locale`).
+**Persistent queue.** The queue is saved, so closing and reopening the app resumes where you left off.
 
 ---
 
-## 4. Automix e crossfade
+## 3. Playback and player
 
-L'Automix è il sistema che rende fluido il passaggio tra brani, ispirato a Echo Android.
+**Audio engine.** The player uses media_kit/mpv with a dedicated DSP chain. It supports MP3, M4A, FLAC, OGG, OPUS, and local files.
 
-**Crossfade.** Quando il brano corrente sta per finire, l'app inizia il fade con il successivo. La durata è configurabile; in modalità Automix viene usato un DJ blend di 16 beat (tra 4 e 15 secondi).
+**Three layouts.** The player adapts to the window size: compact, normal, and extended, with scaled controls and artwork.
 
-**Pre-arm adattivo.** Il player di standby viene preparato **20 secondi prima** (fino a 35 se la preparazione è lenta), non dentro la finestra di fade. Questo elimina il blocco a metà transizione.
+**Controls.** Play/pause, next/previous, shuffle, repeat, volume, favorites, queue, lyrics, comments, and options. The mini-player at the bottom shows cover art, a scrolling title (marquee), and essential glass-styled controls.
 
-**Handoff a 220 ms.** Prima del crossfade vero, l'audio passa dal player principale a quello di standby con una rampa a potenza costante di 220 ms. Nessuno scatto di volume.
+**7 backgrounds.** The player can use seven animated backgrounds with a palette extracted from the cover art.
 
-**Analisi beat.** Per ogni brano vengono calcolati BPM, fase del beat e chiave musicale tramite FFT e spectral flux. L'analisi viene cachesata.
+**Micro-interactions.** Wavy sliders, HeartBurst on like, shimmer while loading, circular EQ, and smooth transitions.
 
-**Mix-in / mix-out dinamici.** L'intro e la coda del brano vengono analizzati energeticamente per trovare il punto ideale di ingresso e uscita, invece di usare valori fissi.
-
-**Beat-matching.** L'offset di ingresso del brano successivo viene scelto in modo che un suo beat cada esattamente alla fine del fade.
-
-**Ducking.** La traccia in uscita viene attenuata sulle basse frequenze per evitare che i due bassi si sovrappongano.
-
-**Mixing armonico.** La chiave viene convertita nella ruota Camelot (1A–12A / 1B–12B) e usata per scegliere il brano successivo tra i primi tre della coda.
-
-**Diagnostica.** In **Impostazioni → Riproduttore → Diagnostica Automix** vedi stato, lead, trigger, volumi, BPM in/out, chiave e il log degli eventi. Puoi anche mostrare un overlay direttamente nel player.
-
-Vedi [`AUTOMIX.md`](AUTOMIX.md) e [`CROSSFADE.md`](CROSSFADE.md).
+**Source label.** A label always shows the source and codec (for example `WEB_REMIX · Opus 160 kbps`, `FLAC monochrome`, `Local file`).
 
 ---
 
-## 5. Testi, EQ e DSP
+## 4. Automix and crossfade
 
-**Lyrics.** Dodici provider diversi, sincronizzazione parola per parola, traduzione e visualizzazione stabile senza sfarfallii durante il resize.
+Automix is the system that makes track transitions seamless, inspired by Echo Android.
 
-**Equalizzatore.** 10 bande con preset, ricerca AutoEq e pagina Axion.
+**Crossfade.** When the current song is about to end, the app starts fading into the next one. The duration is configurable; in Automix mode a 16-beat DJ blend is used (4–15 s).
 
-**DSP.** Catena di filtri con guadagno, normalizzazione del volume in base alla loudness del brano e opzioni Mono/Stereo.
+**Adaptive pre-arm.** The standby player is prepared **20 seconds early** (up to 35 s if preparation is slow), not inside the fade window. This removes the mid-transition freeze.
 
-**Sleep timer.** Interrompi la riproduzione dopo un tempo impostato o alla fine del brano.
+**220 ms handoff.** Before the actual crossfade, audio moves from the main player to the standby player with a constant-power 220 ms ramp. No volume jumps.
+
+**Beat analysis.** BPM, beat phase, and musical key are computed for every track with FFT and spectral flux. Results are cached.
+
+**Dynamic mix-in / mix-out.** The intro and outro are analyzed for energy to find the ideal entry and exit points instead of using fixed values.
+
+**Beat matching.** The entry offset of the next track is chosen so one of its beats lands exactly at the end of the fade.
+
+**Ducking.** The outgoing track is attenuated in the low frequencies so the two bass lines do not build up.
+
+**Harmonic mixing.** The key is converted to the Camelot wheel (1A–12A / 1B–12B) and used to pick the next song from the first three in the queue.
+
+**Diagnostics.** **Settings → Player → Automix diagnostics** shows state, lead, trigger, levels, BPM in/out, key, and the event log. An overlay can also be shown inside the player.
+
+See [`AUTOMIX.md`](AUTOMIX.md) and [`CROSSFADE.md`](CROSSFADE.md).
 
 ---
 
-## 6. Download, export e formati
+## 5. Lyrics, EQ, and DSP
 
-**Download offline.** Scarica brani e playlist per ascoltarli senza connessione.
+**Lyrics.** Twelve providers, word-by-word sync, translation, and reflow-free rendering.
 
-**Export MP3.** Converte i file locali o scaricati in MP3 con tag ID3v2.3 e copertina incorporata. L'operazione è sicura: scrive prima un file `.part` e lo rinomina solo a fine riuscita. Puoi annullare e riprovare.
+**Equalizer.** 10 bands with presets, AutoEq search, and the Axion page.
 
-**FLAC Monochrome.** Opzione per sorgenti FLAC in bianco e nero, con fallback automatico a YouTube e priorità Data Saver.
+**DSP.** Filter chain with gain, loudness-based volume normalization, and Mono/Stereo options.
 
-**Limite.** L'export supporta file locali e già scaricati; non converte direttamente uno stream in riproduzione.
+**Sleep timer.** Stop playback after a chosen time or at the end of the current track.
 
 ---
 
-## 7. Scoperta e funzioni sociali
+## 6. Downloads, export, and formats
 
-**Explore.** Sezioni scopribili, nuove uscite, classifiche e mix.
+**Offline downloads.** Download songs and playlists for listening without a connection.
 
-**Podcast.** Accesso ai podcast di YouTube Music.
+**MP3 export.** Converts local or downloaded files to MP3 with ID3v2.3 tags and embedded cover art. The write is safe: a `.part` file is renamed only on success. You can cancel and retry.
 
-**Commenti.** Apri i commenti di un brano dal player: autore, avatar, testo, like e risposte, esattamente come sull'app Android. La scrittura di commenti non è prevista nemmeno nel reference.
+**Monochrome FLAC.** An option for monochrome FLAC sources, with automatic YouTube fallback and Data Saver priority.
 
-**Riconoscimento brani ("Echo Find").** Registra 8 secondi dal microfono, calcola un'impronta spettrale e la confronta con la tua libreria indicizzata. Funziona offline, senza API a pagamento. Devi prima indicizzare i brani locali dal pulsante **Indicizza la libreria**; il risultato mostra titolo, artista e percentuale di match, con pulsante **Riproduci**.
+**Limitation.** Export works on local and already-downloaded files; it does not convert a stream directly while playing.
+
+---
+
+## 7. Discovery and social features
+
+**Explore.** Discover sections, new releases, charts, and mixes.
+
+**Podcast.** Access YouTube Music podcasts.
+
+**Comments.** Open the comments of a playing track from the player: author, avatar, text, likes, and replies, exactly like the Android app. Writing comments is not implemented in the reference either.
+
+**Song recognition ("Echo Find").** Records 8 seconds from the microphone, computes a spectral fingerprint, and compares it against your indexed local library. Works offline with no paid API. You must first index your local songs with **Index library**; the result shows title, artist, and a match percentage, with a **Play** button.
 
 ---
 
 ## 8. Wrapped
 
-**Wrapped di YouTube Music** usa la tua cronologia reale (`FEmusic_history`), non dati locali.
+**YouTube Music Wrapped** uses your real history (`FEmusic_history`), not local Echo data.
 
-Nove slide animate in stile Android:
+Nine animated slides in the Android style:
 
-1. Copertina e introduzione;
-2. Minuti totali ascoltati (stimati dalle durate dei brani);
-3. Artisti più ascoltati;
-4. Brani più ascoltati;
-5. Generi predominanti;
-6. Radari di ascolto;
-7. Barre EQ animate;
-8. Poster recap colorato (5 colori selezionabili);
-9. Chiusura e condivisione.
+1. Cover art and introduction;
+2. Total minutes listened (estimated from track durations);
+3. Top artists;
+4. Top songs;
+5. Dominant genres;
+6. Listening radars;
+7. Animated EQ bars;
+8. Colorful recap poster (5 selectable colors);
+9. Closing and sharing.
 
-Ogni slide resta 8,5 secondi con barra di avanzamento. Se l'account non ha cronologia, viene mostrato uno stato vuoto esplicito.
-
----
-
-## 9. Cast, remote e dispositivi
-
-**Cast.** Scopre Chromecast e smart TV via mDNS e DIAL, apre il selettore e avvia la riproduzione direttamente sul dispositivo con il protocollo CastV2.
-
-**Controllo remoto.** Un server di controllo in locale permette di gestire la riproduzione da un altro dispositivo della stessa rete.
-
-**Device link.** Collega due istanze per sincronizzare azioni e stato.
+Each slide stays for 8.5 seconds with a progress bar. An explicit empty state is shown when the account has no history.
 
 ---
 
-## 10. Impostazioni e diagnostica
+## 9. Cast, remote control, and devices
 
-Quindici voci di impostazioni, uguali all'app Android, con **ricerca globale** nel campo in alto. Le opzioni non applicabili su Windows sono mostrate come segnaposto espliciti, non nascoste.
+**Cast.** Discovers Chromecast and smart TVs over mDNS and DIAL, opens the picker, and starts playback directly on the device using CastV2.
 
-Le sezioni principali sono: Account, Aspetto, Riproduttore, Contenuti, Music Flow, Rete, Aggiornamenti, Info.
+**Remote control.** A local control server lets you manage playback from another device on the same network.
 
-**Diagnostica Automix** e **modalità diagnostica** (`ECHO_DIAG=1`) permettono di ispezionare lo stato interno dell'app tramite un server locale.
+**Device link.** Connect two instances to synchronize actions and state.
 
 ---
 
-## 11. Funzioni non portabili
+## 10. Settings and diagnostics
 
-Alcune funzioni dell'app Android non hanno un equivalente Windows e sono dichiarate come non portabili nella matrice di parità:
+Fifteen settings entries, the same as the Android app, with **global search** at the top. Options that do not apply on Windows are shown as explicit placeholders, never hidden.
 
-- widget della home screen;
-- notifica media e riquadro Quick Settings di Android;
-- feedback aptico;
-- suonerie;
-- output USB bit-perfect;
-- palette Material You derivata dal wallpaper di sistema;
-- rifrazione reale `RenderEffect`.
+The main sections are: Account, Appearance, Player, Content, Music Flow, Network, Updates, Info.
 
-Tutto il resto — **48 funzioni su 48** — è implementato. Vedi [`PARITY_MATRIX.md`](PARITY_MATRIX.md).
+**Automix diagnostics** and **diagnostic mode** (`ECHO_DIAG=1`) let you inspect the app's internal state through a local server.
+
+---
+
+## 11. Non-portable features
+
+Some Android features have no Windows equivalent and are declared non-portable in the parity matrix:
+
+- home screen widgets;
+- Android media notification and Quick Settings tile;
+- haptic feedback;
+- ringtones;
+- bit-perfect USB output;
+- Material You palette derived from the system wallpaper;
+- real `RenderEffect` refraction.
+
+Everything else — **48 features out of 48** — is implemented. See [`PARITY_MATRIX.md`](PARITY_MATRIX.md).

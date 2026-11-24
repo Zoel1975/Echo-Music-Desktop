@@ -1,4 +1,4 @@
-# Echo Music � Desktop Port Plan
+# Echo Music — Desktop Port Plan
 
 Porting **`EchoMusicApp/Echo-Music`** (Android, Kotlin + Jetpack Compose) onto
 **`Zoel1975/Echo-Music-Desktop`** (Flutter), keeping Dart/Flutter as the target stack.
@@ -64,17 +64,17 @@ Already implemented and worth keeping:
 
 | # | Problem | Impact | Fix |
 |---|---|---|---|
-| B1 | `youtube_explode_dart` points at `github.com/iad1tya/youtube_explode_dart`, which **no longer exists (404)** | `flutter pub get` cannot resolve; app cannot build at all | Replace with a supported resolution path (see �5) |
+| B1 | `youtube_explode_dart` points at `github.com/iad1tya/youtube_explode_dart`, which **no longer exists (404)** | `flutter pub get` cannot resolve; app cannot build at all | Replace with a supported resolution path (see —5) |
 | B2 | `just_audio_background` is Android/iOS-only | Dead weight on desktop, init call is a no-op that can throw | Gate behind `Platform.isAndroid/isIOS` |
 | B3 | Package name is `Echo` (uppercase) | Dart lints, poor convention | Deferred: a global rename churns every import and makes upstream merges harder. Do it once, in Phase 2, together with the `lib/` restructure. |
-| B4 | Single flat `lib/screens|services` tree | Doesn't scale to ~150 screens | Feature-first layout (�4) |
+| B4 | Single flat `lib/screens|services` tree | Doesn't scale to ~150 screens | Feature-first layout (—4) |
 | B5 | No tests beyond a widget smoke test | Regressions invisible while porting | Golden/widget tests per ported screen |
 
 ---
 
 ## 3. Parity matrix
 
-Legend � **DONE** exists on desktop � **PART** partial � **TODO** missing �
+Legend — **DONE** exists on desktop — **PART** partial — **TODO** missing —
 **N/A** Android-only, replaced by a desktop equivalent.
 
 ### 3.1 Shell, navigation, design
@@ -82,7 +82,7 @@ Legend � **DONE** exists on desktop � **PART** partial � **TODO** missing 
 | Android | Desktop | Status | Phase |
 |---|---|---|---|
 | `FloatingTabBar`, `FloatingNavBar` | `floating_nav.dart` single floating glass bar (per user choice) + `shell_chrome_test.dart` | DONE | 2 |
-| `GlassEffect.kt` + `backdrop/*` (36 files) | � | N/A ? `BackdropFilter` + `flutter_acrylic` | 2 |
+| `GlassEffect.kt` + `backdrop/*` (36 files) | — | N/A ? `BackdropFilter` + `flutter_acrylic` | 2 |
 | `DESIGN.md` tokens (30% surfaces, 24dp, flat) | `core/theme/tokens.dart` + `tokens_test.dart` | DONE | 2 |
 | Dynamic seed `0xFFED5564` ? `materialKolor` | `ColorScheme.fromSeed` in `core/theme` | DONE | 2 |
 | `PlayerMenu`, `MiniPlayer`, `FloatingMiniPlayer` | `shell/widgets/bottom_player.dart` (docked mini player) + player menu | DONE | 2 |
@@ -190,7 +190,7 @@ lib/
   data/
     innertube/                 # client + models (evolved from lib/ytmusic)
     db/                        # Hive boxes, migrations
-    repositories/              # home, album, artist, playlist, library, search�
+    repositories/              # home, album, artist, playlist, library, search—
   features/
     <feature>/
       domain/                  # entities + use cases (pure Dart, testable)
@@ -203,8 +203,8 @@ Rules:
 
 - `core/` and `features/*/domain` must not import `package:flutter/material.dart`
   (except `core/theme`), so they stay testable headless.
-- Every cubit gets `bloc_test` coverage; every page gets a golden at 1280�800
-  and 420�900.
+- Every cubit gets `bloc_test` coverage; every page gets a golden at 1280x800
+  and 420x900.
 - Platform-specific code sits behind `core/utils/platform.dart` (`isDesktop`,
   `isMobile`), never inline `Platform.isX` in widgets.
 
@@ -219,7 +219,7 @@ direct template.
 `just_audio` + `just_audio_media_kit` stays. The local HTTP relay
 (`custom_audio_stream.dart` + `http_server`) is the desktop equivalent of
 Media3's `ChunkedDataSource` and is what makes header injection / range
-requests / download acceleration work � keep and harden it.
+requests / download acceleration work — keep and harden it.
 
 ---
 
@@ -247,15 +247,15 @@ Each phase ends with a runnable Windows build and documented parity gain.
 
 | Phase | Scope | Exit criteria |
 |---|---|---|
-| **0 � Foundations** | Toolchain, `pub get`, dead-dep fix, feature-first skeleton, `docs/PORTING_PLAN.md`, CI script | `flutter analyze` clean, `flutter build windows` ok, app boots with home + player |
-| **1 � Playback core** *(done � full queue persistence)* | Queue model, sleep timer, resume state, playback errors, mini-player parity | Sleep timer + full queue persistence + playback errors + InnerTube stream resolver (VISIONOS client fallback chain) done � `MediaPlayer.playbackError` notifier, `saveState`/`restoreLastPlayed` on launch; queue sheet still read-only-ish; full queue persistence done |
-| **2 � Shell & design system** *(done � 12f43cf)* | Echo tokens, glass surface, floating tab bar, theme seed, bootable shell | Shell boots, all screens reachable; jank fixes (single PageController, horizontal tab pager, RepaintBoundary, reduced blur, animated tab selection) |
-| **3 � Discovery & detail** *(done � 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
-| **4 � Library & account** *(done � 8109e93)* | Cookie login via WebView2 (`lib/screens/login/login_page.dart` + `lib/services/cookie_store.dart` + `YTMusic.getAccountInfo()` port of `account/account_menu`); Account screen (`lib/screens/account/account_page.dart`); `YTClient` now merges the Cookie header into every request | WebView2 login flow validated via build + smoke run (actual Google login needs credentials + Edge + WebView2; not exercised) |
-| **5 � Lyrics suite** *(done � lyrics providers batch)* | LRCLIB (`lrcnet_api.dart`), Android registry ported to `lib/services/lyrics_registry.dart` + `LrcLibProvider`; tests | All 8 providers ported (lyrics_providers.dart + lyrics_providers_youtube.dart); TTML/word-timing; LyricsService fallback chain; translations (DeepL/Mistral/OpenRouter+ApiRoute + SSE streaming + caching) in lyrics_translation.dart; 50/50 tests; translation UI wired (lyrics_box.dart translate button + TranslationDialog + per-line translated display) |
-| **6 � Social & cloud** | PART � menu entries present; Discord/Last.fm/ListenBrainz/Jellyfin/Navidrome/Listen Together/Extensions/EchoBrain show a "Coming in a future update" placeholder (`ComingSoonPage`); no desktop protocol implementation |
-| **7 � Podcasts** | PART � placeholder entry in menu; no podcast feed/renderer |
-| **8 � Mobile-only leftovers** | PART � Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
+| **0 — Foundations** | Toolchain, `pub get`, dead-dep fix, feature-first skeleton, `docs/PORTING_PLAN.md`, CI script | `flutter analyze` clean, `flutter build windows` ok, app boots with home + player |
+| **1 — Playback core** *(done — full queue persistence)* | Queue model, sleep timer, resume state, playback errors, mini-player parity | Sleep timer + full queue persistence + playback errors + InnerTube stream resolver (VISIONOS client fallback chain) done — `MediaPlayer.playbackError` notifier, `saveState`/`restoreLastPlayed` on launch; queue sheet still read-only-ish; full queue persistence done |
+| **2 — Shell & design system** *(done — 12f43cf)* | Echo tokens, glass surface, floating tab bar, theme seed, bootable shell | Shell boots, all screens reachable; jank fixes (single PageController, horizontal tab pager, RepaintBoundary, reduced blur, animated tab selection) |
+| **3 — Discovery & detail** *(done — 380b84e)* | Album, Artist, Online Playlist pages, ItemList navigation, playable adapter | All Android home/browse tiles lead to a real screen |
+| **4 — Library & account** *(done — 8109e93)* | Cookie login via WebView2 (`lib/screens/login/login_page.dart` + `lib/services/cookie_store.dart` + `YTMusic.getAccountInfo()` port of `account/account_menu`); Account screen (`lib/screens/account/account_page.dart`); `YTClient` now merges the Cookie header into every request | WebView2 login flow validated via build + smoke run (actual Google login needs credentials + Edge + WebView2; not exercised) |
+| **5 — Lyrics suite** *(done — lyrics providers batch)* | LRCLIB (`lrcnet_api.dart`), Android registry ported to `lib/services/lyrics_registry.dart` + `LrcLibProvider`; tests | All 8 providers ported (lyrics_providers.dart + lyrics_providers_youtube.dart); TTML/word-timing; LyricsService fallback chain; translations (DeepL/Mistral/OpenRouter+ApiRoute + SSE streaming + caching) in lyrics_translation.dart; 50/50 tests; translation UI wired (lyrics_box.dart translate button + TranslationDialog + per-line translated display) |
+| **6 — Social & cloud** | PART — menu entries present; Discord/Last.fm/ListenBrainz/Jellyfin/Navidrome/Listen Together/Extensions/EchoBrain show a "Coming in a future update" placeholder (`ComingSoonPage`); no desktop protocol implementation |
+| **7 — Podcasts** | PART — placeholder entry in menu; no podcast feed/renderer |
+| **8 — Mobile-only leftovers** | PART — Android-only items (Supported Links, Bit-Perfect USB DAC, on-device recognition, Canvas/Ambient, AXION/AutoEq EQ, app icon) show "Coming in a future update" placeholders; feasible items ported |
 
 **Fine-grained appearance options (this session):** Android
 `AppearanceSettings.kt` / `GlassEffectSettings.kt` / `HapticsSettings.kt`
@@ -275,7 +275,7 @@ Regression guard: `test/appearance_details_parity_test.dart`.
 playback behavior:
 - `DesktopDsp` computes replay-gain normalization from InnerTube `loudnessDb`
   (exposed via `StreamResolver.loudnessFor`) and applies it through just_audio's
-  cross-platform `setVolume` � real effect on Windows (no Android enhancer).
+  cross-platform `setVolume` — real effect on Windows (no Android enhancer).
 - `QueueEndCrossfade.evaluate` pre-arms at automatic queue advance: the
   position listener overlaps the current and next queued tracks via a
   dedicated outgoing player + equal-power ramp (`QueueCrossfadeController`).
@@ -290,7 +290,7 @@ Pure helpers unit-tested in `desktop_dsp_test.dart` (6 cases).
 
 **Crossfade + discovery + placeholders (this session):** Real two-player
 equal-power crossfade at track transitions via `QueueCrossfadeController` +
-`CrossfadeDecision` (unit-tested) wired into `MediaPlayer.playSong` � the
+`CrossfadeDecision` (unit-tested) wired into `MediaPlayer.playSong` — the
 outgoing track keeps playing on a dedicated player while the incoming track
 fades in. New Releases screen (`/new_releases` ? ChipPage with
 `FEmusic_new_releases_albums`) reachable from Explore. All 9 lyrics providers
@@ -332,7 +332,7 @@ FAVOURITES + SONG_HISTORY) + `LibrarySongListPage` detail + pure
 
 ### Settings parity (features ported as REAL, not placeholders)
 Mirrors Android `SettingsScreen.kt` 15 top-level entries:
-- **Real pages**: Account, AI Hub (`AiSettings.kt` � provider/API key/base URL/model/mode/language/streaming), Appearance (wired � theme/accent/AMOLED/dynamic), Player and audio (full Queue/Misc/DSP groups), Content (`ContentSettings.kt` � filters/region/lyrics + Blocked Artists / Disliked Songs), Privacy, Storage (`StorageSettings.kt` � real cache clearing), Backup and restore, Youtube Music, System update, About.
+- **Real pages**: Account, AI Hub (`AiSettings.kt` — provider/API key/base URL/model/mode/language/streaming), Appearance (wired — theme/accent/AMOLED/dynamic), Player and audio (full Queue/Misc/DSP groups), Content (`ContentSettings.kt` — filters/region/lyrics + Blocked Artists / Disliked Songs), Privacy, Storage (`StorageSettings.kt` — real cache clearing), Backup and restore, Youtube Music, System update, About.
 - **Real data pages**: Listening Summary + Echo Wrapped (aggregated from `SONG_HISTORY`).
 - **ComingSoonPage placeholders** (honest "Planned for a future update"): Discord Rich Presence, Last.fm/ListenBrainz, Jellyfin/Navidrome, Listen Together, Supported Links.
 - Regression guard: `test/settings_parity_test.dart` asserts every entry renders; `ai_hub_test`, `storage_service_test`, `content_filter_test`, `content_settings_test` cover the new services.
@@ -343,17 +343,17 @@ Notes for later phases:
   Not yet started.
 - **Search suggestions parity**: desktop `lib/ytmusic/mixins/search.dart` already
   returns `music/get_search_suggestions` results (`getSearchSuggestions`).
-  Android adds an `AppleMusicScraper` � to be compared later.
-- **Playback error surfacing** (Phase 1 remainder) and **queue persistence** � TODO.
+  Android adds an `AppleMusicScraper` — to be compared later.
+- **Playback error surfacing** (Phase 1 remainder) and **queue persistence** — TODO.
 - **Explore in the FloatingNavBar?** Android's tab set is Home/Search/Explore/Library/Account;
   the desktop tab set is Home/Search/Library/Settings. To match, an Explore
   branch must be added first.
 
-(On **downloads**: see "Downloads: out of scope for now" below � this plan
+(On **downloads**: see "Downloads: out of scope for now" below — this plan
 list treats local/download features as non-goals until re-opened.
-Phase 4's "cookie login" is done (WebView2 cookie login + account screen, 8109e93) � see
-"Phase 4 � Library & account" below.)
-| **9 � Explore (MusicFlow)** *(partial � 7a4f0de)* | `/explore` page (`lib/screens/explore/explore_page.dart`): Home feed, sections via `SectionItem` | Android `MusicFlowScreen` (601 lines): vertical swipe discovery, AI mix queues, lyrics, download, takeover block, preferences � not ported |
+Phase 4's "cookie login" is done (WebView2 cookie login + account screen, 8109e93) — see
+"Phase 4 — Library & account" below.)
+| **9 — Explore (MusicFlow)** *(partial — 7a4f0de)* | `/explore` page (`lib/screens/explore/explore_page.dart`): Home feed, sections via `SectionItem` | Android `MusicFlowScreen` (601 lines): vertical swipe discovery, AI mix queues, lyrics, download, takeover block, preferences — not ported |
 
 ---
 
@@ -383,7 +383,7 @@ is listed in the risks below as a documented exclusion, not an accident.
 
 ## 8. Progress log
 
-### Phase 0 � done (build unblocked)
+### Phase 0 — done (build unblocked)
 
 - Toolchain: Flutter 3.50.0 / Dart 3.14.0 (SDK installed at `C:\Users\zampe\flutter`).
   Windows builds additionally need the VS 2022 **Desktop development with C++**
@@ -400,7 +400,7 @@ is listed in the risks below as a documented exclusion, not an accident.
 - Analyzer: **0 errors**, 15 warnings left (dead modal helpers, the unused
   Spotify `_scopes` field, experimental `just_audio` streaming API).
 
-### Phase 1 � started (playback core)
+### Phase 1 — started (playback core)
 
 - **`SleepTimer` ported** (`lib/services/sleep_timer.dart`) from
   `playback/.../SleepTimer.kt`: timed mode with 3 s / 30-step fade-out then pause
@@ -413,10 +413,10 @@ is listed in the risks below as a documented exclusion, not an accident.
   shuffle no longer Android-only, index-scoped keys (duplicate songs no longer
   collide), explicit drag handle instead of fighting swipe-to-remove, no
   double-dispose on removal.
-- Tests: `test/sleep_timer_test.dart` (7 cases) � replaces the stale
+- Tests: `test/sleep_timer_test.dart` (7 cases) — replaces the stale
   counter boilerplate test, which could never have passed.
 
-### Phase 1 � partly done (8109e93) � playback errors + track resume
+### Phase 1 — partly done (8109e93) — playback errors + track resume
 
 - `MediaPlayer.playbackError` (ValueNotifier<String?>) now surfaces player
   errors instead of failing silently into "paused".
@@ -426,18 +426,18 @@ is listed in the risks below as a documented exclusion, not an accident.
 - Tests: 18/18 passing (`test/playable_test.dart` = 5 new cases; suite total
   now 18). Full-queue persistence done (QueueSnapshot + full queue restore on launch).
 
-### Phase 2 � done (shell & design system)
+### Phase 2 — done (shell & design system)
 
-- **Theme**: `ColorScheme.fromSeed(EchoTokens.seedColor)` � Android's `0xFFED5564`
+- **Theme**: `ColorScheme.fromSeed(EchoTokens.seedColor)` — Android's `0xFFED5564`
   seed replaces the old `Colors.black`/`Colors.red` defaults in `AppTheme`.
 - **`lib/core/theme/tokens.dart`**: Echo tokens from `DESIGN.md`/`GlassEffect.kt`
-  � radii (16/20/24/28/circle), `surfaceVariant @ 30%` translucent surfaces,
+  — radii (16/20/24/28/circle), `surfaceVariant @ 30%` translucent surfaces,
   Apple glass values (0.4 opacity, 0.6 tint, 1.5 vibrancy), 48dp touch targets,
   4dp spacing scale.
 - **`lib/core/widgets/echo_surface.dart`**: `EchoSurface` (glass surface: real
   `BackdropFilter` + translucent tint; no `RenderEffect` equivalent on desktop)
   and `EchoButton`.
-- **`lib/core/widgets/floating_nav.dart`**: `EchoFloatingNavBar` � the desktop
+- **`lib/core/widgets/floating_nav.dart`**: `EchoFloatingNavBar` — the desktop
   counterpart of Android's `FloatingTabBar` (glass capsule, 20dp radius,
   centered, floating above the mini player, explicit `Positioned`).
 - **Shell** (`app_shell.dart`): wide layout now uses the floating glass tab bar
@@ -448,29 +448,29 @@ is listed in the risks below as a documented exclusion, not an accident.
 - Verification: `flutter analyze` 0 errors; `flutter test` 18/18; `flutter build
   windows --debug` ? `echo.exe`; 15 s smoke run clean.
 
-### Phase 3 � done (discovery & detail) � 380b84e
+### Phase 3 — done (discovery & detail) — 380b84e
 
 - New routes `/album`, `/artist`, `/playlist`:
-  - `lib/screens/detail/album_page.dart` � header (art, title, artists,
+  - `lib/screens/detail/album_page.dart` — header (art, title, artists,
     year/track count), Play + Add-to-library, songs section.
-  - `lib/screens/detail/artist_page.dart` � header, Play, songs + albums
+  - `lib/screens/detail/artist_page.dart` — header, Play, songs + albums
     sections via `SectionItem` (albums tap ? `/album`).
-  - `lib/screens/detail/playlist_page.dart` � header, Play/Shuffle, song list.
-  - `lib/utils/playable.dart` � adapter YTMusic items ? desktop `MediaPlayer`
+  - `lib/screens/detail/playlist_page.dart` — header, Play/Shuffle, song list.
+  - `lib/utils/playable.dart` — adapter YTMusic items ? desktop `MediaPlayer`
     shape (`artists` as `{name}`, `album` map).
-- `lib/core/widgets/section_item.dart` � `ItemList` taps on type `ALBUM`/`ARTIST`/
+- `lib/core/widgets/section_item.dart` — `ItemList` taps on type `ALBUM`/`ARTIST`/
   `PLAYLIST` navigate to the new detail routes instead of generic `/browse`.
 - Tests: `test/playable_test.dart` (5 cases). Suite total: 18 passing.
 - Verified: `flutter analyze` 0 errors, `flutter test` 18/18,
   `flutter build windows --debug` ? `echo.exe`, 15 s smoke run clean.
 
-**MusicFlowScreen (the 601-line Android screen) is still TODO** � Android's Resso-style vertical swipe
+**MusicFlowScreen (the 601-line Android screen) is still TODO** — Android's Resso-style vertical swipe
 feed from `ui/screens/musicflow/*` (see plan notes above).
 
-### Phase 4 � done (cookie login + account) � 8109e93
+### Phase 4 — done (cookie login + account) — 8109e93
 
 - Desktop Library exists (Favourites / Downloads / History / local playlists);
-  Android parity: `LibrarySongsScreen` � Favourites (done), plus todo �
+  Android parity: `LibrarySongsScreen` — Favourites (done), plus todo —
   Library albums/artists lists (`LibraryAlbumsScreen`, `LibraryArtistsScreen`),
   and the account layer: cookie login + account settings
   (`LoginScreen`, `AccountScreen`, `AccountViewModel`).

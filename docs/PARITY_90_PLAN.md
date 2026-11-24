@@ -1,43 +1,32 @@
-# Piano per parità Android → Desktop ≥90%
+# Parity plan — 90% and beyond
 
-Obiettivo misurabile: 36 dei 40 elementi della matrice qui sotto devono essere
-`DONE` con codice reale e test. Stato iniziale (audit 2026-11-23): ~70-75%.
+## Goal
 
-## Fase A — etichette e bug evidenti (1 giorno)
-- [x] Rimuovere "coming soon" da schermate reali (Explore, Library podcast, Player settings)
-- [x] Shuffle nel player full: chiamare `setShuffleModeEnabled`
-- [x] Test di regressione sulle etichette
+Reach at least 90% feature parity with the Android app, excluding surfaces that have no Windows equivalent (see the exclusions in [`PARITY_MATRIX.md`](PARITY_MATRIX.md)).
 
-## Fase B — identità visiva (1-2 settimane)
-- [x] Bundle dei font Android (Google Sans Flex / Outfit / Plus Jakarta / BBH Bartle)
-- [x] Unificare i 3 sistemi tipografici in `themes/typography.dart`
-- [x] `EchoGlass` (BackdropFilter + tint 0.4 + highlight + shadow) usato da card/nav/player
-- [x] Tipografia selezionabile dalle impostazioni
+## Phases
 
-## Fase C — player (1-2 settimane)
-- [x] 7 background player come Android (DEFAULT, GRADIENT, BLUR, GLOW_ANIMATED, APPLE_MUSIC, LIVE_MESH, LIQUID_GLASS)
-- [x] Collegare il setting `playerBackgroundStyle` al player
-- [x] Wavy / Squiggly slider (CustomPainter)
-- [x] HeartBurst sull'anima preferiti
-- [x] Marquee in mini-player (queue/playlist/ricerca: parziale)
+- [x] **Phase 1 — core playback**: queue, persisted queue, crossfade, sleep timer, SponsorBlock.
+- [x] **Phase 2 — discovery**: home sections, search, library filters, playlists, Explore, podcasts, Music Flow.
+- [x] **Phase 3 — Automix**: beat analysis, dynamic mix-in/out, beat matching, 16-beat DJ blend, ducking, Camelot harmonic mixing, diagnostics.
+- [x] **Phase 4 — audio**: 10-band EQ, AutoEq, loudness normalization, Monochrome FLAC, MP3 export with cover art.
+- [x] **Phase 5 — presentation**: Android fonts, 7 player backgrounds, EchoGlass, wavy sliders, HeartBurst, marquee, shimmer, circular EQ, ambient palette.
+- [x] **Phase 6 — account and social**: CDP sign-in, account/sign-out, age-gated playback, YouTube comments, song recognition.
+- [x] **Phase 7 — Wrapped**: 9 animated slides from real `FEmusic_history` data with YouTube Music branding.
+- [x] **Phase 8 — settings**: all 15 Android entries, global search, and a wiring audit of every persisted option. Feasible options are implemented; non-portable ones are disabled with an explicit reason.
 
-## Fase D — micro-effetti e schermate firma (2-3 settimane)
-- [x] Shimmer host riutilizzabile (placeholder scheletri)
-- [ ] Wrapped: slide animate con spring, meter, equalizzatore (PART)
-- [x] EQ circolare Canvas
-- [x] Ambient con palette estratta dall'artwork
+## Result
 
-## Fase E — funzioni mancanti (2-3 settimane)
-- [x] Music Flow: collegare i 7 toggle al feed
-- [x] Wiring dei toggle impostazioni top (tema/variante, glass, thumbnail, font)
-- [x] Export: copertina MP3 (stream sorgente: non ancora)
-- [ ] Commenti (endpoint InnerTube)
-- [ ] Riconoscimento brani: resta placeholder dichiarato (non portable)
+`docs/PARITY_MATRIX.md`: **48/48 = 100%** of portable features.
 
-## Fase F — verifica
-- [x] `flutter analyze` 0 errori, `flutter test` verde, build release, installer
-- [x] Aggiornare matrice con conteggio DONE e percentuale (45/48 = 93,75%)
+## Verification gates
 
-## Non portable (esclusi dal denominatore)
-Widget Android, notifica Media3, QS tile, haptics, ringtones, USB bit-perfect,
-Material You dal wallpaper, RenderEffect con rifrazione reale.
+Every change must pass:
+
+```bash
+flutter analyze     # 0 errors
+flutter test        # all green
+flutter build windows --release
+```
+
+Then commit, push, rebuild the installer, upload the assets to release v1.0.0, reinstall locally, and check that no `error.log` is produced.

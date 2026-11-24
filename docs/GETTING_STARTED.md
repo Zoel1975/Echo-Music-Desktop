@@ -1,94 +1,94 @@
-# Primi passi
+# Getting started
 
-Guida pratica per installare, configurare e usare Echo Music Desktop.
+A practical guide to installing, configuring, and using Echo Music Desktop.
 
-## 1. Installazione
+## 1. Installation
 
-### Installer (consigliato)
+### Installer (recommended)
 
-1. Vai alla [pagina Releases](https://github.com/ItsZale0/Echo-Music-Desktop/releases/latest).
-2. Scarica **`EchoMusicSetup.exe`**.
-3. Esegui il file. La procedura guidata è in italiano e inglese.
-4. Scegli se installare le scorciatoie (Desktop e Menu Start) e completa.
-5. Avvia **Echo Music** dal Menu Start.
+1. Go to the [Releases page](https://github.com/ItsZale0/Echo-Music-Desktop/releases/latest).
+2. Download **`EchoMusicSetup.exe`**.
+3. Run it. The wizard is available in English and Italian.
+4. Choose whether to install the Desktop and Start Menu shortcuts, then complete the setup.
+5. Launch **Echo Music** from the Start Menu or the desktop shortcut.
 
-L'installer crea anche un disinstallatore, accessibile da **Installazione applicazioni**.
+The installer also creates an uninstaller, available in **Apps & features**.
 
-### Versione portatile
+### Portable build
 
-1. Scarica **`EchoMusicPortable.zip`**.
-2. Estrai tutto in una cartella, ad esempio `C:\EchoMusic`.
-3. Avvia `echo.exe` dalla cartella.
+1. Download **`EchoMusicPortable.zip`**.
+2. Extract everything into a folder, for example `C:\EchoMusic`.
+3. Run `echo.exe` from that folder.
 
-La versione portatile non modifica il registro e può essere copiata su un'altra macchina.
+The portable build does not modify the registry and can be copied to another machine.
 
-## 2. Accesso al tuo account
+## 2. Signing in to your account
 
-1. All'avvio clicca **Accedi**.
-2. Si apre una finestra Chrome con un profilo dedicato. Accedi con il tuo account Google associato a YouTube Music.
-3. Se richiesto, conferma i permessi. Dopo qualche secondo l'app rileva la sessione e carica libreria, cronologia e playlist.
+1. On first launch click **Sign in**.
+2. A Chrome window opens with a dedicated profile. Sign in with your Google account associated with YouTube Music.
+3. If requested, confirm the permissions. After a few seconds the app detects the session and loads your library, history, and playlists.
 
-I cookie vengono salvati localmente: alle aperture successive non devi rifare il login.
+Cookies are stored locally: later launches do not require signing in again.
 
-> **Nota:** se usi la verifica in due passaggi, completala normalmente nella finestra Chrome. L'app non la richiede direttamente.
+> **Note:** if you use two-factor authentication, complete it normally in the Chrome window. The app does not request it directly.
 
-## 3. Ascoltare la tua musica
+## 3. Listening to your music
 
-- Clicca un brano nella **Home** o nella **Libreria**: inizia subito la riproduzione.
-- Se apri una **playlist** e tocchi un brano, l'intera playlist diventa la coda, a partire da quel brano.
-- Usa il **mini-player** in basso per play/pausa e controlli rapidi; clicca la copertina per aprire il player completo.
-- Nel player trovi: testi, commenti, coda, preferiti e opzioni avanzate.
+- Click a song in **Home** or **Library** to start playback.
+- If you open a **playlist** and tap a song, the whole playlist becomes the queue, starting at that song.
+- Use the **mini-player** at the bottom for play/pause and quick controls; click the cover art to open the full player.
+- The player provides lyrics, comments, queue, favorites, and advanced options.
 
-## 4. Brani con limite d'età
+## 4. Age-restricted tracks
 
-Se un brano è age-restricted, l'app lo riproduce automaticamente in-app, senza aprire il browser. Il sistema:
+If a track is age-restricted, the app plays it directly in-app without opening a browser. It:
 
-- legge il `signatureTimestamp` reale da YouTube;
-- invia una richiesta `/player` con il contesto YouTube Music autenticato;
-- decifra i formati `signatureCipher` con il player JS;
-- applica i token `pot=` e `cpn=` all'URL audio.
+- reads the real `signatureTimestamp` from YouTube;
+- sends a `/player` request with the authenticated YouTube Music context;
+- deciphers the `signatureCipher` formats with the player JS;
+- applies the `pot=` and `cpn=` tokens to the audio URL.
 
-Se il tuo account non è verificato come maggiorenne, YouTube può ancora rifiutare la riproduzione: in quel caso devi completare la verifica dell'età **sull'account Google**, non è aggirabile dal client. Vedi [`AGE_GATE.md`](AGE_GATE.md).
+If your account is not verified as an adult, YouTube may still refuse playback: age verification must be completed on the Google account and cannot be bypassed by the client. See [`AGE_GATE.md`](AGE_GATE.md).
 
-## 5. Automix e crossfade
+## 5. Automix and crossfade
 
-1. Vai su **Impostazioni → Riproduttore**.
-2. Abilita **Crossfade** e scegli la durata, oppure lascia che Automix usi un DJ blend di 16 beat.
-3. Attiva **Allinea al beat** e **Mixing armonico** per transizioni musicali coerenti.
-4. Avvia una playlist e ascolta: il passaggio tra brani avviene senza interruzioni.
+1. Go to **Settings → Player**.
+2. Enable **Crossfade** and choose the duration, or let Automix use a 16-beat DJ blend.
+3. Enable **Beat align** and **Harmonic mixing** for musically coherent transitions.
+4. Play a playlist and listen: transitions happen without interruption.
 
-Per vedere cosa succede, apri **Diagnostica Automix**: stato, lead, trigger, BPM, chiave e log degli eventi.
+To see what is happening, open **Automix diagnostics**: state, lead, trigger, BPM, key, and event log.
 
-## 6. Testi, EQ e download
+## 6. Lyrics, EQ, and downloads
 
-- **Testi**: clicca l'icona dei testi nel player. Puoi scegliere il provider e la traduzione.
-- **EQ**: **Impostazioni → Riproduttore → Equalizzatore**. Regola le 10 bande o carica un preset AutoEq.
-- **Download**: dal menu di un brano o di una playlist scegli **Scarica**. I file restano disponibili offline.
-- **Export MP3**: **Impostazioni → Strumenti → Export MP3**. Seleziona i file locali o scaricati; la copertina viene inclusa.
+- **Lyrics**: click the lyrics icon in the player. You can choose the provider and the translation.
+- **EQ**: **Settings → Player → Equalizer**. Adjust the 10 bands or load an AutoEq preset.
+- **Downloads**: choose **Download** from a song or playlist menu. Files remain available offline.
+- **MP3 export**: **Settings → Tools → Export MP3**. Select local or downloaded files; cover art is included.
 
 ## 7. Wrapped
 
-Apri **Wrapped** dalla Home o dal menu. Vengono mostrate 9 slide con i tuoi dati reali di YouTube Music. Usa i pulsanti per navigare o lascia che avanzino automaticamente ogni 8,5 secondi.
+Open **Wrapped** from Home or the menu. Nine slides show your real YouTube Music data. Use the buttons to navigate or let them advance automatically every 8.5 seconds.
 
-## 8. Commenti e riconoscimento brani
+## 8. Comments and song recognition
 
-- **Commenti**: clicca l'icona commenti nel player (serve che l'opzione "Mostra pulsante commenti" sia attiva in Impostazioni → Aspetto).
-- **Riconoscimento brani**: apri **Impostazioni → Riconoscimento brani**, clicca **Indicizza la libreria** e attendi la fine. Poi clicca il microfono: l'app registra 8 secondi, calcola l'impronta e cerca un match tra i brani indicizzati.
+- **Comments**: click the comment icon in the player (the "Show comment button" option must be enabled in Settings → Appearance).
+- **Song recognition**: open **Settings → Song recognition**, click **Index library**, and wait for it to finish. Then click the microphone: the app records 8 seconds, computes the fingerprint, and looks for a match among the indexed songs.
 
-Il riconoscimento funziona **solo offline sulla tua libreria**: non identifica brani qualunque, ma solo quelli che hai indicizzato.
+Recognition works **offline on your library only**: it cannot identify arbitrary songs, only those you indexed.
 
 ## 9. Cast
 
-Clicca l'icona Cast nel player. L'app cerca dispositivi sulla rete (mDNS + DIAL). Seleziona la TV o il Chromecast: l'audio viene riprodotto direttamente sul dispositivo.
+Click the Cast icon in the player. The app searches the network (mDNS + DIAL). Select your TV or Chromecast: audio plays directly on the device.
 
-## 10. Risoluzione problemi
+## 10. Troubleshooting
 
-| Sintomo | Cosa fare |
+| Symptom | What to do |
 |---|---|
-| Il brano non parte | Controlla la connessione e che l'account sia ancora valido. Vedi il log in `%LOCALAPPDATA%\com.echo\Echo Music\error.log`. |
-| Un brano age-gated non si sente | Verifica che l'account Google sia age-verified. |
-| Automix non parte | Apri Diagnostica Automix e controlla che crossfade e automix siano attivi. |
-| Lyrics non caricano | Prova un altro provider nelle impostazioni dei testi. |
-| L'app non si apre | Reinstalla usando l'ultimo installer; i dati locali vengono mantenuti. |
+| A song does not start | Check your connection and that the account is still valid. See the log at `%LOCALAPPDATA%\com.echo\Echo Music\error.log`. |
+| An age-gated song does not play | Verify that your Google account is age-verified. |
+| Automix does not start | Open Automix diagnostics and check that crossfade and automix are enabled. |
+| Lyrics do not load | Try another provider in the lyrics settings. |
+| The app does not open | Reinstall using the latest installer; local data is preserved. |
 
-Per segnalazioni, apri una issue su [GitHub](https://github.com/ItsZale0/Echo-Music-Desktop/issues).
+For bug reports, open an issue on [GitHub](https://github.com/ItsZale0/Echo-Music-Desktop/issues).

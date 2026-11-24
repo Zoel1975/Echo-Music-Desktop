@@ -1,49 +1,33 @@
-# Crossfade (port da Echo Android)
+# Crossfade (port from Echo Android)
 
-## Pre-arm adattivo
+## Adaptive pre-arm
 
-Il port segue `AdaptivePreArmManager.kt` / `StandbyCrossfadeSchedulerImpl.kt`:
+The port follows `AdaptivePreArmManager.kt` / `StandbyCrossfadeSchedulerImpl.kt`:
 
-- lead iniziale **20 s** (max **35 s**), non più la sola durata del crossfade;
-- il tempo di preparazione dello standby viene misurato e registrato:
-  - se supera 8 s il lead cresce di `1.5 × (prep − 8 s)`, fino a 35 s;
-  - se le preparazioni sono veloci il lead decade di 2 s alla volta fino a 20 s;
-- lo standby viene preparato quando `remaining <= lead` e **non** quando
-  `remaining <= crossfade`: quest'ultimo è il momento del trigger;
-- prima del trigger si attende che lo standby sia davvero pronto
-  (`playing == true` e `bufferedPosition >= position + 150 ms`), equivalente
-  di `STATE_READY`. Se non è pronto entro 2,5 s il crossfade non parte, così
-  non si sente il "blocca e riparte" dovuto al buffering a metà fade.
+- initial lead **20 s** (max **35 s**), not just the crossfade duration;
+- standby preparation time is measured and recorded:
+  - if it exceeds 8 s the lead grows by `1.5 × (prep − 8 s)`, up to 35 s;
+  - if preparation is fast the lead decays by 2 s at a time down to 20 s;
+- the standby is prepared when `remaining <= lead` and **not** when `remaining <= crossfade`: the latter is the trigger moment;
+- before the trigger the app waits until the standby is really ready (`playing == true` and `bufferedPosition >= position + 150 ms`), equivalent to `STATE_READY`. If it is not ready within 2.5 s the crossfade does not start, so the "freeze and restart" caused by mid-fade buffering cannot be heard.
 
-## Handoff e curva
+## Handoff and curve
 
-- durante l'handoff il player udibile scende con `cos(t·π/2)` mentre lo standby
-  sale con `sin(t·π/2)` in **220 ms**: nessun salto di volume;
-- il crossfade vero usa la stessa curva equal-power per la durata impostata;
-- i tick asincroni sovrapposti e quelli di una fade annullata vengono ignorati
-  (`CrossfadeEngine` con generation guard);
-- **i due volumi vengono applicati in parallelo** (`Future.wait`) in ogni tick:
-  awaitarli in sequenza raddoppiava la finestra in cui un tick poteva essere
-  saltato, lasciando gradini di volume percettibili ("scattino");
-- **un tick saltato non perde progresso**: `t` viene ricalcolato dal cronometro
-  a ogni tick, quindi la curva resta continua;
-- a fine fade i volumi finali (`0` e `peak`) vengono scritti esplicitamente:
-  un callback piattaforma perso non può lasciare un volume intermedio proprio
-  mentre il player principale fa il seek al brano successivo;
-- se l'handoff non completa entro 700 ms, i volumi finali vengono forzati;
-- il volume finale viene ripristinato dal valore catturato all'inizio, non
-  ricalcolato da un player muto (che lo portava al 100%).
+- during the handoff the audible player falls with `cos(t·π/2)` while the standby rises with `sin(t·π/2)` over **220 ms**: no volume jump;
+- the actual crossfade uses the same constant-power curve for the configured duration;
+- overlapping async ticks and ticks from a cancelled fade are ignored (`CrossfadeEngine` with a generation guard);
+- **both volumes are applied in parallel** (`Future.wait`) on each tick. Awaiting them sequentially doubled the window in which a tick could be skipped, leaving audible volume steps ("stutter") right before the main player seeks to the next track;
+- **a skipped tick loses no progress**: `t` is recomputed from the stopwatch on every tick, so the curve stays continuous;
+- at the end of the fade the final volumes (`0` and `peak`) are written explicitly: a lost platform callback cannot leave an intermediate volume exactly when the main player seeks to the next track;
+- if the handoff does not complete within 700 ms, the final volumes are forced;
+- the final volume is restored from the value captured at the beginning, not recalculated from a muted player (which used to push it to 100%).
 
-Nota: Android separa i due ruoli scambiando i player a fine fade. Qui il
-player principale resta stabile per non dover riagganciare tutti gli stream
-dell'interfaccia; la preparazione anticipata e la verifica del buffering
-rimuovono pero' la causa dello stall.
+Note: Android swaps the players at the end of the fade. Here the main player stays stable so all UI streams do not need re-attaching; early preparation and buffer verification remove the cause of the stall.
+
+## Incoming readiness
+
+The incoming track is attached only at the trigger with `seek(index: ...)`, so a fresh network stream may still be buffering when the fade starts. `_waitForIncomingReady()` waits for `playing` plus a buffered margin before ramping the incoming volume. The outgoing standby remains audible at full volume during the wait, so the wait itself is inaudible. This is applied to both automatic queue transitions and manual switches.
 
 ## Automix
 
-L'Automix Android e' stato portato nelle fasi 1-3: `BeatAnalyzer` (STFT,
-spectral flux, autocorrelazione per BPM/beat-grid/chiave), mix-in/mix-out
-dinamici, beat-matching, DJ blend di 16 beat, ducking low-shelf, mixing
-armonico con Camelot wheel e diagnostica. Vedi `docs/AUTOMIX.md` per dettagli
-e limiti (il ducking e' un filtro statico sul player di uscita, non un IIR
-per-sample come su Android).
+Android Automix is ported in phases 1–3: `BeatAnalyzer` (STFT, spectral flux, autocorrelation for BPM/beat grid/key), dynamic mix-in/mix-out, beat matching, a 16-beat DJ blend, low-shelf ducking, Camelot harmonic mixing, and diagnostics. See [`AUTOMIX.md`](AUTOMIX.md) for details and limitations (the ducking is a static filter on the outgoing player, not a per-sample IIR as on Android).

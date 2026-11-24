@@ -1,57 +1,57 @@
-# Brani con blocco per età
+# Age-restricted tracks
 
-## Stato attuale: risolto
+## Current status: solved
 
-I brani age-gated di YouTube Music vengono riprodotti **direttamente in app**, senza aprire il browser. Il fix è il port completo del workaround usato da Echo Android / InnerTubeX v0.7.0.
+Age-restricted YouTube Music tracks play **directly in the app**, without opening a browser. The fix is the complete port of the workaround used by Echo Android / InnerTubeX v0.7.0.
 
-### Causa del problema precedente
+### Root cause of the previous failure
 
-Il body della richiesta `/player` usava un `signatureTimestamp` fabbricato (`giorni dall'epoca - 1`, circa 20400). YouTube codifica il campo `signatureCipher.s` in base al `signatureTimestamp` ricevuto: con un valore sbagliato, il player JS scaricato decifrava l'URL con un algoritmo diverso e **ogni URL.media restituiva HTTP 403**. Il fallback finale (`capturePoToken`) apriva Chrome visibile, che è il comportamento che si vedeva.
+The player request used a fabricated `signatureTimestamp` (`days since epoch - 1`, about 20400). YouTube encodes `signatureCipher.s` according to the received `signatureTimestamp`: with a wrong value, the player JS deciphered the URL with a different algorithm and **every media URL returned HTTP 403**. The final fallback (`capturePoToken`) opened a visible Chrome window — the behavior you saw.
 
-### Fix implementato
+### Implemented fix
 
 `lib/services/stream_resolver.dart`:
 
-1. **`signatureTimestamp` reale** — letto da `https://www.youtube.com/` (`"STS":20775`), con cache di 6 ore e fallback sulla pagina di YouTube Music. Corrisponde a `YtConfigParserImpl.fetchConfig()` di InnerTubeX.
-2. **Campi body mobile** — `context.request` (`internalExperimentFlags`, `useSsl`), `context.user` con `onBehalfOfUser`, `videoCheckOk: true`, `html5Preference: "HTML5_PREF_WANTS"`.
-3. **Decifratura immediata** — quando il player restituisce solo formati `signatureCipher` (tipico dei brani age-gated), `_resolveWithCipher()` li decifra con il solver JS/Node **prima** di qualunque fallback browser. Applica `pot=` e `cpn=` e l'identità WEB_REMIX all'URL risultante.
-4. **Sondaggio con UA corretto** — la verifica rangedGET usa lo User-Agent del client che ha generato l'URL, non uno hardcoded.
-5. **Niente più browser visibile** nel percorso normale.
+1. **Real `signatureTimestamp`** — read from `https://www.youtube.com/` (`"STS":20775`), cached for 6 hours with the YouTube Music watch page as fallback. This matches `YtConfigParserImpl.fetchConfig()` in InnerTubeX.
+2. **Mobile body fields** — `context.request` (`internalExperimentFlags`, `useSsl`), `context.user` with `onBehalfOfUser`, `videoCheckOk: true`, `html5Preference: "HTML5_PREF_WANTS"`.
+3. **Immediate deciphering** — when the player returns only `signatureCipher` formats (typical for age-gated tracks), `_resolveWithCipher()` deciphers them with the Node-backed player JS **before** any browser fallback. It applies `pot=` and `cpn=` and the WEB_REMIX identity to the resulting URL.
+4. **Correct User-Agent** — the ranged validation GET uses the User-Agent of the client that generated the URL, not a hardcoded one.
+5. **No visible browser** in the normal path.
 
-### Verifica live
+### Live verification
 
-Sul brano di test `esHBHhbDQh4`:
+On the test track `esHBHhbDQh4`:
 
-| Controllo | Risultato |
+| Check | Result |
 |---|---|
-| `/player-raw` | 16 formati, tutti con `signatureCipher`, nessun URL diretto |
-| STS letto | `20775` da `https://www.youtube.com/` |
+| `/player-raw` | 16 formats, all with `signatureCipher`, no direct URL |
+| STS read | `20775` from `https://www.youtube.com/` |
 | `/resolve` | `client = CIPHER`, `audio/webm` Opus 160 kbps |
-| Riproduzione | `playing=true`, posizione avanza, `error=null` |
-| Processi Chrome dopo il play | **0** |
-| `error.log` | assente |
+| Playback | `playing=true`, position advances, `error=null` |
+| Chrome processes after play | **0** |
+| `error.log` | absent |
 
-## PoToken BotGuard
+## BotGuard / PoToken
 
-Oltre allo STS, l'app genera localmente il PoToken BotGuard, come fa Android:
+In addition to the STS, the app mints the PoToken locally, as Android does:
 
-- `lib/services/po_token_minter.dart` porta `PoTokenWebView.kt` e `JavaScriptUtil.kt`: `Create` → descramble (+97 per byte) → esecuzione di `assets/po/po_token.html` nella pagina Chrome connessa via CDP → `GenerateIT` → mint per sessione, con 3 tentativi;
-- il token viene salvato per `videoId` in Hive (`POTOKENS`, TTL 12 h);
-- viene inviato come `serviceIntegrityDimensions.poToken` nel body `/player` e come `pot=` sull'URL googlevideo, insieme a `cpn` (16 caratteri casuali).
+- `lib/services/po_token_minter.dart` ports `PoTokenWebView.kt` and `JavaScriptUtil.kt`: `Create` → descramble (+97 per byte) → execution of `assets/po/po_token.html` in the CDP-connected Chrome page → `GenerateIT` → mint per session, with 3 attempts;
+- the token is stored per `videoId` in Hive (`POTOKENS`, 12 h TTL);
+- it is sent as `serviceIntegrityDimensions.poToken` in the player body and as `pot=` on the googlevideo URL, together with `cpn` (16 random characters).
 
-Header e contesto seguono mobile: `?prettyPrint=false` senza API key, `X-YouTube-Client-Name` numerico, `X-Goog-Visitor-Id` su ogni client, `WEB_CREATOR` su `studio.youtube.com` con SAPISIDHASH legato all'origine corretta.
+Headers and context follow mobile: `?prettyPrint=false` without an API key, numeric `X-YouTube-Client-Name`, `X-Goog-Visitor-Id` on every client, `WEB_CREATOR` on `studio.youtube.com` with a SAPISIDHASH bound to that origin.
 
-## Limite reale
+## Real limitation
 
-Il fix client funziona per i brani in cui YouTube accetta la sessione autenticata. Se un account **non è verificato come maggiorenne**, YouTube può rispondere `LOGIN_REQUIRED / "Sign in to confirm your age"` per tutti i client: in quel caso la verifica va completata sull'account Google, non è aggirabile dal client o dal PoToken.
+The client-side fix works for tracks where YouTube accepts the authenticated session. If an account is **not verified as an adult**, YouTube may answer `LOGIN_REQUIRED / "Sign in to confirm your age"` for all clients: in that case age verification must be completed on the Google account — it cannot be bypassed by the client or by the PoToken.
 
-## Diagnostica
+## Diagnostics
 
-Con `ECHO_DIAG=1`:
+With `ECHO_DIAG=1`:
 
-- `GET /player-raw?id=VIDEO_ID` — mostra stato, numero formati e se hanno cipher;
-- `GET /cipher/diag?id=VIDEO_ID` — mostra STS, player JS, formati cifrati e risposte dei probe URL;
-- `GET /cipher/test?id=VIDEO_ID` — prova la decifratura e restituisce il stream;
-- `GET /player/debug-exact?id=VIDEO_ID` — matrice di rimozione di campi/header per isolare il blocco.
+- `GET /player-raw?id=VIDEO_ID` — shows status, format count, and whether formats are ciphered;
+- `GET /cipher/diag?id=VIDEO_ID` — shows STS, player JS, cipher formats, and URL probe responses;
+- `GET /cipher/test?id=VIDEO_ID` — tries deciphering and returns the stream;
+- `GET /player/debug-exact?id=VIDEO_ID` — field/header removal matrix to isolate the block.
 
-Test: `test/age_gate_mobile_fix_test.dart` copre il body mobile, lo STS reale e il percorso cipher.
+Tests: `test/age_gate_mobile_fix_test.dart` covers the mobile body, the real STS, and the cipher path.
