@@ -13,7 +13,7 @@
 
 Echo Music Desktop is the native Windows port of [Echo Music](https://github.com/EchoMusicApp/Echo-Music), the Android app for YouTube Music. It is not a browser wrapper: it is a Flutter client that signs in to your YouTube Music account, plays audio through a dedicated engine, and adds features the web player does not have.
 
-**Status:** full parity with the Android app — **48/48 features** (`docs/PARITY_MATRIX.md`).
+**Status:** full parity with the Android app (more like 95% for functions, still working on stability and design) — **48/48 features** (`docs/PARITY_MATRIX.md`).
 
 **Platforms:** Windows x64. macOS and Linux are not supported in this release.
 
