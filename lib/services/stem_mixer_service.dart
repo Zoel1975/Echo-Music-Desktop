@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'eq_settings.dart';
+import 'media_player.dart';
 import 'settings_manager.dart';
 import 'silence_filter.dart';
 
@@ -115,6 +116,8 @@ class StemMixerService extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _reloading = false;
+
   /// Apply the chain both to future players (bridge default) and to the live
   /// main player (mpv property) so the change is audible immediately.
   Future<void> apply() async {
@@ -129,6 +132,21 @@ class StemMixerService extends ChangeNotifier {
     );
     if (isDesktop) {
       await JustAudioMediaKit.setMainPlayerAf(filter);
+    }
+    // mpv's runtime af change is not always picked up by the playing stream.
+    // Reloading the source is the same path used by the EQ and applies the
+    // global filter chain reliably. Guard against recursion.
+    if (_reloading ||
+        !GetIt.I.isRegistered<MediaPlayer>() ||
+        GetIt.I<MediaPlayer>().currentSongNotifier.value == null) {
+      return;
+    }
+    _reloading = true;
+    try {
+      await GetIt.I<MediaPlayer>().reloadCurrentSource();
+    } catch (_) {
+    } finally {
+      _reloading = false;
     }
   }
 }

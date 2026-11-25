@@ -1440,7 +1440,6 @@ class MediaPlayer extends ChangeNotifier {
       await _player.setAudioSource(source);
       await _player.seek(position);
       if (wasPlaying) await _player.play();
-      await StemMixerService.instance.apply();
     } catch (e) {
       debugPrint('reloadCurrentSource failed: $e');
     }
