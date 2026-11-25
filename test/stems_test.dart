@@ -74,11 +74,15 @@ void main() {
     expect(queue, contains('StemPythonSetup.instance.ensure()'));
     expect(queue, contains('setupStatus'));
     final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
-    expect(modal, contains("'Download & separate'"));
-    expect(modal, contains('downloadSong('));
+    expect(modal, contains("'Download all & separate'"));
+    expect(modal, contains('queue.startAll('));
     expect(modal, contains('FilterChip('));
     expect(modal, contains("'Enable all'"));
     expect(modal, contains("'Separating… '"));
+    final q =
+        File('lib/services/stem_separation_queue.dart').readAsStringSync();
+    expect(q, contains('Future<void> startAll('));
+    expect(q, contains('allProgress'));
   });
 
   test('the helper and player wiring are present', () {

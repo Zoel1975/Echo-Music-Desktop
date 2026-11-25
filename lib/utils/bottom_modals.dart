@@ -315,66 +315,60 @@ class Modals {
                       ),
                     ],
                     const Divider(),
-                    if (queue.setupBusy || task != null) ...[
+                    if (queue.allBusy) ...[
                       Text(
-                        queue.setupBusy
-                            ? queue.setupStatus
-                            : task == null
-                                ? ''
-                                : task.status == StemTaskStatus.done
-                                    ? 'Separation complete'
-                                    : task.status == StemTaskStatus.failed
-                                        ? 'Separation failed'
-                                        : 'Separating… '
-                                            '${(task.progress * 100).round()}%',
+                        '${queue.allStatus} — '
+                        '${(queue.allProgress * 100).round()}%',
                       ),
                       const SizedBox(height: 6),
-                      LinearProgressIndicator(
-                        value: queue.setupBusy
-                            ? queue.setupProgress
-                            : task?.progress,
+                      LinearProgressIndicator(value: queue.allProgress),
+                      if (queue.setupBusy) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Model download: '
+                          '${(queue.setupProgress * 100).round()}%',
+                        ),
+                        const SizedBox(height: 4),
+                        LinearProgressIndicator(value: queue.setupProgress),
+                      ],
+                      const SizedBox(height: 10),
+                    ] else if (queue.setupBusy) ...[
+                      Text(
+                        'Model download: '
+                        '${(queue.setupProgress * 100).round()}%'),
+                      LinearProgressIndicator(value: queue.setupProgress),
+                      const SizedBox(height: 10),
+                    ] else if (task != null) ...[
+                      Text(
+                        task.status == StemTaskStatus.done
+                            ? 'Separation complete'
+                            : task.status == StemTaskStatus.failed
+                                ? 'Separation failed'
+                                : 'Separating… '
+                                    '${(task.progress * 100).round()}%',
                       ),
+                      const SizedBox(height: 6),
+                      LinearProgressIndicator(value: task.progress),
                       const SizedBox(height: 10),
                     ],
                     if (task?.error != null)
                       Text(task!.error!,
                           style: const TextStyle(color: Colors.red)),
                     FilledButton.icon(
-                      onPressed: (task == null ||
-                              task.status == StemTaskStatus.failed) &&
-                              !queue.setupBusy
-                          ? () async {
+                      onPressed: queue.allBusy
+                          ? null
+                          : () async {
                               final messenger = ScaffoldMessenger.of(context);
                               try {
-                                var path = sourcePath;
-                                if (path == null) {
-                                  BottomMessage.showText(
-                                      messenger.context, 'Downloading track…');
-                                  await GetIt.I<DownloadManager>().downloadSong(
-                                      Map<String, dynamic>.from(song));
-                                  for (final d in GetIt.I<DownloadManager>()
-                                      .downloads
-                                      .value) {
-                                    if (d['videoId']?.toString() == videoId &&
-                                        d['path'] != null) {
-                                      path = d['path'].toString();
-                                      break;
-                                    }
-                                  }
-                                }
-                                if (path == null || path.isEmpty) {
-                                  throw 'Could not get the audio file';
-                                }
-                                await queue.enqueue(videoId ?? '', path);
+                                await queue.startAll(
+                                    Map<String, dynamic>.from(song),
+                                    videoId ?? '');
                               } catch (e) {
                                 BottomMessage.showText(messenger.context, '$e');
                               }
-                            }
-                          : null,
-                      icon: const Icon(Icons.call_split),
-                      label: Text(sourcePath == null
-                          ? 'Download & separate'
-                          : 'Separate this track'),
+                            },
+                      icon: const Icon(Icons.download_for_offline),
+                      label: const Text('Download all & separate'),
                     ),
                     const SizedBox(height: 8),
                     const Text(

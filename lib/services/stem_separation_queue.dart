@@ -8,6 +8,7 @@ import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import 'download_manager.dart';
 import 'file_storage.dart';
 import 'settings_manager.dart';
 import 'stem_mixer_service.dart';
@@ -72,15 +73,28 @@ class StemSeparationQueue extends ChangeNotifier {
   bool _setupBusy = false;
   String _setupStatus = '';
   double _setupProgress = 0.0;
+  bool _allBusy = false;
+  String _allStatus = '';
+  double _allProgress = 0.0;
 
   List<StemTask> get tasks => List.unmodifiable(_tasks);
   bool get setupBusy => _setupBusy;
   String get setupStatus => _setupStatus;
   double get setupProgress => _setupProgress;
+  bool get allBusy => _allBusy;
+  String get allStatus => _allStatus;
+  double get allProgress => _allProgress;
+
+  void _setAll(String status, double progress) {
+    _allStatus = status;
+    _allProgress = progress;
+    notifyListeners();
+  }
 
   void _setSetup(String status, double progress) {
     _setupStatus = status;
     _setupProgress = progress;
+    if (_allBusy) _allProgress = 0.15 + progress * 0.3;
     notifyListeners();
   }
 
@@ -148,6 +162,40 @@ class StemSeparationQueue extends ChangeNotifier {
       _prepared = true;
     } finally {
       _setupBusy = false;
+      notifyListeners();
+    }
+  }
+
+  /// One button: download the song if needed, set up Python, download the
+  /// model and separate. Progress is exposed through [allStatus]/[allProgress].
+  Future<void> startAll(Map<String, dynamic> song, String videoId) async {
+    if (_allBusy) return;
+    _allBusy = true;
+    try {
+      var path = song['path']?.toString();
+      if (path == null || path.isEmpty || !File(path).existsSync()) {
+        _setAll('Downloading track…', 0.02);
+        await GetIt.I<DownloadManager>().downloadSong(song);
+        for (final d in GetIt.I<DownloadManager>().downloads.value) {
+          if (d['videoId']?.toString() == videoId && d['path'] != null) {
+            path = d['path'].toString();
+            break;
+          }
+        }
+      }
+      if (path == null || path.isEmpty || !File(path).existsSync()) {
+        throw 'Could not get the audio file';
+      }
+      _setAll('Preparing Python and model…', 0.15);
+      await prepare();
+      _setAll('Separating…', 0.5);
+      await enqueue(videoId, path);
+      _setAll('Ready — stems separated', 1.0);
+    } catch (e) {
+      _setAll('Failed: $e', 0.0);
+      rethrow;
+    } finally {
+      _allBusy = false;
       notifyListeners();
     }
   }
@@ -246,6 +294,9 @@ class StemSeparationQueue extends ChangeNotifier {
   void _update(int i, {StemTaskStatus? status, double? progress, String? error}) {
     if (i < 0 || i >= _tasks.length) return;
     _tasks[i] = _tasks[i].copyWith(status: status, progress: progress, error: error);
+    if (_allBusy && progress != null) {
+      _allProgress = 0.5 + progress * 0.5;
+    }
     notifyListeners();
   }
 
