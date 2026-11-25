@@ -65,7 +65,9 @@ void main() {
         File('lib/screens/player/player_page.dart').readAsStringSync();
     expect(page, contains('_StemArtworkControls'));
     expect(page, isNot(contains('mixer.toggleVocal')));
-    expect(page, contains('mixer.mixPath'));
+    final mediaPlayer =
+        File('lib/services/media_player.dart').readAsStringSync();
+    expect(mediaPlayer, contains('mixer.mixPath'));
     final mixerSrc =
         File('lib/services/stem_mixer_service.dart').readAsStringSync();
     expect(mixerSrc, contains('Future<bool> _renderMix('));
