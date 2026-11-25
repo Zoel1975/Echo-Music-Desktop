@@ -1500,6 +1500,21 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/stems/tasks' && request.method == 'GET') {
+      _json(request.response, 200, {
+        'tasks': StemSeparationQueue.instance.tasks
+            .map((t) => {
+                  'videoId': t.videoId,
+                  'status': t.status.name,
+                  'progress': t.progress,
+                  'error': t.error,
+                  'output': t.outputPath,
+                })
+            .toList(),
+        'setup': StemSeparationQueue.instance.setupStatus,
+      });
+      return;
+    }
     if (path == '/stems/run' && request.method == 'POST') {
       final id = request.uri.queryParameters['id'] ?? 'probe-stems';
       final source = request.uri.queryParameters['path'] ?? '';

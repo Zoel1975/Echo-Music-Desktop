@@ -276,6 +276,7 @@ class StemSeparationQueue extends ChangeNotifier {
         final detail = stderr.toString().trim().isEmpty
             ? 'separator exited with code $code'
             : stderr.toString().trim().split('\n').last;
+        debugPrint('[stems] helper stderr: ${stderr.toString()}');
         throw StemException(detail);
       }
       final targetFile = File(target);
