@@ -122,6 +122,7 @@ The installer is generated from `installer/EchoMusic.iss`.
 | [`docs/AUTOMIX.md`](docs/AUTOMIX.md) | Beat analysis, DJ blend, harmonic mixing |
 | [`docs/CROSSFADE.md`](docs/CROSSFADE.md) | Pre-arm, handoff, fade curve |
 | [`docs/MP3_EXPORT.md`](docs/MP3_EXPORT.md) | MP3 export with cover art |
+| [`docs/STEMS.md`](docs/STEMS.md) | Instant vocal mute and four-stem separation |
 | [`docs/MONOCHROME_FLAC.md`](docs/MONOCHROME_FLAC.md) | Monochrome FLAC and fallback |
 | [`docs/PORTING_PLAN.md`](docs/PORTING_PLAN.md) | Historical porting plan |
 

@@ -603,5 +603,7 @@
   "DownloadComplete": "ڈاؤن لوڈ مکمل",
   "@DownloadComplete": {},
   "DownloadFailed": "ڈاؤن لوڈ ناکام",
-  "@DownloadFailed": {}
+  "@DownloadFailed": {},
+  "StemSeparationPython": "اسٹم علیحدگی Python",
+  "@StemSeparationPython": {}
 }

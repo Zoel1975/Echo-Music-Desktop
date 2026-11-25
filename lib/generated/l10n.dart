@@ -2717,6 +2717,15 @@ class S {
       args: [],
     );
   }
+  /// `Stem separation Python`
+  String get StemSeparationPython {
+    return Intl.message(
+      'Stem separation Python',
+      name: 'StemSeparationPython',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

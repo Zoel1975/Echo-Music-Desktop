@@ -603,5 +603,7 @@
   "DownloadComplete": "Descarga completada",
   "@DownloadComplete": {},
   "DownloadFailed": "Error en la descarga",
-  "@DownloadFailed": {}
+  "@DownloadFailed": {},
+  "StemSeparationPython": "Python para separación de stems",
+  "@StemSeparationPython": {}
 }

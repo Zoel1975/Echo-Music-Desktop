@@ -403,5 +403,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "OpenFolder": MessageLookupByLibrary.simpleMessage("फ़ोल्डर खोलें"),
     "DownloadComplete": MessageLookupByLibrary.simpleMessage("डाउनलोड पूरा हुआ"),
     "DownloadFailed": MessageLookupByLibrary.simpleMessage("डाउनलोड विफल"),
+    "StemSeparationPython": MessageLookupByLibrary.simpleMessage("स्टेम अलगाव Python"),
   };
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:Echo/generated/l10n.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -304,9 +305,20 @@ class PlayerSettingsPage extends StatelessWidget {
                           'Control playback from another device on your Wi-Fi. '
                               'Unauthenticated: enable only on a trusted network.',
                       leading: const Icon(Icons.devices_other),
-                      isLast: true,
                       value: s.remoteControlEnabled,
                       onChanged: cubit.setRemoteControlEnabled,
+                    ),
+                    SettingTile(
+                      title: S.of(context).StemSeparationPython,
+                      subtitle: () {
+                        final value = GetIt.I<SettingsManager>()
+                            .extra<String>('stemPython', '');
+                        return value.isEmpty
+                            ? 'Python 3 from PATH (numpy, onnxruntime, soundfile)'
+                            : value;
+                      }(),
+                      leading: const Icon(Icons.terminal),
+                      onTap: () => _editStemPython(context),
                     ),
 
                     // Infeasible Android internals — explicit future-update notes.
@@ -410,4 +422,36 @@ class PlayerSettingsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _editStemPython(BuildContext context) async {
+  final settings = GetIt.I<SettingsManager>();
+  final controller = TextEditingController(
+      text: settings.extra<String>('stemPython', ''));
+  final value = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Stem separation Python'),
+      content: TextField(
+        controller: controller,
+        decoration: const InputDecoration(
+          labelText: 'Python executable',
+          hintText: 'python',
+        ),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (value != null) settings.setExtra<String>('stemPython', value);
 }

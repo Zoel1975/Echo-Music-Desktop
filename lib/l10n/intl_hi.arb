@@ -603,5 +603,7 @@
   "DownloadComplete": "डाउनलोड पूरा हुआ",
   "@DownloadComplete": {},
   "DownloadFailed": "डाउनलोड विफल",
-  "@DownloadFailed": {}
+  "@DownloadFailed": {},
+  "StemSeparationPython": "स्टेम अलगाव Python",
+  "@StemSeparationPython": {}
 }

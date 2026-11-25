@@ -603,5 +603,7 @@
   "DownloadComplete": "İndirme tamamlandı",
   "@DownloadComplete": {},
   "DownloadFailed": "İndirme başarısız",
-  "@DownloadFailed": {}
+  "@DownloadFailed": {},
+  "StemSeparationPython": "Stem ayırma Python",
+  "@StemSeparationPython": {}
 }

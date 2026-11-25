@@ -83,6 +83,8 @@ The equalizer has 10 bands with presets, AutoEq search and the Axion page. The D
 
 The sleep timer stops playback after a chosen time or at the end of the track.
 
+The song menu has a **Stems** entry. It can mute centered vocals instantly with a filter, or switch to a separated four-channel file produced in the background and mute drums, bass, other and vocals individually. See [`STEMS.md`](STEMS.md).
+
 ---
 
 ## 6. Downloads and export

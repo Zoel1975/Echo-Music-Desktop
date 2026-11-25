@@ -38,6 +38,7 @@ import 'services/audio_device_service.dart';
 import 'services/library.dart';
 import 'services/lyrics.dart';
 import 'services/cookie_store.dart';
+import 'services/stem_mixer_service.dart';
 import 'services/stream_resolver.dart';
 import 'services/media_player.dart';
 import 'services/settings_manager.dart';
@@ -243,6 +244,7 @@ if (settingsManager.audioDeviceId.isNotEmpty) {
   GetIt.I.registerSingleton<SongDnaService>(SongDnaService());
   GetIt.I.registerSingleton<CloudService>(CloudService());
   GetIt.I.registerSingleton<DiscordRpcService>(DiscordRpcService());
+  GetIt.I.registerSingleton<StemMixerService>(StemMixerService.instance);
   final listenTogether = ListenTogetherService();
 listenTogether.autoApprove =
     settingsManager.extra<bool>('ltAutoApprove', false);

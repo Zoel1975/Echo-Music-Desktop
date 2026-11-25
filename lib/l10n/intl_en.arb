@@ -603,5 +603,7 @@
   "DownloadComplete": "Download complete",
   "@DownloadComplete": {},
   "DownloadFailed": "Download failed",
-  "@DownloadFailed": {}
+  "@DownloadFailed": {},
+  "StemSeparationPython": "Stem separation Python",
+  "@StemSeparationPython": {}
 }

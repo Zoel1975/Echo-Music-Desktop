@@ -53,6 +53,15 @@ class JustAudioMediaKit extends JustAudioPlatform {
   /// desktop, where just_audio has no native processor.
   static String? audioFilter;
 
+  /// Change a property on the first (main) mpv player at runtime.
+  ///
+  /// `just_audio` does not expose its platform player, so the bridge keeps a
+  /// reference to the first player it creates. This lets the app swap mpv's
+  /// `af` chain live for stem mute/solo instead of recreating the player.
+  static Future<void> setMainPlayerProperty(String key, dynamic value) async {
+    await MediaKitPlayer.firstPlayer?.setMpvProperty(key, value);
+  }
+
   /// Use mpv's built-in `NativePlayer.test` mode (`ao=null`, `vo=null`) so a
   /// busy or missing audio endpoint cannot crash the whole application during
   /// startup. The UI still works; only sound output is disabled.

@@ -7,6 +7,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:Echo/services/song_dna_service.dart';
+import 'package:Echo/services/stem_mixer_service.dart';
+import 'package:Echo/services/stem_separation_queue.dart';
 import 'package:Echo/services/settings_manager.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:get_it/get_it.dart';
@@ -187,6 +189,145 @@ class Modals {
                     Text(data.title ?? 'Nessun risultato Genius (controlla il token)'),
                     const SizedBox(height: 12),
                     Text(data.summary ?? 'Nessun riassunto Wikipedia disponibile'),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Stem mixer: instant center-channel vocal mute, plus four real stems when
+  /// a separated four-channel file has been produced by the background queue.
+  static Future<void> showStemsSheet(BuildContext context, Map song) async {
+    final mixer = GetIt.I<StemMixerService>();
+    final queue = StemSeparationQueue.instance;
+    final videoId = song['videoId']?.toString();
+    String? sourcePath = song['path']?.toString();
+    if (sourcePath == null || !File(sourcePath).existsSync()) {
+      sourcePath = null;
+      for (final download in GetIt.I<DownloadManager>().downloads.value) {
+        if (download['videoId']?.toString() == videoId &&
+            download['path'] != null &&
+            File(download['path'].toString()).existsSync()) {
+          sourcePath = download['path'].toString();
+          break;
+        }
+      }
+    }
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: ListenableBuilder(
+            listenable: Listenable.merge([mixer, queue]),
+            builder: (context, _) {
+              final state = mixer.state;
+              final cached = videoId != null && queue.cached(videoId);
+              StemTask? task;
+              if (videoId != null) {
+                for (final t in queue.tasks) {
+                  if (t.videoId == videoId) {
+                    task = t;
+                    break;
+                  }
+                }
+              }
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Stems', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 6),
+                    Text(
+                      cached
+                          ? 'Separated stems are available for this track.'
+                          : 'Mute the centered vocals instantly, or separate '
+                              'the track into four stems in the background.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text('Mute vocals (instant)'),
+                      subtitle: const Text('Center-channel filter, no model needed'),
+                      value: state.vocalMuted,
+                      onChanged: state.stemsLoaded
+                          ? null
+                          : (value) => mixer.setVocalMuted(value),
+                    ),
+                    SwitchListTile(
+                      title: const Text('Use separated stems'),
+                      subtitle: Text(cached
+                          ? 'Play the four-channel file cached on this device'
+                          : 'No separated file yet'),
+                      value: mixer.useStems && cached,
+                      onChanged: cached
+                          ? (value) async {
+                              if (value) {
+                                mixer.setStemFile(
+                                    queue.cachedPath(videoId!), videoId);
+                              } else {
+                                mixer.useStems = false;
+                                mixer.setStemFile(null, null);
+                              }
+                              await GetIt.I<MediaPlayer>().reloadCurrentSource();
+                            }
+                          : null,
+                    ),
+                    if (state.stemsLoaded) ...[
+                      const Divider(),
+                      ...List.generate(4, (i) {
+                        return ListTile(
+                          title: Text(stemNames[i]),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextButton(
+                                onPressed: () => mixer.solo(i),
+                                child: const Text('Solo'),
+                              ),
+                              Switch(
+                                value: state.enabled[i],
+                                onChanged: (v) => mixer.setStemEnabled(i, v),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      TextButton(
+                        onPressed: mixer.restoreAll,
+                        child: const Text('Restore full mix'),
+                      ),
+                    ],
+                    const Divider(),
+                    if (task != null)
+                      LinearProgressIndicator(value: task.progress),
+                    if (task?.error != null)
+                      Text(task!.error!, style: const TextStyle(color: Colors.red)),
+                    FilledButton.icon(
+                      onPressed: sourcePath != null &&
+                              (task == null ||
+                                  task.status == StemTaskStatus.failed)
+                          ? () {
+                              unawaited(queue.enqueue(videoId ?? '', sourcePath!));
+                            }
+                          : null,
+                      icon: const Icon(Icons.call_split),
+                      label: const Text('Separate this track'),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Separation needs Python 3 with numpy, onnxruntime and '
+                      'soundfile. The 166 MB model is downloaded once and '
+                      'cached; set python path in Settings → Player → Stems.',
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ],
                 ),
               );
@@ -2421,6 +2562,15 @@ errorWidget: (context, url, error) => const Icon(Icons.music_note),
               unawaited(ExportFeedback.exportSong(messenger, song));
             },
           ),
+        _buildAction(
+          context,
+          icon: Icons.call_split,
+          title: 'Stems',
+          onTap: () {
+            Navigator.pop(context);
+            unawaited(Modals.showStemsSheet(context, song));
+          },
+        ),
         if (GetIt.I<SettingsManager>().extra<bool>('songDnaEnabled', false))
     _buildAction(
       context,

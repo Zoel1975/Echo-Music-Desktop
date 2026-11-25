@@ -20,6 +20,8 @@ import 'package:Echo/services/discord_rpc_service.dart';
 import 'package:Echo/services/listen_together_service.dart';
 import 'package:Echo/services/queue_crossfade.dart';
 import 'package:Echo/services/sponsor_block_service.dart';
+import 'package:Echo/services/stem_mixer_service.dart';
+import 'package:Echo/services/stem_separation_queue.dart';
 import 'package:Echo/services/stream_resolver.dart';
 import 'package:Echo/services/extension_quality.dart';
 import 'package:Echo/services/monochrome_audio_source.dart';
@@ -1143,6 +1145,19 @@ class MediaPlayer extends ChangeNotifier {
       extras: <String, dynamic>{...song},
     );
 
+    final videoId = song['videoId']?.toString();
+    final mixer = StemMixerService.instance;
+    if (mixer.useStems &&
+        mixer.hasStemsFor(videoId) &&
+        mixer.stemPath != null &&
+        File(mixer.stemPath!).existsSync()) {
+      _setSourceInfo(tag, const PlaybackSourceInfo(
+        format: 'Stems',
+        source: 'Separated stems',
+      ));
+      return AudioSource.file(mixer.stemPath!, tag: tag);
+    }
+
     final bool isDownloaded =
         (song['status'] == 'DOWNLOADED' || song['status'] == 'LOCAL') &&
             song['path'] != null &&
@@ -1425,6 +1440,7 @@ class MediaPlayer extends ChangeNotifier {
       await _player.setAudioSource(source);
       await _player.seek(position);
       if (wasPlaying) await _player.play();
+      await StemMixerService.instance.apply();
     } catch (e) {
       debugPrint('reloadCurrentSource failed: $e');
     }

@@ -30,11 +30,31 @@ class SilenceFilter {
   /// basslines don't sum into mud (port of AutomixDuckAudioProcessor's intent).
   static const duck = 'bass=f=150:g=-8';
 
+  /// Center-channel cancellation: fast karaoke without a ML model.
+  static const vocalCancel = 'pan=stereo|c0=c0-0.98*c1|c1=c1-0.98*c0';
+
+  /// Pan a four-channel stem file (drums, bass, other, vocals) to stereo,
+  /// including only the enabled stems. Each kept stem is scaled by 1/N so
+  /// solo and mute do not change the perceived loudness.
+  static String stemPan(List<bool> enabled) {
+    if (enabled.length != 4) return '';
+    final indices = <int>[
+      for (var i = 0; i < 4; i++)
+        if (enabled[i]) i,
+    ];
+    if (indices.isEmpty) return 'pan=stereo|c0=0|c1=0';
+    final gain = (1.0 / indices.length).toStringAsFixed(4);
+    final sum = indices.map((i) => '${gain}*c$i').join('+');
+    return 'pan=stereo|c0=$sum|c1=$sum';
+  }
+
   static String buildChain({
     required bool skipSilence,
     List<double>? eqGains,
     bool eqEnabled = false,
     bool duckOutgoing = false,
+    bool vocalCancelEnabled = false,
+    String? stemPanFilter,
   }) {
     final parts = <String>[];
     if (skipSilence) parts.add(silence);
@@ -42,6 +62,10 @@ class SilenceFilter {
       parts.add(eqFilter(eqGains));
     }
     if (duckOutgoing) parts.add(duck);
+    if (vocalCancelEnabled) parts.add(vocalCancel);
+    if (stemPanFilter != null && stemPanFilter.isNotEmpty) {
+      parts.add(stemPanFilter);
+    }
     if (parts.isEmpty) return '';
     return 'lavfi=[${parts.join(',')}]';
   }
@@ -55,6 +79,8 @@ class SilenceFilter {
     List<double>? eqGains,
     bool eqEnabled = false,
     bool duckOutgoing = false,
+    bool vocalCancelEnabled = false,
+    String? stemPanFilter,
   }) {
     if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) return;
     JustAudioMediaKit.audioFilter = buildChain(
@@ -62,6 +88,8 @@ class SilenceFilter {
       eqGains: eqGains,
       eqEnabled: eqEnabled,
       duckOutgoing: duckOutgoing,
+      vocalCancelEnabled: vocalCancelEnabled,
+      stemPanFilter: stemPanFilter,
     );
   }
 

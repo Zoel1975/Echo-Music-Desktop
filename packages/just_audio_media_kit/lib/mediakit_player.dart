@@ -12,6 +12,11 @@ import 'src/set_property.dart';
 class MediaKitPlayer extends AudioPlayerPlatform {
   static const kErrorCode = 1;
 
+  /// First player created in the process. The app's main player is created
+  /// before any crossfade/standby player, so this is the one whose mpv filter
+  /// chain the UI changes when the user toggles stems.
+  static MediaKitPlayer? firstPlayer;
+
   /// `package:media_kit`'s [Player]
   late final Player _player;
 
@@ -22,6 +27,11 @@ class MediaKitPlayer extends AudioPlayerPlatform {
 
   /// Completes when the player is ready
   Future<void> ready() => _readyCompleter.future;
+
+  /// Sets an mpv property while the player is running. Used for runtime stem
+  /// mixing (mpv `af` pan filters) without recreating the player.
+  Future<void> setMpvProperty(String key, dynamic value) =>
+      setProperty(_player, key, value);
 
   static final _logger = Logger('MediaKitPlayer');
 
@@ -51,6 +61,7 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   }
 
   MediaKitPlayer(super.id) {
+    firstPlayer ??= this;
     _player = Player(
         configuration: PlayerConfiguration(
       pitch: JustAudioMediaKit.pitch,

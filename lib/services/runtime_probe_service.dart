@@ -36,6 +36,7 @@ import 'settings_manager.dart';
 import '../screens/home/cubit/home_cubit.dart';
 import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
+import 'stem_mixer_service.dart';
 import 'update_service/update_service.dart';
 import '../screens/detail/playlist_page.dart';
 import '../ytmusic/helpers.dart';
@@ -1494,6 +1495,17 @@ class RuntimeProbeService {
       _json(request.response, 200, {
         'connected': cast.connected.value?.name,
         'status': cast.status.value,
+      });
+      return;
+    }
+    if (path == '/stems' && request.method == 'POST') {
+      final mixer = GetIt.I<StemMixerService>();
+      final vocal = request.uri.queryParameters['vocal'];
+      if (vocal != null) mixer.setVocalMuted(vocal == '1');
+      await mixer.apply();
+      _json(request.response, 200, {
+        'vocalMuted': mixer.state.vocalMuted,
+        'filter': mixer.currentFilter(GetIt.I<SettingsManager>()),
       });
       return;
     }
