@@ -25,9 +25,8 @@ void main() {
       );
       expect(chain, startsWith('lavfi=['));
       expect(chain, contains('silenceremove'));
-      expect(chain, contains('equalizer='));
-      expect(chain, contains('f=31'));
-      expect(chain, contains('g=1.5'));
+      expect(chain, contains('equalizer=f=31:g=1.5,equalizer=f=62:g=1.5'));
+      expect(chain, isNot(contains('g=1.5|f=')));
 
       final eqOnly = SilenceFilter.buildChain(
         skipSilence: false,

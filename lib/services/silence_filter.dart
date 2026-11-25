@@ -15,14 +15,19 @@ class SilenceFilter {
       'silenceremove=start_periods=1:start_duration=0.15:start_threshold=-60dB:'
       'stop_periods=-1:stop_duration=0.15:stop_threshold=-60dB';
 
-  /// Pure: build a 10-band mpv equalizer filter from gains (Hz -> f= freq).
+  /// Pure: build ten separate mpv equalizer filters from gains.
+  ///
+  /// FFmpeg's `equalizer` filter handles one band per instance: bands must be
+  /// comma-separated filters, not `|`-separated options. The old `|` form made
+  /// the whole lavfi graph invalid, silently disabling EQ and every later
+  /// filter (including stem vocal mute).
   static String eqFilter(List<double> gains) {
     if (gains.length < 10) return '';
-    final parts = <String>[];
-    for (var i = 0; i < 10; i++) {
-      parts.add('f=${eqFrequencies[i].toInt()}:g=${gains[i].clamp(-12, 12)}');
-    }
-    return 'equalizer=${parts.join('|')}';
+    return List<String>.generate(
+      10,
+      (i) =>
+          'equalizer=f=${eqFrequencies[i].toInt()}:g=${gains[i].clamp(-12, 12)}',
+    ).join(',');
   }
 
   /// Pure: assemble the combined lavfi chain.
