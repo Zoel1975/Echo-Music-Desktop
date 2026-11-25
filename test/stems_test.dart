@@ -8,8 +8,8 @@ import 'package:Echo/services/stem_separation_queue.dart';
 
 void main() {
   test('instant vocal mute uses a center-channel pan filter', () {
-    expect(SilenceFilter.vocalCancel, contains('c0=c0-0.98*c1'));
-    expect(SilenceFilter.vocalCancel, contains('c1=c1-0.98*c0'));
+    expect(SilenceFilter.vocalCancel, contains('val(0)-0.98*val(1)'));
+    expect(SilenceFilter.vocalCancel, contains('val(1)-0.98*val(0)'));
     final chain = SilenceFilter.buildChain(
       skipSilence: false,
       vocalCancelEnabled: true,
@@ -20,13 +20,13 @@ void main() {
 
   test('stem pan mixes only the enabled four channels', () {
     final drumsOnly = SilenceFilter.stemPan([true, false, false, false]);
-    expect(drumsOnly, contains('1.0000*c0'));
-    expect(drumsOnly, isNot(contains('*c1')));
+    expect(drumsOnly, contains('1.0000*val(0)'));
+    expect(drumsOnly, isNot(contains('*val(1)')));
     final all = SilenceFilter.stemPan([true, true, true, true]);
-    expect(all, contains('0.2500*c0'));
-    expect(all, contains('0.2500*c3'));
+    expect(all, contains('0.2500*val(0)'));
+    expect(all, contains('0.2500*val(3)'));
     expect(SilenceFilter.stemPan([false, false, false, false]),
-        contains('c0=0|c1=0'));
+        contains('aeval=0|0'));
   });
 
   test('mixer tracks the separated file and its video id', () {

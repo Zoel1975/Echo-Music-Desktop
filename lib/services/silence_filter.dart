@@ -36,7 +36,10 @@ class SilenceFilter {
   static const duck = 'bass=f=150:g=-8';
 
   /// Center-channel cancellation: fast karaoke without a ML model.
-  static const vocalCancel = 'pan=stereo|c0=c0-0.98*c1|c1=c1-0.98*c0';
+  ///
+  /// This mpv build has no lavfi `pan` filter but does provide `aeval`.
+  static const vocalCancel =
+      'aeval=val(0)-0.98*val(1)|val(1)-0.98*val(0)';
 
   /// Pan a four-channel stem file (drums, bass, other, vocals) to stereo,
   /// including only the enabled stems. Each kept stem is scaled by 1/N so
@@ -47,10 +50,10 @@ class SilenceFilter {
       for (var i = 0; i < 4; i++)
         if (enabled[i]) i,
     ];
-    if (indices.isEmpty) return 'pan=stereo|c0=0|c1=0';
+    if (indices.isEmpty) return 'aeval=0|0';
     final gain = (1.0 / indices.length).toStringAsFixed(4);
-    final sum = indices.map((i) => '${gain}*c$i').join('+');
-    return 'pan=stereo|c0=$sum|c1=$sum';
+    final sum = indices.map((i) => '${gain}*val($i)').join('+');
+    return 'aeval=$sum|$sum';
   }
 
   static String buildChain({
