@@ -1085,6 +1085,15 @@ class _AppleMusicStylePopup extends StatelessWidget {
                             ),
                           _menuItem(
                             context,
+                            icon: Icons.call_split,
+                            title: 'Stems',
+                            onTap: () {
+                              Navigator.pop(context);
+                              unawaited(Modals.showStemsSheet(context, song));
+                            },
+                          ),
+                          _menuItem(
+                            context,
                             icon: AdaptiveIcons.library_add,
                             title: S.of(context).Add_To_Playlist,
                             onTap: () {

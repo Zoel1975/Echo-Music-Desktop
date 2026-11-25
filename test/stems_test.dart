@@ -62,6 +62,9 @@ void main() {
     expect(modal, contains('showStemsSheet'));
     expect(modal, contains("title: 'Stems'"));
     expect(modal, contains('AdaptiveListTile(\n            dense: true,\n            title: const Text(\'Stems\')'));
+    // The item must exist in the Apple-style popup used by the player's
+    // three-dot button, not only in the Song Options window.
+    expect(RegExp(r"title: 'Stems'").allMatches(modal).length, greaterThanOrEqualTo(2));
     final helper = File('tools/stems/separate.py').readAsStringSync();
     expect(helper, contains('PROGRESS'));
     expect(helper, contains('DONE'));

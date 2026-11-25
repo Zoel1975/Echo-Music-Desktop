@@ -45,6 +45,7 @@ import '../ytmusic/ytmusic.dart';
 import 'cookie_store.dart';
 import 'session_service.dart';
 import '../utils/router.dart' as app_router;
+import '../utils/bottom_modals.dart';
 import '../ytmusic/ytmusic.dart';
 
 /// Loopback-only diagnostic server, enabled explicitly with `ECHO_DIAG=1`.
@@ -1496,6 +1497,22 @@ class RuntimeProbeService {
         'connected': cast.connected.value?.name,
         'status': cast.status.value,
       });
+      return;
+    }
+    if (path == '/stems/menu' && request.method == 'POST') {
+      final context = appScaffoldMessengerKey.currentContext;
+      if (context == null) {
+        _json(request.response, 503, {'error': 'no context'});
+        return;
+      }
+      Modals.showPlayerOptionsModal(context, {
+        'videoId': 'stems-probe',
+        'title': 'Stems probe',
+        'artists': [
+          {'name': 'Probe'}
+        ],
+      });
+      _json(request.response, 200, {'opened': true});
       return;
     }
     if (path == '/stems' && request.method == 'POST') {
