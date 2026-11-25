@@ -1500,6 +1500,15 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/stems/state' && request.method == 'GET') {
+      final mixer = GetIt.I<StemMixerService>();
+      _json(request.response, 200, {
+        'useStems': mixer.useStems,
+        'enabled': mixer.state.enabled,
+        'players': mixer.debugPlayers,
+      });
+      return;
+    }
     if (path == '/stems/enable' && request.method == 'POST') {
       final videoId = request.uri.queryParameters['id'] ?? '';
       final queue = StemSeparationQueue.instance;

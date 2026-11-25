@@ -55,6 +55,12 @@ class StemMixerService extends ChangeNotifier {
   bool get isDesktop => Platform.isWindows || Platform.isLinux || Platform.isMacOS;
   String get currentFilter => '';
 
+  List<Map<String, dynamic>> get debugPlayers => _players.map((p) => {
+        'playing': p?.playing ?? false,
+        'positionMs': p?.position.inMilliseconds ?? 0,
+        'volume': p?.volume ?? 0.0,
+      }).toList();
+
   bool hasStemsFor(String? videoId) =>
       videoId != null && _stemVideoId == videoId && _stemPaths != null;
 
