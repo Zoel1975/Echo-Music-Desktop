@@ -65,20 +65,26 @@ class JustAudioMediaKit extends JustAudioPlatform {
   /// Apply an audio-filter change to the live main player using mpv's
   /// `af set` command (the property setter does not reinitialize the chain).
   static Future<void> setMainPlayerAf(String filter) async {
-    for (final player in List<MediaKitPlayer>.from(MediaKitPlayer.created.reversed)) {
+    // Several players can be alive (main + crossfade standby). Apply to all
+    // of them: the first one in the list is not necessarily the one playing.
+    for (final player in List<MediaKitPlayer>.from(MediaKitPlayer.created)) {
       if (player.isReleased) continue;
-      if (await player.setMpvAf(filter)) return;
+      await player.setMpvAf(filter);
     }
   }
 
   /// Read a property from the live player, for runtime verification.
   static Future<String?> getMainPlayerProperty(String key) async {
-    for (final player in List<MediaKitPlayer>.from(MediaKitPlayer.created.reversed)) {
+    String? fallback;
+    for (final player
+        in List<MediaKitPlayer>.from(MediaKitPlayer.created).reversed) {
       if (player.isReleased) continue;
       final value = await player.getMpvProperty(key);
-      if (value != null) return value;
+      if (value == null) continue;
+      if (value.contains('equalizer=') || value.contains('pan=')) return value;
+      fallback = value;
     }
-    return null;
+    return fallback;
   }
 
   static int get playerCount =>
