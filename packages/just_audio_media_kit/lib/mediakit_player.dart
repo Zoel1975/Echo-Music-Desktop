@@ -16,7 +16,8 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   /// before any crossfade/standby player, so this is the one whose mpv filter
   /// chain the UI changes when the user toggles stems.
   static MediaKitPlayer? firstPlayer;
-  static int createdCount = 0;
+  static final List<MediaKitPlayer> created = <MediaKitPlayer>[];
+  bool isReleased = false;
 
   /// `package:media_kit`'s [Player]
   late final Player _player;
@@ -39,19 +40,30 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   Future<String?> getMpvProperty(String key) async {
     final platform = _player.platform;
     if (platform is! NativePlayer) return null;
-    return platform.getProperty(key);
+    try {
+      return await platform.getProperty(key);
+    } catch (_) {
+      isReleased = true;
+      return null;
+    }
   }
 
   /// mpv's `af set` command reinitializes the audio filter chain while the
   /// player is running. Setting the `af` property alone can leave the old
   /// chain active, which made the instant vocal mute inaudible.
-  Future<void> setMpvAf(String filter) async {
+  Future<bool> setMpvAf(String filter) async {
     final platform = _player.platform;
-    if (platform is! NativePlayer) return;
-    if (filter.isEmpty) {
-      await platform.command(['af', 'clear']);
-    } else {
-      await platform.command(['af', 'set', filter]);
+    if (platform is! NativePlayer) return false;
+    try {
+      if (filter.isEmpty) {
+        await platform.command(['af', 'clear']);
+      } else {
+        await platform.command(['af', 'set', filter]);
+      }
+      return true;
+    } catch (_) {
+      isReleased = true;
+      return false;
     }
   }
 
@@ -84,7 +96,7 @@ class MediaKitPlayer extends AudioPlayerPlatform {
 
   MediaKitPlayer(super.id) {
     firstPlayer ??= this;
-    createdCount++;
+    created.add(this);
     _player = Player(
         configuration: PlayerConfiguration(
       pitch: JustAudioMediaKit.pitch,
@@ -433,6 +445,7 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   /// Release the resources used by this player.
   Future<void> release() async {
     _logger.info('releasing player resources');
+    isReleased = true;
     _mediaOpened = false;
     await _player.dispose();
     // cancel all stream subscriptions
