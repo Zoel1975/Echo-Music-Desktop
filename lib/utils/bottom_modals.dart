@@ -1303,6 +1303,17 @@ BottomModalLayout _playerOptionsModal(BuildContext context, Map song) {
 
           AdaptiveListTile(
             dense: true,
+            title: const Text('Stems'),
+            leading: const Icon(Icons.call_split),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.pop(context);
+              unawaited(Modals.showStemsSheet(context, song));
+            },
+          ),
+
+          AdaptiveListTile(
+            dense: true,
             title: Text(S.of(context).Add_To_Playlist),
             leading: Icon(AdaptiveIcons.library_add),
             onTap: () {

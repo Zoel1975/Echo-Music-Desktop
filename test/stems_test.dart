@@ -61,6 +61,7 @@ void main() {
     final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
     expect(modal, contains('showStemsSheet'));
     expect(modal, contains("title: 'Stems'"));
+    expect(modal, contains('AdaptiveListTile(\n            dense: true,\n            title: const Text(\'Stems\')'));
     final helper = File('tools/stems/separate.py').readAsStringSync();
     expect(helper, contains('PROGRESS'));
     expect(helper, contains('DONE'));
