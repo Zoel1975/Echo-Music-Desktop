@@ -278,6 +278,8 @@ class StemSeparationQueue extends ChangeNotifier {
             : stderr.toString().trim().split('\n').last;
         throw StemException(detail);
       }
+      final targetFile = File(target);
+      if (targetFile.existsSync()) await targetFile.delete();
       await File(temp).rename(target);
       try {
         await File(wav).delete();

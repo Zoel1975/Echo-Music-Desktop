@@ -38,6 +38,7 @@ import '../screens/home/cubit/home_cubit.dart';
 import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
 import 'stem_mixer_service.dart';
+import 'stem_separation_queue.dart';
 import 'update_service/update_service.dart';
 import '../screens/detail/playlist_page.dart';
 import '../ytmusic/helpers.dart';
@@ -1496,6 +1497,35 @@ class RuntimeProbeService {
       _json(request.response, 200, {
         'connected': cast.connected.value?.name,
         'status': cast.status.value,
+      });
+      return;
+    }
+    if (path == '/stems/run' && request.method == 'POST') {
+      final id = request.uri.queryParameters['id'] ?? 'probe-stems';
+      final source = request.uri.queryParameters['path'] ?? '';
+      final queue = StemSeparationQueue.instance;
+      try {
+        await queue.startAll({'videoId': id, 'path': source, 'title': 'Probe'},
+            id);
+      } catch (e) {
+        _json(request.response, 200, {
+          'error': e.toString(),
+          'status': queue.allStatus,
+          'progress': queue.allProgress,
+        });
+        return;
+      }
+      StemTask? task;
+      for (final t in queue.tasks) {
+        if (t.videoId == id) task = t;
+      }
+      _json(request.response, 200, {
+        'status': queue.allStatus,
+        'progress': queue.allProgress,
+        'taskStatus': task?.status.name,
+        'taskProgress': task?.progress,
+        'output': queue.cachedPath(id),
+        'exists': queue.cached(id),
       });
       return;
     }

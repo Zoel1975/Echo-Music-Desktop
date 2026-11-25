@@ -79,6 +79,10 @@ void main() {
     expect(modal, contains('FilterChip('));
     expect(modal, contains("'Enable all'"));
     expect(modal, contains("'Separating… '"));
+    final page =
+        File('lib/screens/player/player_page.dart').readAsStringSync();
+    expect(page, contains('_StemArtworkControls'));
+    expect(page, contains('mixer.toggleVocal'));
     final q =
         File('lib/services/stem_separation_queue.dart').readAsStringSync();
     expect(q, contains('Future<void> startAll('));

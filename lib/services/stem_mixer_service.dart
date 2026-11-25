@@ -151,23 +151,21 @@ class StemMixerService extends ChangeNotifier {
       stemPanFilter:
           _state.stemsLoaded ? SilenceFilter.stemPan(_state.enabled) : null,
     );
-    if (isDesktop) {
-      await JustAudioMediaKit.setMainPlayerAf(filter);
-    }
-    // mpv's runtime af change is not always picked up by the playing stream.
-    // Reloading the source is the same path used by the EQ and applies the
-    // global filter chain reliably. Guard against recursion.
     if (_reloading ||
         !GetIt.I.isRegistered<MediaPlayer>() ||
         GetIt.I<MediaPlayer>().currentSongNotifier.value == null) {
+      if (isDesktop) await JustAudioMediaKit.setMainPlayerAf(filter);
       return;
     }
     _reloading = true;
     try {
+      // Reattach the stream first: mpv only picks up a new filter chain when
+      // the audio stream starts, so the property must be set after this.
       await GetIt.I<MediaPlayer>().reloadCurrentSource();
     } catch (_) {
     } finally {
       _reloading = false;
     }
+    if (isDesktop) await JustAudioMediaKit.setMainPlayerAf(filter);
   }
 }

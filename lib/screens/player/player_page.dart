@@ -30,11 +30,12 @@ import '../../services/automix_debug.dart';
 import '../../services/media_player.dart';
 import '../../services/player_layout.dart';
 import '../../services/settings_manager.dart';
+import '../../services/stem_mixer_service.dart';
 import '../../themes/dark.dart';
 import '../../utils/adaptive_widgets/adaptive_widgets.dart';
-import '../../utils/bottom_modals.dart';
+import '../../utils/bottom_modals.dart' hide AnimatedBuilder;
 import '../../ytmusic/ytmusic.dart';
-import 'widgets/lyrics_box.dart';
+import 'widgets/lyrics_box.dart' hide AnimatedBuilder;
 import 'widgets/queue_list.dart';
 
 String _fmtMs(int? ms) => ms == null ? '—' : '${(ms / 1000).toStringAsFixed(1)}s';
@@ -504,21 +505,35 @@ Widget _artwork({
       : BoxFit.contain;
   final sensitivity = settings.extra<double>('swipeSensitivity', 5).clamp(1, 10);
   final threshold = 900.0 / sensitivity;
-  return SongSwipeDetector(
-    enabled: settings.extra<bool>('swipeChangeSong', true),
-    threshold: threshold,
-    onNext: () => GetIt.I<MediaPlayer>().player.seekToNext(),
-    onPrevious: () => GetIt.I<MediaPlayer>().player.seekToPrevious(),
-    child: RotatingArt(
-      enabled: rotating,
-      child: SongThumbnail(
-        song: song,
-        fit: fit,
-        onImageReady: onImageReady,
+  return Stack(
+    alignment: Alignment.center,
+    children: [
+      SongSwipeDetector(
+        enabled: settings.extra<bool>('swipeChangeSong', true),
+        threshold: threshold,
+        onNext: () => GetIt.I<MediaPlayer>().player.seekToNext(),
+        onPrevious: () => GetIt.I<MediaPlayer>().player.seekToPrevious(),
+        child: RotatingArt(
+          enabled: rotating,
+          child: SongThumbnail(
+            song: song,
+            fit: fit,
+            onImageReady: onImageReady,
+          ),
+        ),
       ),
-    ),
+      const Positioned(
+        bottom: 6,
+        left: 0,
+        right: 0,
+        child: _StemArtworkControls(),
+      ),
+    ],
   );
 }
+
+/// Real-time stem controls docked on the artwork, so the user does not have
+/// to open the song menu to toggle stems while the record spins.
 
 Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
     if (currentSong == null) return const SizedBox();
@@ -882,6 +897,79 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
         ),
         const SizedBox(height: 20),
       ],
+    );
+  }
+}
+
+class _StemArtworkControls extends StatelessWidget {
+  const _StemArtworkControls();
+
+  @override
+  Widget build(BuildContext context) {
+    final mixer = StemMixerService.instance;
+    return AnimatedBuilder(
+      animation: mixer,
+      builder: (context, _) {
+        final state = mixer.state;
+        return Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _stemChip(
+                    label: 'Vocal',
+                    active: state.vocalMuted && !state.stemsLoaded,
+                    onTap: mixer.toggleVocal,
+                  ),
+                  ...List.generate(4, (i) {
+                    return _stemChip(
+                      label: stemNames[i].substring(0, 1),
+                      active: state.stemsLoaded && state.enabled[i],
+                      enabled: state.stemsLoaded,
+                      onTap: () => mixer.setStemEnabled(i, !state.enabled[i]),
+                    );
+                  }),
+                  _stemChip(
+                    label: '…',
+                    active: false,
+                    onTap: () => Modals.showStemsSheet(
+                        context, GetIt.I<MediaPlayer>().currentSongNotifier.value?.extras ?? {}),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static Widget _stemChip({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+    bool enabled = true,
+  }) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            color: active ? Colors.redAccent : Colors.white,
+          ),
+        ),
+      ),
     );
   }
 }
