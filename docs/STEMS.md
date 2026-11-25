@@ -17,7 +17,11 @@ A CPU-only machine needs roughly 0.5–0.7x the track duration; GPU providers ar
 
 ## Requirements and limits
 
-The separator is `tools/stems/separate.py`. It needs Python 3 with `numpy`, `onnxruntime` and `soundfile`; the app finds Python automatically and can install a portable copy when none is present. The model is HT-Demucs (MIT), exported to ONNX by StemSplitio. No audio is uploaded: decoding happens locally with the bundled FFmpeg and inference runs on this machine.
+The separator is `tools/stems/separate.py`. It needs Python 3 with `numpy`, `onnxruntime` and `soundfile`; the app finds Python automatically and can install a portable copy when none is present. Playlist pages have a **Separate all tracks** button: missing songs are downloaded, then every track is separated in the background with overall progress. A failed track does not stop the rest.
+
+Downloads, backups and stems all live under the folder chosen in **Settings → Storage → App folder**. Changing it creates the `Music` and `Back Up` subfolders there; stem caches are rebuilt in the new location. Existing files are not moved automatically — copy them if you change the folder after downloading songs.
+
+The model is HT-Demucs (MIT), exported to ONNX by StemSplitio. No audio is uploaded: decoding happens locally with the bundled FFmpeg and inference runs on this machine.
 
 - Stems are produced from local or downloaded files only.
 - The separator writes four mono stem WAVs alongside the four-channel cache file.
