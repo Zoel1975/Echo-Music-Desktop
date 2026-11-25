@@ -260,7 +260,10 @@ class Modals {
                           : 'No separated file yet'),
                       value: mixer.useStems && cached,
                       onChanged: cached
-                          ? (value) async {
+                          ? (value) {
+                              // setStemFile already reapplies the filter and
+                              // reloads the source; a second reload here can
+                              // race with the first and freeze playback.
                               if (value) {
                                 mixer.setStemFile(
                                     queue.cachedPath(videoId!), videoId);
@@ -268,7 +271,6 @@ class Modals {
                                 mixer.useStems = false;
                                 mixer.setStemFile(null, null);
                               }
-                              await GetIt.I<MediaPlayer>().reloadCurrentSource();
                             }
                           : null,
                     ),

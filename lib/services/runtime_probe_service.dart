@@ -1500,6 +1500,22 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/stems/use' && request.method == 'POST') {
+      final videoId = request.uri.queryParameters['id'] ?? '';
+      final filePath = request.uri.queryParameters['path'] ?? '';
+      final mixer = GetIt.I<StemMixerService>();
+      if (filePath.isEmpty || !File(filePath).existsSync()) {
+        mixer.setStemFile(null, null);
+      } else {
+        mixer.setStemFile(filePath, videoId);
+      }
+      await GetIt.I<MediaPlayer>().reloadCurrentSource();
+      _json(request.response, 200, {
+        'useStems': mixer.useStems,
+        'filter': mixer.currentFilter(GetIt.I<SettingsManager>()),
+      });
+      return;
+    }
     if (path == '/stems/tasks' && request.method == 'GET') {
       _json(request.response, 200, {
         'tasks': StemSeparationQueue.instance.tasks

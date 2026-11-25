@@ -1428,11 +1428,20 @@ class MediaPlayer extends ChangeNotifier {
 
   /// Re-attach the current audio source so a newly-applied mpv filter (e.g.
   /// silenceremove) takes effect on desktop. Restores playback position.
+  bool _reloadingSource = false;
+
   Future<void> reloadCurrentSource() async {
     if (Platform.isAndroid || Platform.isIOS) return;
+    // Stem toggles, EQ changes and track changes can all request a reload at
+    // the same time. Concurrent setAudioSource/seek/play calls deadlock mpv.
+    if (_reloadingSource) return;
+    _reloadingSource = true;
     final idx = _player.currentIndex;
     final song = _currentSongNotifier.value?.extras;
-    if (idx == null || song == null) return;
+    if (idx == null || song == null) {
+      _reloadingSource = false;
+      return;
+    }
     final position = _player.position;
     final wasPlaying = _player.playing;
     try {
@@ -1445,6 +1454,8 @@ class MediaPlayer extends ChangeNotifier {
       if (wasPlaying) await _player.play();
     } catch (e) {
       debugPrint('reloadCurrentSource failed: $e');
+    } finally {
+      _reloadingSource = false;
     }
   }
 
