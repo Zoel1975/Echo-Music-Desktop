@@ -1499,6 +1499,15 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/af/test' && request.method == 'POST') {
+      final filter = request.uri.queryParameters['value'] ?? '';
+      await JustAudioMediaKit.setMainPlayerAf(filter);
+      _json(request.response, 200, {
+        'sent': filter,
+        'readback': await JustAudioMediaKit.getMainPlayerProperty('af'),
+      });
+      return;
+    }
     if (path == '/stems' && request.method == 'POST') {
       final mixer = GetIt.I<StemMixerService>();
       final vocal = request.uri.queryParameters['vocal'];
