@@ -21,5 +21,8 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.text('Stems'), findsOneWidget);
+    final rect = tester.getRect(find.text('Stems'));
+    expect(rect.top, greaterThanOrEqualTo(0));
+    expect(rect.bottom, lessThan(600));
   });
 }
