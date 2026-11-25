@@ -303,9 +303,12 @@ class StemSeparationQueue extends ChangeNotifier {
       final providerLine = RegExp(r'^PROVIDER\s+(.+)$');
       var fraction = 0.0;
       final stderr = StringBuffer();
+      // Drain both streams with forEach: StreamSubscription.asFuture() can
+      // remain pending after the child exits, which left the task stuck at
+      // 100% with the output file already written.
       final stdoutDone = process.stdout
           .transform(const SystemEncoding().decoder)
-          .listen((chunk) {
+          .forEach((chunk) {
         for (final line in chunk.split('\n')) {
           final trimmed = line.trim();
           final providerMatch = providerLine.firstMatch(trimmed);
@@ -325,11 +328,11 @@ class StemSeparationQueue extends ChangeNotifier {
           }
         }
       });
-      stage('waiting for helper streams');
-      await process.stderr
+      final stderrDone = process.stderr
           .transform(const SystemEncoding().decoder)
           .forEach(stderr.write);
-      await stdoutDone.asFuture<void>();
+      stage('waiting for helper streams');
+      await Future.wait<void>([stdoutDone, stderrDone]);
       stage('helper exited');
       final code = await process.exitCode;
       stage('return code $code');
