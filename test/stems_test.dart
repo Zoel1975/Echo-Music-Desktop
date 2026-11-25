@@ -88,6 +88,8 @@ void main() {
     expect(q, contains('Future<void> startAll('));
     expect(q, contains('allProgress'));
     expect(q, contains('PROVIDER'));
+    expect(q, contains('Future<void>.delayed(const Duration(seconds: 4)'));
+    expect(q, contains('clearCompleted()'));
     final helper =
         File('tools/stems/separate.py').readAsStringSync();
     expect(helper, contains('DmlExecutionProvider'));

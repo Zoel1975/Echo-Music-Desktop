@@ -192,7 +192,12 @@ class StemSeparationQueue extends ChangeNotifier {
       await prepare();
       _setAll('Separating…', 0.5);
       await enqueue(videoId, path);
-      _setAll('Ready — stems separated', 1.0);
+      _setAll('Done — stems ready to mix', 1.0);
+      Future<void>.delayed(const Duration(seconds: 4), () {
+        if (_allBusy) return;
+        clearCompleted();
+        _setAll('', 0.0);
+      });
     } catch (e) {
       _setAll('Failed: $e', 0.0);
       rethrow;
@@ -311,7 +316,8 @@ class StemSeparationQueue extends ChangeNotifier {
     if (i < 0 || i >= _tasks.length) return;
     _tasks[i] = _tasks[i].copyWith(status: status, progress: progress, error: error);
     if (_allBusy && progress != null) {
-      _allProgress = 0.5 + progress * 0.5;
+      // Never show a full bar while the helper is still writing the file.
+      _allProgress = 0.5 + progress.clamp(0.0, 1.0) * 0.48;
     }
     notifyListeners();
   }
