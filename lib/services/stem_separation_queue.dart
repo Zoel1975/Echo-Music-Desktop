@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import 'file_storage.dart';
 import 'settings_manager.dart';
 import 'stem_mixer_service.dart';
+import 'stem_python_setup.dart';
 
 enum StemTaskStatus { queued, running, done, failed }
 
@@ -156,12 +157,11 @@ class StemSeparationQueue extends ChangeNotifier {
       await _ensureModel();
       final target = task.outputPath;
       final temp = '$target.part';
-      final process = await Process.start(pythonExecutable, [
-        helperPath,
-        wav,
-        temp,
-        modelPath,
-      ]);
+      final python = await StemPythonSetup.instance.ensure();
+      final process = await Process.start(
+        python.executable,
+        python.withArgs([helperPath, wav, temp, modelPath]),
+      );
       final progress = RegExp(r'^PROGRESS\s+(\d+)/(\d+)$');
       var fraction = 0.0;
       final stderr = StringBuffer();

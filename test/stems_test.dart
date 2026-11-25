@@ -48,7 +48,8 @@ void main() {
     expect(path, endsWith('a_b_c.stems.wav'));
     final queue =
         File('lib/services/stem_separation_queue.dart').readAsStringSync();
-    expect(queue, contains('Process.start(pythonExecutable'));
+    expect(queue, contains('StemPythonSetup.instance.ensure()'));
+    expect(queue, contains('Process.start('));
     expect(queue, contains('PROGRESS'));
     expect(queue, isNot(contains('AudioSource.file')));
   });

@@ -14,6 +14,7 @@ import 'bottom_message.dart';
 import 'download_manager.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:hive/hive.dart';
 
@@ -1506,6 +1507,8 @@ class RuntimeProbeService {
       _json(request.response, 200, {
         'vocalMuted': mixer.state.vocalMuted,
         'filter': mixer.currentFilter(GetIt.I<SettingsManager>()),
+        'mpvFilter': await JustAudioMediaKit.getMainPlayerProperty('af'),
+        'players': JustAudioMediaKit.playerCount,
       });
       return;
     }

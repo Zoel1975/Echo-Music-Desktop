@@ -16,6 +16,7 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   /// before any crossfade/standby player, so this is the one whose mpv filter
   /// chain the UI changes when the user toggles stems.
   static MediaKitPlayer? firstPlayer;
+  static int createdCount = 0;
 
   /// `package:media_kit`'s [Player]
   late final Player _player;
@@ -32,6 +33,14 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   /// mixing (mpv `af` pan filters) without recreating the player.
   Future<void> setMpvProperty(String key, dynamic value) =>
       setProperty(_player, key, value);
+
+  /// Reads an mpv property back, used by diagnostics to confirm that `af`
+  /// changes really reached the playing player.
+  Future<String?> getMpvProperty(String key) async {
+    final platform = _player.platform;
+    if (platform is! NativePlayer) return null;
+    return platform.getProperty(key);
+  }
 
   static final _logger = Logger('MediaKitPlayer');
 
@@ -62,6 +71,7 @@ class MediaKitPlayer extends AudioPlayerPlatform {
 
   MediaKitPlayer(super.id) {
     firstPlayer ??= this;
+    createdCount++;
     _player = Player(
         configuration: PlayerConfiguration(
       pitch: JustAudioMediaKit.pitch,

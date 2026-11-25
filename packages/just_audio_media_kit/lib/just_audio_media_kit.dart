@@ -62,6 +62,13 @@ class JustAudioMediaKit extends JustAudioPlatform {
     await MediaKitPlayer.firstPlayer?.setMpvProperty(key, value);
   }
 
+  /// Read a property from the same player, for runtime verification.
+  static Future<String?> getMainPlayerProperty(String key) async {
+    return MediaKitPlayer.firstPlayer?.getMpvProperty(key);
+  }
+
+  static int get playerCount => MediaKitPlayer.createdCount;
+
   /// Use mpv's built-in `NativePlayer.test` mode (`ao=null`, `vo=null`) so a
   /// busy or missing audio endpoint cannot crash the whole application during
   /// startup. The UI still works; only sound output is disabled.
