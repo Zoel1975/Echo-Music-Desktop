@@ -105,5 +105,6 @@ void main() {
     expect(helper, contains('PROGRESS'));
     expect(helper, contains('DONE'));
     expect(helper, contains('htdemucs'));
+    expect(helper, contains('format="WAV"'));
   });
 }

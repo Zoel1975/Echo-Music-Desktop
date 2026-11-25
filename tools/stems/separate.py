@@ -84,7 +84,7 @@ def main() -> int:
     # Four mono channels: drums, bass, other, vocals. mpv duplicates them to
     # stereo with the pan filter, so no extra bandwidth is spent on dual mono.
     mono = stems.mean(axis=1).T  # (samples, 4)
-    sf.write(str(target), mono, SAMPLE_RATE, subtype="PCM_16")
+    sf.write(str(target), mono, SAMPLE_RATE, subtype="PCM_16", format="WAV")
     print(f"DONE {target}", flush=True)
     return 0
 
