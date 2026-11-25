@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:Echo/core/widgets/back_button.dart';
 import 'package:Echo/services/media_player.dart';
+import 'package:Echo/services/stem_separation_queue.dart';
 import 'package:Echo/utils/playable.dart';
 import 'package:Echo/utils/safe_cast.dart';
 import 'package:Echo/ytmusic/ytmusic.dart';
@@ -117,6 +118,12 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
     }
   }
 
+  Future<void> _separateAll() async {
+    if (_songs.isEmpty || StemSeparationQueue.instance.playlistBusy) return;
+    await StemSeparationQueue.instance.enqueuePlaylist(_songs);
+    if (mounted) _showMessage('Separazione stem completata');
+  }
+
   Future<void> _addSongs() async {
     final added = await showDialog<bool>(
       context: context,
@@ -147,6 +154,11 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
         title: Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
+            tooltip: 'Separate all tracks',
+            icon: const Icon(Icons.call_split),
+            onPressed: _separateAll,
+          ),
+          IconButton(
             tooltip: 'Aggiungi brani',
             icon: const Icon(Icons.add),
             onPressed: _addSongs,
@@ -167,6 +179,24 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
             songs: _songs,
             onPlay: () => _play(),
             onShuffle: () => _play(shuffle: true),
+          ),
+          AnimatedBuilder(
+            animation: StemSeparationQueue.instance,
+            builder: (context, _) {
+              final queue = StemSeparationQueue.instance;
+              if (!queue.playlistBusy) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  children: [
+                    Text('Separating stems ${queue.playlistDone}/'
+                        '${queue.playlistTotal}'),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(value: queue.playlistProgress),
+                  ],
+                ),
+              );
+            },
           ),
           if (_isLoading && _songs.isNotEmpty)
             const LinearProgressIndicator(minHeight: 2),

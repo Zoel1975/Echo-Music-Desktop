@@ -46,5 +46,17 @@ void main() {
     final helper = File('tools/stems/separate.py').readAsStringSync();
     expect(helper, contains('format="WAV"'));
     expect(helper, contains('{prefix}.{name}.wav'));
+    final playlist =
+        File('lib/screens/detail/playlist_page.dart').readAsStringSync();
+    expect(playlist, contains('enqueuePlaylist('));
+    expect(playlist, contains("'Separate all tracks'"));
+    expect(playlist, contains('playlistProgress'));
+    final storage =
+        File('lib/screens/settings/storage/storage_page.dart').readAsStringSync();
+    expect(storage, contains('FilePicker.getDirectoryPath()'));
+    expect(storage, contains('setCustomFolder('));
+    final files =
+        File('lib/services/file_storage.dart').readAsStringSync();
+    expect(files, contains("get('APP_FOLDER')"));
   });
 }

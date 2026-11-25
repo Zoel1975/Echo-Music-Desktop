@@ -28,10 +28,12 @@ class FileStorage {
   }
 
   static Future<void> initialise() async {
-    Directory directory = Directory("dir");
-    if (Platform.isAndroid) {
-      directory = Directory(Hive.box('SETTINGS')
-          .get('APP_FOLDER', defaultValue: FileStorage.defaultPath));
+    final configured = Hive.box('SETTINGS').get('APP_FOLDER')?.toString();
+    Directory directory;
+    if (configured != null && configured.isNotEmpty) {
+      directory = Directory(configured);
+    } else if (Platform.isAndroid) {
+      directory = Directory(FileStorage.defaultPath);
     } else if (Platform.isWindows) {
       directory =
           Directory(path.join((await getDownloadsDirectory())!.path, 'Echo'));
@@ -50,11 +52,12 @@ class FileStorage {
   }
 
   Future<void> updateDirectories() async {
-    Directory directory = Directory("dir");
-    if (Platform.isAndroid) {
-      directory = Directory(Hive.box('SETTINGS')
-              .get('APP_FOLDER', defaultValue: FileStorage.defaultPath) +
-          '/Echo');
+    final configured = Hive.box('SETTINGS').get('APP_FOLDER')?.toString();
+    Directory directory;
+    if (configured != null && configured.isNotEmpty) {
+      directory = Directory(configured);
+    } else if (Platform.isAndroid) {
+      directory = Directory(FileStorage.defaultPath);
     } else if (Platform.isWindows) {
       directory =
           Directory(path.join((await getDownloadsDirectory())!.path, 'Echo'));
@@ -66,6 +69,24 @@ class FileStorage {
       backupPath: path.join(directory.path, 'Back Up'),
       musicPath: path.join(directory.path, 'Music'),
     );
+    await _getDirectory(_storagePaths.backupPath);
+    await _getDirectory(_storagePaths.musicPath);
+    _initialised = true;
+  }
+
+  /// Choose the folder that holds downloaded tracks, backups and stems.
+  Future<void> setCustomFolder(String folder) async {
+    final directory = Directory(folder);
+    if (!directory.existsSync()) {
+      await directory.create(recursive: true);
+    }
+    await Hive.box('SETTINGS').put('APP_FOLDER', directory.path);
+    _storagePaths = StoragePaths(
+      basePath: directory.path,
+      backupPath: path.join(directory.path, 'Back Up'),
+      musicPath: path.join(directory.path, 'Music'),
+    );
+    storagePaths = _storagePaths;
     await _getDirectory(_storagePaths.backupPath);
     await _getDirectory(_storagePaths.musicPath);
     _initialised = true;

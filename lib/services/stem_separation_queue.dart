@@ -73,6 +73,9 @@ class StemSeparationQueue extends ChangeNotifier {
   bool _setupBusy = false;
   String _setupStatus = '';
   double _setupProgress = 0.0;
+  bool _playlistBusy = false;
+  int _playlistDone = 0;
+  int _playlistTotal = 0;
   bool _allBusy = false;
   String _allStatus = '';
   double _allProgress = 0.0;
@@ -93,6 +96,11 @@ class StemSeparationQueue extends ChangeNotifier {
   bool get setupBusy => _setupBusy;
   String get setupStatus => _setupStatus;
   double get setupProgress => _setupProgress;
+  bool get playlistBusy => _playlistBusy;
+  int get playlistDone => _playlistDone;
+  int get playlistTotal => _playlistTotal;
+  double get playlistProgress =>
+      _playlistTotal == 0 ? 0 : _playlistDone / _playlistTotal;
   bool get allBusy => _allBusy;
   String get allStatus => _allStatus;
   double get allProgress => _allProgress;
@@ -218,6 +226,46 @@ class StemSeparationQueue extends ChangeNotifier {
       rethrow;
     } finally {
       _allBusy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Queue every track of a playlist. Missing files are downloaded first;
+  /// a failed track does not stop the rest.
+  Future<void> enqueuePlaylist(List<Map<String, dynamic>> songs) async {
+    if (_playlistBusy) return;
+    _playlistBusy = true;
+    _playlistTotal = songs.length;
+    _playlistDone = 0;
+    notifyListeners();
+    try {
+      await prepare();
+      for (final song in songs) {
+        final id = song['videoId']?.toString() ?? '';
+        if (id.isNotEmpty && !cached(id)) {
+          try {
+            var path = song['path']?.toString();
+            if (path == null || path.isEmpty || !File(path).existsSync()) {
+              await GetIt.I<DownloadManager>().downloadSong(song);
+              for (final d in GetIt.I<DownloadManager>().downloads.value) {
+                if (d['videoId']?.toString() == id && d['path'] != null) {
+                  path = d['path'].toString();
+                  break;
+                }
+              }
+            }
+            if (path != null && path.isNotEmpty && File(path).existsSync()) {
+              await enqueue(id, path);
+            }
+          } catch (e) {
+            debugPrint('stem playlist: $id failed: $e');
+          }
+        }
+        _playlistDone++;
+        notifyListeners();
+      }
+    } finally {
+      _playlistBusy = false;
       notifyListeners();
     }
   }

@@ -1,8 +1,10 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:Echo/generated/l10n.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../services/bottom_message.dart';
+import '../../../services/file_storage.dart';
 import '../../../services/storage_service.dart';
 import '../widgets/setting_item.dart';
 import '../../../../core/widgets/back_button.dart';
@@ -33,6 +35,14 @@ class _StoragePageState extends State<StoragePage> {
     });
   }
 
+  Future<void> _pickFolder() async {
+    final folder = await FilePicker.getDirectoryPath();
+    if (folder == null || !mounted) return;
+    await GetIt.I<FileStorage>().setCustomFolder(folder);
+    setState(() {});
+    BottomMessage.showText(context, S.of(context).App_Folder);
+  }
+
   Future<void> _clear(Future<int> Function() action, String label) async {
     final bytes = await action();
     _refresh();
@@ -53,6 +63,15 @@ class _StoragePageState extends State<StoragePage> {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             children: [
+              GroupTitle(title: S.of(context).App_Folder),
+              SettingTile(
+                title: S.of(context).App_Folder,
+                subtitle: GetIt.I<FileStorage>().storagePaths.basePath,
+                leading: const Icon(Icons.folder_open),
+                isFirst: true,
+                isLast: true,
+                onTap: _pickFolder,
+              ),
               GroupTitle(title: S.of(context).SongCache),
               SettingTile(
                 title: S.of(context).ClearSongCache,
