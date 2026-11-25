@@ -1152,13 +1152,13 @@ class MediaPlayer extends ChangeNotifier {
     final mixer = StemMixerService.instance;
     if (mixer.useStems &&
         mixer.hasStemsFor(videoId) &&
-        mixer.stemPath != null &&
-        File(mixer.stemPath!).existsSync()) {
+        mixer.mixPath != null &&
+        File(mixer.mixPath!).existsSync()) {
       _setSourceInfo(tag, const PlaybackSourceInfo(
         format: 'Stems',
         source: 'Separated stems',
       ));
-      return AudioSource.file(mixer.stemPath!, tag: tag);
+      return AudioSource.file(mixer.mixPath!, tag: tag);
     }
 
     final bool isDownloaded =

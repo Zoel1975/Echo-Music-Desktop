@@ -65,6 +65,11 @@ void main() {
         File('lib/screens/player/player_page.dart').readAsStringSync();
     expect(page, contains('_StemArtworkControls'));
     expect(page, isNot(contains('mixer.toggleVocal')));
+    expect(page, contains('mixer.mixPath'));
+    final mixerSrc =
+        File('lib/services/stem_mixer_service.dart').readAsStringSync();
+    expect(mixerSrc, contains('Future<bool> _renderMix('));
+    expect(mixerSrc, isNot(contains('stemPanFilter:')));
     final helper = File('tools/stems/separate.py').readAsStringSync();
     expect(helper, contains('DmlExecutionProvider'));
     expect(helper, contains('CUDAExecutionProvider'));

@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:path/path.dart' as p;
+import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart' as ffmpeg;
+import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart' as ffmpeg;
 
 import 'eq_settings.dart';
 import 'media_player.dart';
@@ -44,11 +47,13 @@ class StemMixerService extends ChangeNotifier {
 
   StemMixState _state = const StemMixState();
   String? _stemPath;
+  String? _mixPath;
   String? _stemVideoId;
   bool useStems = false;
 
   StemMixState get state => _state;
   String? get stemPath => _stemPath;
+  String? get mixPath => _mixPath;
   String? get stemVideoId => _stemVideoId;
   bool hasStemsFor(String? videoId) =>
       videoId != null && _stemVideoId == videoId && _stemPath != null;
@@ -59,8 +64,6 @@ class StemMixerService extends ChangeNotifier {
         skipSilence: settings.skipSilence,
         eqGains: EqSettings.savedGains(settings),
         eqEnabled: settings.equalizerEnabled,
-        stemPanFilter:
-            _state.stemsLoaded ? SilenceFilter.stemPan(_state.enabled) : null,
       );
 
   /// Called when the playing track changes: a cached stem file belongs to the
@@ -115,11 +118,25 @@ class StemMixerService extends ChangeNotifier {
     if (!GetIt.I.isRegistered<SettingsManager>()) return;
     final settings = GetIt.I<SettingsManager>();
     final filter = currentFilter(settings);
-    EqSettings.apply(
-      settings,
-      stemPanFilter:
-          _state.stemsLoaded ? SilenceFilter.stemPan(_state.enabled) : null,
-    );
+    EqSettings.apply(settings);
+    if (_state.stemsLoaded && _stemPath != null) {
+      final expr = SilenceFilter.stemPan(_state.enabled);
+      final mask = _state.enabled
+          .asMap()
+          .entries
+          .where((e) => e.value)
+          .map((e) => 1 << e.key)
+          .fold(0, (a, b) => a | b);
+      final id = _safeId(_stemVideoId ?? 'track');
+      final mix = p.join(p.dirname(_stemPath!), '$id.mix_$mask.wav');
+      if (!File(mix).existsSync()) {
+        final ok = await _renderMix(_stemPath!, mix, expr);
+        if (!ok) return; // keep the current (original) audio playing
+      }
+      _mixPath = mix;
+    } else {
+      _mixPath = null;
+    }
     if (_reloading ||
         !GetIt.I.isRegistered<MediaPlayer>() ||
         GetIt.I<MediaPlayer>().currentSongNotifier.value == null) {
@@ -136,5 +153,33 @@ class StemMixerService extends ChangeNotifier {
       _reloading = false;
     }
     if (isDesktop) await JustAudioMediaKit.setMainPlayerAf(filter);
+  }
+
+  static String _safeId(String id) =>
+      id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+
+  /// Render the selected stems into a plain stereo WAV with FFmpeg.
+  ///
+  /// mpv in this build stalls on a `lavfi` aeval chain, so the mix is prepared
+  /// on disk instead. FFmpeg's aeval is verified to handle the four channels.
+  Future<bool> _renderMix(String source, String target, String expr) async {
+    final done = Completer<dynamic>();
+    try {
+      await ffmpeg.FFmpegKit.executeWithArgumentsAsync(
+        [
+          '-nostdin', '-y', '-i', source, '-vn',
+          '-af', expr, '-ac', '2', '-c:a', 'pcm_s16le', target,
+        ],
+        (session) => done.complete(session),
+        null,
+        null,
+      );
+      final session = await done.future;
+      final code = await session.getReturnCode();
+      return ffmpeg.ReturnCode.isSuccess(code) && File(target).existsSync();
+    } catch (e) {
+      debugPrint('stem mix render failed: $e');
+      return false;
+    }
   }
 }
