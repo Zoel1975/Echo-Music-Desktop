@@ -68,8 +68,21 @@ class StemSeparationQueue extends ChangeNotifier {
 
   final List<StemTask> _tasks = [];
   bool _running = false;
+  bool _prepared = false;
+  bool _setupBusy = false;
+  String _setupStatus = '';
+  double _setupProgress = 0.0;
 
   List<StemTask> get tasks => List.unmodifiable(_tasks);
+  bool get setupBusy => _setupBusy;
+  String get setupStatus => _setupStatus;
+  double get setupProgress => _setupProgress;
+
+  void _setSetup(String status, double progress) {
+    _setupStatus = status;
+    _setupProgress = progress;
+    notifyListeners();
+  }
 
   Directory get cacheDir {
     try {
@@ -112,7 +125,35 @@ class StemSeparationQueue extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// One-shot setup: find/install Python and download the ONNX model.
+  /// Called automatically by [enqueue]; the UI only shows progress.
+  Future<void> prepare() async {
+    if (_prepared) return;
+    if (_setupBusy) {
+      while (_setupBusy) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      return;
+    }
+    _setupBusy = true;
+    try {
+      _setSetup('Checking Python…', 0.0);
+      await StemPythonSetup.instance.ensure();
+      _setSetup('Downloading the separation model (166 MB)…', 0.05);
+      await _ensureModel(onProgress: (value) {
+        _setSetup('Downloading the separation model (166 MB)…',
+            0.05 + value * 0.9);
+      });
+      _setSetup('Ready', 1.0);
+      _prepared = true;
+    } finally {
+      _setupBusy = false;
+      notifyListeners();
+    }
+  }
+
   Future<StemTask> enqueue(String videoId, String sourcePath) async {
+    await prepare();
     final existing = _tasks.indexWhere((t) =>
         t.videoId == videoId && t.status == StemTaskStatus.queued);
     if (existing >= 0) return _tasks[existing];
@@ -227,7 +268,7 @@ class StemSeparationQueue extends ChangeNotifier {
     }
   }
 
-  Future<void> _ensureModel() async {
+  Future<void> _ensureModel({void Function(double)? onProgress}) async {
     final file = File(modelPath);
     if (file.existsSync() && file.lengthSync() > expectedModelBytes ~/ 2) {
       return;
@@ -245,6 +286,7 @@ class StemSeparationQueue extends ChangeNotifier {
       sink.add(chunk);
       received += chunk.length;
       final fraction = (received / total).clamp(0.0, 1.0);
+      onProgress?.call(fraction);
       final i = _tasks.indexWhere((t) => t.status == StemTaskStatus.running);
       _update(i, progress: fraction * 0.2);
     }

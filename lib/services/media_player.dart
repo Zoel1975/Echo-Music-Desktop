@@ -94,6 +94,9 @@ class MediaPlayer extends ChangeNotifier {
     // Every path that changes the current song (queue, crossfade, restore,
     // retry) goes through this notifier, so the source label stays in sync.
     _currentSongNotifier.addListener(_syncSourceInfoFromCurrent);
+    _currentSongNotifier.addListener(() {
+      StemMixerService.instance.onTrackChanged(_currentSongNotifier.value?.id);
+    });
 
     GetIt.I.registerSingleton<AndroidLoudnessEnhancer>(_loudnessEnhancer);
     if (Platform.isAndroid && _equalizer != null) {

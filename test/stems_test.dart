@@ -54,6 +54,30 @@ void main() {
     expect(queue, isNot(contains('AudioSource.file')));
   });
 
+  test('instant mute drops a stem file left over from another track', () {
+    final mixer = StemMixerService.instance;
+    mixer.setStemFile('old.wav', 'old');
+    expect(mixer.state.stemsLoaded, isTrue);
+    mixer.setVocalMuted(true);
+    expect(mixer.state.stemsLoaded, isFalse);
+    expect(mixer.state.vocalMuted, isTrue);
+    expect(mixer.hasStemsFor('old'), isFalse);
+    mixer.onTrackChanged('new');
+    expect(mixer.state.stemsLoaded, isFalse);
+    mixer.restoreAll();
+  });
+
+  test('setup is automatic and the sheet can download first', () {
+    final queue =
+        File('lib/services/stem_separation_queue.dart').readAsStringSync();
+    expect(queue, contains('await prepare();'));
+    expect(queue, contains('StemPythonSetup.instance.ensure()'));
+    expect(queue, contains('setupStatus'));
+    final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
+    expect(modal, contains("'Download & separate'"));
+    expect(modal, contains('downloadSong('));
+  });
+
   test('the helper and player wiring are present', () {
     final player =
         File('lib/services/media_player.dart').readAsStringSync();

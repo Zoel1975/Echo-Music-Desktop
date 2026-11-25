@@ -75,7 +75,28 @@ class StemMixerService extends ChangeNotifier {
 
   void setVocalMuted(bool value) {
     if (_state.vocalMuted == value) return;
+    // Instant karaoke and separated stems are mutually exclusive. Turning the
+    // instant filter on must drop a stem file left over from another track,
+    // otherwise the pan/aeval branch is skipped and the switch does nothing.
+    if (value && _state.stemsLoaded) {
+      _stemPath = null;
+      _stemVideoId = null;
+      useStems = false;
+      _state = _state.copyWith(stemsLoaded: false);
+    }
     _state = _state.copyWith(vocalMuted: value);
+    unawaited(apply());
+    notifyListeners();
+  }
+
+  /// Called when the playing track changes: a cached stem file belongs to the
+  /// previous video id and must not keep the instant filter disabled.
+  void onTrackChanged(String? videoId) {
+    if (_stemVideoId == null || _stemVideoId == videoId) return;
+    _stemPath = null;
+    _stemVideoId = null;
+    useStems = false;
+    _state = _state.copyWith(stemsLoaded: false);
     unawaited(apply());
     notifyListeners();
   }

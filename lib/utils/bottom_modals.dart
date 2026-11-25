@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:Echo/services/song_dna_service.dart';
 import 'package:Echo/services/stem_mixer_service.dart';
-import 'package:Echo/services/stem_python_setup.dart';
 import 'package:Echo/services/stem_separation_queue.dart';
 import 'package:Echo/services/settings_manager.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
@@ -226,8 +225,7 @@ class Modals {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: ListenableBuilder(
-            listenable: Listenable.merge(
-                [mixer, queue, StemPythonSetup.instance]),
+            listenable: Listenable.merge([mixer, queue]),
             builder: (context, _) {
               final state = mixer.state;
               final cached = videoId != null && queue.cached(videoId);
@@ -257,11 +255,10 @@ class Modals {
                     const SizedBox(height: 12),
                     SwitchListTile(
                       title: const Text('Mute vocals (instant)'),
-                      subtitle: const Text('Center-channel filter, no model needed'),
+                      subtitle: const Text(
+                          'Center-channel filter; works on centered vocals'),
                       value: state.vocalMuted,
-                      onChanged: state.stemsLoaded
-                          ? null
-                          : (value) => mixer.setVocalMuted(value),
+                      onChanged: (value) => mixer.setVocalMuted(value),
                     ),
                     SwitchListTile(
                       title: const Text('Use separated stems'),
@@ -308,38 +305,57 @@ class Modals {
                       ),
                     ],
                     const Divider(),
-                    if (StemPythonSetup.instance.busy) ...[
-                      Text(StemPythonSetup.instance.status),
-                      LinearProgressIndicator(
-                          value: StemPythonSetup.instance.progress),
+                    if (queue.setupBusy) ...[
+                      Text(queue.setupStatus),
+                      LinearProgressIndicator(value: queue.setupProgress),
                     ],
-                    if (task != null)
+                    if (task != null && !queue.setupBusy)
                       LinearProgressIndicator(value: task.progress),
                     if (task?.error != null)
-                      Text(task!.error!, style: const TextStyle(color: Colors.red)),
+                      Text(task!.error!,
+                          style: const TextStyle(color: Colors.red)),
                     FilledButton.icon(
-                      onPressed: sourcePath != null &&
-                              (task == null ||
-                                  task.status == StemTaskStatus.failed)
+                      onPressed: (task == null ||
+                              task.status == StemTaskStatus.failed) &&
+                              !queue.setupBusy
                           ? () async {
                               final messenger = ScaffoldMessenger.of(context);
                               try {
-                                await StemPythonSetup.instance.ensure();
-                                await queue.enqueue(videoId ?? '', sourcePath!);
+                                var path = sourcePath;
+                                if (path == null) {
+                                  BottomMessage.showText(
+                                      messenger.context, 'Downloading track…');
+                                  await GetIt.I<DownloadManager>().downloadSong(
+                                      Map<String, dynamic>.from(song));
+                                  for (final d in GetIt.I<DownloadManager>()
+                                      .downloads
+                                      .value) {
+                                    if (d['videoId']?.toString() == videoId &&
+                                        d['path'] != null) {
+                                      path = d['path'].toString();
+                                      break;
+                                    }
+                                  }
+                                }
+                                if (path == null || path.isEmpty) {
+                                  throw 'Could not get the audio file';
+                                }
+                                await queue.enqueue(videoId ?? '', path);
                               } catch (e) {
                                 BottomMessage.showText(messenger.context, '$e');
                               }
                             }
                           : null,
                       icon: const Icon(Icons.call_split),
-                      label: const Text('Separate this track'),
+                      label: Text(sourcePath == null
+                          ? 'Download & separate'
+                          : 'Separate this track'),
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Python is detected automatically. If none is installed, '
-                      'a portable Python with numpy, onnxruntime and soundfile '
-                      'is downloaded and set up on first use. The 166 MB model '
-                      'is cached in Downloads/Echo/Music/Stems.',
+                      'Automatic: the app finds or installs Python, downloads '
+                      'the 166 MB model once and caches everything in '
+                      'Downloads/Echo/Music/Stems. Just press the button.',
                       style: TextStyle(fontSize: 12),
                     ),
                   ],
