@@ -1555,11 +1555,9 @@ class RuntimeProbeService {
     }
     if (path == '/stems' && request.method == 'POST') {
       final mixer = GetIt.I<StemMixerService>();
-      final vocal = request.uri.queryParameters['vocal'];
-      if (vocal != null) mixer.setVocalMuted(vocal == '1');
       await mixer.apply();
       _json(request.response, 200, {
-        'vocalMuted': mixer.state.vocalMuted,
+        'stemsLoaded': mixer.state.stemsLoaded,
         'filter': mixer.currentFilter(GetIt.I<SettingsManager>()),
         'mpvFilter': await JustAudioMediaKit.getMainPlayerProperty('af'),
         'players': JustAudioMediaKit.playerCount,

@@ -77,9 +77,17 @@ class StemSeparationQueue extends ChangeNotifier {
   String _allStatus = '';
   double _allProgress = 0.0;
   String _provider = 'CPUExecutionProvider';
+  int _chunkCurrent = 0;
+  int _chunkTotal = 0;
+  DateTime? _runStart;
 
   List<StemTask> get tasks => List.unmodifiable(_tasks);
   String get provider => _provider;
+  int get chunkCurrent => _chunkCurrent;
+  int get chunkTotal => _chunkTotal;
+  int get elapsedSeconds => _runStart == null
+      ? 0
+      : DateTime.now().difference(_runStart!).inSeconds;
   bool get setupBusy => _setupBusy;
   String get setupStatus => _setupStatus;
   double get setupProgress => _setupProgress;
@@ -243,6 +251,9 @@ class StemSeparationQueue extends ChangeNotifier {
     if (i < 0) return;
     final task = _tasks[i];
     Directory dir;
+    _chunkCurrent = 0;
+    _chunkTotal = 0;
+    _runStart = null;
     try {
       dir = await cacheDir.create(recursive: true);
       if (!File(task.sourcePath).existsSync()) {
@@ -257,10 +268,14 @@ class StemSeparationQueue extends ChangeNotifier {
       final requestedProvider = GetIt.I.isRegistered<SettingsManager>()
           ? GetIt.I<SettingsManager>().extra<String>('stemGpu', 'auto')
           : 'auto';
+      final fast = GetIt.I.isRegistered<SettingsManager>() &&
+          GetIt.I<SettingsManager>().extra<bool>('stemFast', true);
       final process = await Process.start(
         python.executable,
-        python.withArgs(
-            [helperPath, wav, temp, modelPath, requestedProvider]),
+        python.withArgs([
+          helperPath, wav, temp, modelPath, requestedProvider,
+          fast ? '0.1' : '0.25',
+        ]),
       );
       final progress = RegExp(r'^PROGRESS\s+(\d+)/(\d+)$');
       final providerLine = RegExp(r'^PROVIDER\s+(.+)$');
@@ -278,8 +293,11 @@ class StemSeparationQueue extends ChangeNotifier {
           }
           final match = progress.firstMatch(trimmed);
           if (match != null) {
-            final current = int.tryParse(match.group(1) ?? '') ?? 0;
-            final total = int.tryParse(match.group(2) ?? '') ?? 1;
+            _chunkCurrent = int.tryParse(match.group(1) ?? '') ?? 0;
+            _chunkTotal = int.tryParse(match.group(2) ?? '') ?? 1;
+            _runStart ??= DateTime.now();
+            final current = _chunkCurrent;
+            final total = _chunkTotal;
             fraction = (current / total).clamp(0.0, 1.0);
             _update(i, progress: 0.2 + fraction * 0.8);
           }

@@ -5,9 +5,8 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'axion_eq_service.dart';
 
 /// Builds the mpv lavfi audio-filter chain applied to the patched
-/// just_audio_media_kit bridge: optional `silenceremove` (skip-silence) plus
-/// an optional 10-band `equalizer` (AXION / AutoEq). mpv applies `af` to every
-/// player created after it is set.
+/// just_audio_media_kit bridge: optional `silenceremove` (skip-silence),
+/// an optional 10-band `equalizer`, and the `aeval` mix for separated stems.
 class SilenceFilter {
   SilenceFilter._();
 
@@ -18,9 +17,7 @@ class SilenceFilter {
   /// Pure: build ten separate mpv equalizer filters from gains.
   ///
   /// FFmpeg's `equalizer` filter handles one band per instance: bands must be
-  /// comma-separated filters, not `|`-separated options. The old `|` form made
-  /// the whole lavfi graph invalid, silently disabling EQ and every later
-  /// filter (including stem vocal mute).
+  /// comma-separated filters, not `|`-separated options.
   static String eqFilter(List<double> gains) {
     if (gains.length < 10) return '';
     return List<String>.generate(
@@ -30,18 +27,7 @@ class SilenceFilter {
     ).join(',');
   }
 
-  /// Pure: assemble the combined lavfi chain.
-  /// Low-shelf cut used only on the outgoing player during a DJ blend, so two
-  /// basslines don't sum into mud (port of AutomixDuckAudioProcessor's intent).
-  static const duck = 'bass=f=150:g=-8';
-
-  /// Center-channel cancellation: fast karaoke without a ML model.
-  ///
-  /// This mpv build has no lavfi `pan` filter but does provide `aeval`.
-  static const vocalCancel =
-      'aeval=val(0)-0.98*val(1)|val(1)-0.98*val(0)';
-
-  /// Pan a four-channel stem file (drums, bass, other, vocals) to stereo,
+  /// Mix a four-channel stem file (drums, bass, other, vocals) to stereo,
   /// including only the enabled stems. Each kept stem is scaled by 1/N so
   /// solo and mute do not change the perceived loudness.
   static String stemPan(List<bool> enabled) {
@@ -56,12 +42,15 @@ class SilenceFilter {
     return 'aeval=$sum|$sum';
   }
 
+  /// Pure: assemble the combined lavfi chain.
+  /// Low-shelf cut used only on the outgoing player during a DJ blend.
+  static const duck = 'bass=f=150:g=-8';
+
   static String buildChain({
     required bool skipSilence,
     List<double>? eqGains,
     bool eqEnabled = false,
     bool duckOutgoing = false,
-    bool vocalCancelEnabled = false,
     String? stemPanFilter,
   }) {
     final parts = <String>[];
@@ -70,7 +59,6 @@ class SilenceFilter {
       parts.add(eqFilter(eqGains));
     }
     if (duckOutgoing) parts.add(duck);
-    if (vocalCancelEnabled) parts.add(vocalCancel);
     if (stemPanFilter != null && stemPanFilter.isNotEmpty) {
       parts.add(stemPanFilter);
     }
@@ -87,7 +75,6 @@ class SilenceFilter {
     List<double>? eqGains,
     bool eqEnabled = false,
     bool duckOutgoing = false,
-    bool vocalCancelEnabled = false,
     String? stemPanFilter,
   }) {
     if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) return;
@@ -96,7 +83,6 @@ class SilenceFilter {
       eqGains: eqGains,
       eqEnabled: eqEnabled,
       duckOutgoing: duckOutgoing,
-      vocalCancelEnabled: vocalCancelEnabled,
       stemPanFilter: stemPanFilter,
     );
   }

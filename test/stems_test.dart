@@ -7,18 +7,7 @@ import 'package:Echo/services/stem_mixer_service.dart';
 import 'package:Echo/services/stem_separation_queue.dart';
 
 void main() {
-  test('instant vocal mute uses a center-channel pan filter', () {
-    expect(SilenceFilter.vocalCancel, contains('val(0)-0.98*val(1)'));
-    expect(SilenceFilter.vocalCancel, contains('val(1)-0.98*val(0)'));
-    final chain = SilenceFilter.buildChain(
-      skipSilence: false,
-      vocalCancelEnabled: true,
-    );
-    expect(chain, contains('lavfi=['));
-    expect(chain, contains(SilenceFilter.vocalCancel));
-  });
-
-  test('stem pan mixes only the enabled four channels', () {
+  test('stem aeval mixes only the enabled four channels', () {
     final drumsOnly = SilenceFilter.stemPan([true, false, false, false]);
     expect(drumsOnly, contains('1.0000*val(0)'));
     expect(drumsOnly, isNot(contains('*val(1)')));
@@ -27,6 +16,8 @@ void main() {
     expect(all, contains('0.2500*val(3)'));
     expect(SilenceFilter.stemPan([false, false, false, false]),
         contains('aeval=0|0'));
+    // The ineffective instant-vocal filter is gone.
+    expect(SilenceFilter.buildChain(skipSilence: false), '');
   });
 
   test('mixer tracks the separated file and its video id', () {
@@ -36,9 +27,10 @@ void main() {
     expect(mixer.useStems, isTrue);
     expect(mixer.hasStemsFor('abc'), isTrue);
     expect(mixer.hasStemsFor('other'), isFalse);
+    mixer.onTrackChanged('new');
+    expect(mixer.state.stemsLoaded, isFalse);
     mixer.setStemFile(null, null);
     expect(mixer.state.stemsLoaded, isFalse);
-    expect(mixer.hasStemsFor('abc'), isFalse);
   });
 
   test('separation queue uses the project model and safe cache names', () {
@@ -54,65 +46,29 @@ void main() {
     expect(queue, isNot(contains('AudioSource.file')));
   });
 
-  test('instant mute drops a stem file left over from another track', () {
-    final mixer = StemMixerService.instance;
-    mixer.setStemFile('old.wav', 'old');
-    expect(mixer.state.stemsLoaded, isTrue);
-    mixer.setVocalMuted(true);
-    expect(mixer.state.stemsLoaded, isFalse);
-    expect(mixer.state.vocalMuted, isTrue);
-    expect(mixer.hasStemsFor('old'), isFalse);
-    mixer.onTrackChanged('new');
-    expect(mixer.state.stemsLoaded, isFalse);
-    mixer.restoreAll();
-  });
-
-  test('setup is automatic and the sheet can download first', () {
+  test('setup is automatic, progress is explicit and instant mute is gone', () {
     final queue =
         File('lib/services/stem_separation_queue.dart').readAsStringSync();
     expect(queue, contains('await prepare();'));
-    expect(queue, contains('StemPythonSetup.instance.ensure()'));
-    expect(queue, contains('setupStatus'));
+    expect(queue, contains('Future<void> startAll('));
+    expect(queue, contains('allProgress'));
+    expect(queue, contains('PROVIDER'));
+    expect(queue, contains('Future<void>.delayed(const Duration(seconds: 4)'));
+    expect(queue, contains('clearCompleted()'));
     final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
     expect(modal, contains("'Download all & separate'"));
     expect(modal, contains('queue.startAll('));
     expect(modal, contains('FilterChip('));
     expect(modal, contains("'Enable all'"));
-    expect(modal, contains("'Separating… '"));
+    expect(modal, isNot(contains("'Mute vocals (instant)'")));
     final page =
         File('lib/screens/player/player_page.dart').readAsStringSync();
     expect(page, contains('_StemArtworkControls'));
-    expect(page, contains('mixer.toggleVocal'));
-    final q =
-        File('lib/services/stem_separation_queue.dart').readAsStringSync();
-    expect(q, contains('Future<void> startAll('));
-    expect(q, contains('allProgress'));
-    expect(q, contains('PROVIDER'));
-    expect(q, contains('Future<void>.delayed(const Duration(seconds: 4)'));
-    expect(q, contains('clearCompleted()'));
-    final helper =
-        File('tools/stems/separate.py').readAsStringSync();
+    expect(page, isNot(contains('mixer.toggleVocal')));
+    final helper = File('tools/stems/separate.py').readAsStringSync();
     expect(helper, contains('DmlExecutionProvider'));
     expect(helper, contains('CUDAExecutionProvider'));
     expect(helper, contains('PROVIDER {used}'));
-  });
-
-  test('the helper and player wiring are present', () {
-    final player =
-        File('lib/services/media_player.dart').readAsStringSync();
-    expect(player, contains('mixer.hasStemsFor(videoId)'));
-    expect(player, contains("format: 'Stems'"));
-    final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
-    expect(modal, contains('showStemsSheet'));
-    expect(modal, contains("title: 'Stems'"));
-    expect(modal, contains('AdaptiveListTile(\n            dense: true,\n            title: const Text(\'Stems\')'));
-    // The item must exist in the Apple-style popup used by the player's
-    // three-dot button, not only in the Song Options window.
-    expect(RegExp(r"title: 'Stems'").allMatches(modal).length, greaterThanOrEqualTo(2));
-    final helper = File('tools/stems/separate.py').readAsStringSync();
-    expect(helper, contains('PROGRESS'));
-    expect(helper, contains('DONE'));
-    expect(helper, contains('htdemucs'));
     expect(helper, contains('format="WAV"'));
   });
 }

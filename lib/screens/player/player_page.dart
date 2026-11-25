@@ -923,11 +923,6 @@ class _StemArtworkControls extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _stemChip(
-                    label: 'Vocal',
-                    active: state.vocalMuted && !state.stemsLoaded,
-                    onTap: mixer.toggleVocal,
-                  ),
                   ...List.generate(4, (i) {
                     return _stemChip(
                       label: stemNames[i].substring(0, 1),

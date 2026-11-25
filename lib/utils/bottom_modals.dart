@@ -254,13 +254,6 @@ class Modals {
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(
-                      title: const Text('Mute vocals (instant)'),
-                      subtitle: const Text(
-                          'Center-channel filter; works on centered vocals'),
-                      value: state.vocalMuted,
-                      onChanged: (value) => mixer.setVocalMuted(value),
-                    ),
-                    SwitchListTile(
                       title: const Text('Use separated stems'),
                       subtitle: Text(cached
                           ? 'Play the four-channel file cached on this device'
@@ -317,8 +310,14 @@ class Modals {
                     const Divider(),
                     if (queue.allBusy) ...[
                       Text(
-                        '${queue.allStatus} — '
-                        '${(queue.allProgress * 100).round()}%',
+                        queue.setupBusy
+                            ? queue.setupStatus
+                            : queue.chunkTotal > 0
+                                ? 'Separating… ${queue.chunkCurrent}/'
+                                    '${queue.chunkTotal} chunks · '
+                                    '${queue.elapsedSeconds}s elapsed'
+                                : '${queue.allStatus} — '
+                                    '${(queue.allProgress * 100).round()}%',
                       ),
                       const SizedBox(height: 6),
                       LinearProgressIndicator(value: queue.allProgress),
@@ -344,8 +343,12 @@ class Modals {
                             ? 'Separation complete'
                             : task.status == StemTaskStatus.failed
                                 ? 'Separation failed'
-                                : 'Separating… '
-                                    '${(task.progress * 100).round()}%',
+                                : queue.chunkTotal > 0
+                                    ? 'Separating… ${queue.chunkCurrent}/'
+                                        '${queue.chunkTotal} chunks · '
+                                        '${queue.elapsedSeconds}s elapsed'
+                                    : 'Separating… '
+                                        '${(task.progress * 100).round()}%',
                       ),
                       const SizedBox(height: 6),
                       LinearProgressIndicator(value: task.progress),
@@ -354,6 +357,29 @@ class Modals {
                     if (task?.error != null)
                       Text(task!.error!,
                           style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Text('Separation speed'),
+                        const Spacer(),
+                        DropdownButton<bool>(
+                          value: GetIt.I<SettingsManager>()
+                              .extra<bool>('stemFast', true),
+                          items: const [
+                            DropdownMenuItem(
+                                value: true, child: Text('Fast')),
+                            DropdownMenuItem(
+                                value: false, child: Text('Quality')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) {
+                              GetIt.I<SettingsManager>()
+                                  .setExtra<bool>('stemFast', v);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       children: [

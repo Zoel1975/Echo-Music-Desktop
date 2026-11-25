@@ -48,7 +48,8 @@ def provider_list(requested: str) -> list[str]:
     return gpu + ["CPUExecutionProvider"]
 
 
-def separate(mix: np.ndarray, model_path: Path, requested: str) -> np.ndarray:
+def separate(mix: np.ndarray, model_path: Path, requested: str,
+             overlap_frac: float = 0.25) -> np.ndarray:
     if mix.ndim != 2 or mix.shape[0] != 2:
         raise ValueError(f"expected (2, samples), got {mix.shape}")
     options = ort.SessionOptions()
@@ -61,18 +62,21 @@ def separate(mix: np.ndarray, model_path: Path, requested: str) -> np.ndarray:
     )
     used = session.get_providers()[0]
     print(f"PROVIDER {used}", flush=True)
+    N = 343980
+    overlap = int(N * overlap_frac)
+    stride = N - overlap
     total = mix.shape[1]
-    chunks = max(1, (total + STRIDE - 1) // STRIDE)
-    window = make_window(N_SAMPLES, OVERLAP)
+    chunks = max(1, (total + stride - 1) // stride)
+    window = make_window(N, overlap)
     out = np.zeros((4, 2, total), dtype=np.float32)
     weight = np.zeros(total, dtype=np.float32)
     for index in range(chunks):
-        start = index * STRIDE
-        end = min(start + N_SAMPLES, total)
+        start = index * stride
+        end = min(start + N, total)
         chunk = mix[:, start:end]
-        if chunk.shape[1] < N_SAMPLES:
+        if chunk.shape[1] < N:
             chunk = np.pad(
-                chunk, ((0, 0), (0, N_SAMPLES - chunk.shape[1])), mode="constant"
+                chunk, ((0, 0), (0, N - chunk.shape[1])), mode="constant"
             )
         stems = session.run(
             ["stems"], {"mix": chunk[np.newaxis, ...].astype(np.float32)}
@@ -87,14 +91,15 @@ def separate(mix: np.ndarray, model_path: Path, requested: str) -> np.ndarray:
 
 
 def main() -> int:
-    if len(sys.argv) not in (4, 5):
-        print("usage: separate.py INPUT.wav OUTPUT.wav MODEL.onnx [PROVIDER]",
-              file=sys.stderr)
+    if len(sys.argv) not in (4, 5, 6):
+        print("usage: separate.py INPUT.wav OUTPUT.wav MODEL.onnx "
+              "[PROVIDER] [OVERLAP]", file=sys.stderr)
         return 2
     source = Path(sys.argv[1])
     target = Path(sys.argv[2])
     model = Path(sys.argv[3])
-    requested = sys.argv[4] if len(sys.argv) == 5 else "auto"
+    requested = sys.argv[4] if len(sys.argv) >= 5 else "auto"
+    overlap_frac = float(sys.argv[5]) if len(sys.argv) >= 6 else 0.25
     if not source.exists() or not model.exists():
         print("input or model missing", file=sys.stderr)
         return 2
@@ -102,7 +107,7 @@ def main() -> int:
     if sample_rate != SAMPLE_RATE:
         print(f"ERROR: sample rate is {sample_rate}, expected {SAMPLE_RATE}", file=sys.stderr)
         return 2
-    stems = separate(audio.T, model, requested)
+    stems = separate(audio.T, model, requested, overlap_frac)
     # Four mono channels: drums, bass, other, vocals. mpv duplicates them to
     # stereo with the pan filter, so no extra bandwidth is spent on dual mono.
     mono = stems.mean(axis=1).T  # (samples, 4)

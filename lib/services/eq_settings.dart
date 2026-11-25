@@ -29,7 +29,6 @@ class EqSettings {
   static void apply(
     SettingsManager settings, {
     bool duckOutgoing = false,
-    bool vocalCancelEnabled = false,
     String? stemPanFilter,
   }) {
     SilenceFilter.apply(
@@ -37,7 +36,6 @@ class EqSettings {
       eqGains: savedGains(settings),
       eqEnabled: settings.equalizerEnabled,
       duckOutgoing: duckOutgoing,
-      vocalCancelEnabled: vocalCancelEnabled,
       stemPanFilter: stemPanFilter,
     );
   }
