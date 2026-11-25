@@ -1148,19 +1148,6 @@ class MediaPlayer extends ChangeNotifier {
       extras: <String, dynamic>{...song},
     );
 
-    final videoId = song['videoId']?.toString();
-    final mixer = StemMixerService.instance;
-    if (mixer.useStems &&
-        mixer.hasStemsFor(videoId) &&
-        mixer.mixPath != null &&
-        File(mixer.mixPath!).existsSync()) {
-      _setSourceInfo(tag, const PlaybackSourceInfo(
-        format: 'Stems',
-        source: 'Separated stems',
-      ));
-      return AudioSource.file(mixer.mixPath!, tag: tag);
-    }
-
     final bool isDownloaded =
         (song['status'] == 'DOWNLOADED' || song['status'] == 'LOCAL') &&
             song['path'] != null &&

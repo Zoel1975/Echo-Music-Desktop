@@ -128,6 +128,11 @@ class StemSeparationQueue extends ChangeNotifier {
   String cachedPath(String videoId) =>
       p.join(cacheDir.path, '${_safe(videoId)}.stems.wav');
 
+  List<String> stemPaths(String videoId) {
+    final base = cachedPath(videoId).replaceFirst(RegExp(r'\.stems\.wav$'), '');
+    return List<String>.generate(4, (i) => '$base.${stemNames[i].toLowerCase()}.wav');
+  }
+
   static String _safe(String id) =>
       id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
 
@@ -352,7 +357,8 @@ class StemSeparationQueue extends ChangeNotifier {
       } catch (_) {}
       stage('done');
       update(status: StemTaskStatus.done, progress: 1.0);
-      StemMixerService.instance.setStemFile(target, task.videoId);
+      unawaited(StemMixerService.instance
+          .setStemFiles(task.videoId, stemPaths(task.videoId)));
     } catch (e) {
       stage('failed: $e');
       update(

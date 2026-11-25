@@ -1503,40 +1503,24 @@ class RuntimeProbeService {
     if (path == '/stems/enable' && request.method == 'POST') {
       final videoId = request.uri.queryParameters['id'] ?? '';
       final queue = StemSeparationQueue.instance;
-      final file = File(queue.cachedPath(videoId));
-      if (!file.existsSync()) {
+      final paths = queue.stemPaths(videoId);
+      if (paths.any((p) => !File(p).existsSync())) {
         _json(request.response, 404, {'error': 'no stems for $videoId'});
         return;
       }
       final mixer = GetIt.I<StemMixerService>();
-      mixer.setStemFile(file.path, videoId, autoApply: false);
-      await mixer.apply();
-      await GetIt.I<MediaPlayer>().reloadCurrentSource();
+      await mixer.setStemFiles(videoId, paths);
       _json(request.response, 200, {
         'useStems': mixer.useStems,
         'stemVideoId': mixer.stemVideoId,
-        'mixPath': mixer.mixPath,
-        'filter': mixer.currentFilter(GetIt.I<SettingsManager>()),
+        'stemPaths': paths,
       });
       return;
     }
-    if (path == '/stems/use' && request.method == 'POST') {
-      final videoId = request.uri.queryParameters['id'] ?? '';
-      final filePath = request.uri.queryParameters['path'] ?? '';
+    if (path == '/stems/disable' && request.method == 'POST') {
       final mixer = GetIt.I<StemMixerService>();
-      if (filePath.isEmpty || !File(filePath).existsSync()) {
-        mixer.setStemFile(null, null);
-      } else {
-        mixer.setStemFile(filePath, videoId, autoApply: false);
-        await mixer.apply();
-        await GetIt.I<MediaPlayer>().reloadCurrentSource();
-      }
-      _json(request.response, 200, {
-        'useStems': mixer.useStems,
-        'stemVideoId': mixer.stemVideoId,
-        'mixPath': mixer.mixPath,
-        'filter': mixer.currentFilter(GetIt.I<SettingsManager>()),
-      });
+      await mixer.disableStems();
+      _json(request.response, 200, {'useStems': mixer.useStems});
       return;
     }
     if (path == '/stems/tasks' && request.method == 'GET') {
@@ -1596,12 +1580,9 @@ class RuntimeProbeService {
     }
     if (path == '/stems' && request.method == 'POST') {
       final mixer = GetIt.I<StemMixerService>();
-      await mixer.apply();
       _json(request.response, 200, {
         'stemsLoaded': mixer.state.stemsLoaded,
-        'filter': mixer.currentFilter(GetIt.I<SettingsManager>()),
-        'mpvFilter': await JustAudioMediaKit.getMainPlayerProperty('af'),
-        'players': JustAudioMediaKit.playerCount,
+        'stemPaths': mixer.stemPaths,
       });
       return;
     }

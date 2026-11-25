@@ -261,15 +261,13 @@ class Modals {
                       value: mixer.useStems && cached,
                       onChanged: cached
                           ? (value) {
-                              // setStemFile already reapplies the filter and
-                              // reloads the source; a second reload here can
-                              // race with the first and freeze playback.
+                              // Each stem is a separate synced player: only
+                              // the volume changes, so no gap or render.
                               if (value) {
-                                mixer.setStemFile(
-                                    queue.cachedPath(videoId!), videoId);
+                                unawaited(mixer.setStemFiles(
+                                    videoId!, queue.stemPaths(videoId)));
                               } else {
-                                mixer.useStems = false;
-                                mixer.setStemFile(null, null);
+                                unawaited(mixer.disableStems());
                               }
                             }
                           : null,

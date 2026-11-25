@@ -10,6 +10,7 @@ single multichannel file so mpv can mute stems with one `pan` filter.
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -112,6 +113,12 @@ def main() -> int:
     # stereo with the pan filter, so no extra bandwidth is spent on dual mono.
     mono = stems.mean(axis=1).T  # (samples, 4)
     sf.write(str(target), mono, SAMPLE_RATE, subtype="PCM_16", format="WAV")
+    # Also write one mono file per stem: the desktop mixer plays these in four
+    # synchronized players and toggles them with volume, with no source reload.
+    prefix = re.sub(r"\.stems\.wav(\.part)?$", "", str(target))
+    for index, name in enumerate(SOURCES):
+        sf.write(f"{prefix}.{name}.wav", mono[:, index], SAMPLE_RATE,
+                 subtype="PCM_16", format="WAV")
     print(f"DONE {target}", flush=True)
     return 0
 
