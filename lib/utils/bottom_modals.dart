@@ -354,6 +354,33 @@ class Modals {
                     if (task?.error != null)
                       Text(task!.error!,
                           style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Text('GPU acceleration'),
+                        const Spacer(),
+                        DropdownButton<String>(
+                          value: GetIt.I<SettingsManager>()
+                              .extra<String>('stemGpu', 'auto'),
+                          items: const [
+                            DropdownMenuItem(value: 'auto', child: Text('Auto')),
+                            DropdownMenuItem(value: 'cpu', child: Text('CPU')),
+                            DropdownMenuItem(
+                                value: 'dml', child: Text('DirectML')),
+                            DropdownMenuItem(value: 'cuda', child: Text('CUDA')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) {
+                              GetIt.I<SettingsManager>()
+                                  .setExtra<String>('stemGpu', v);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    if (queue.provider.isNotEmpty)
+                      Text('Inference provider: ${queue.provider}',
+                          style: Theme.of(context).textTheme.bodySmall),
                     FilledButton.icon(
                       onPressed: queue.allBusy
                           ? null

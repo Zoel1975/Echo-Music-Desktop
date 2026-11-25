@@ -76,8 +76,10 @@ class StemSeparationQueue extends ChangeNotifier {
   bool _allBusy = false;
   String _allStatus = '';
   double _allProgress = 0.0;
+  String _provider = 'CPUExecutionProvider';
 
   List<StemTask> get tasks => List.unmodifiable(_tasks);
+  String get provider => _provider;
   bool get setupBusy => _setupBusy;
   String get setupStatus => _setupStatus;
   double get setupProgress => _setupProgress;
@@ -247,18 +249,29 @@ class StemSeparationQueue extends ChangeNotifier {
       final target = task.outputPath;
       final temp = '$target.part';
       final python = await StemPythonSetup.instance.ensure();
+      final requestedProvider = GetIt.I.isRegistered<SettingsManager>()
+          ? GetIt.I<SettingsManager>().extra<String>('stemGpu', 'auto')
+          : 'auto';
       final process = await Process.start(
         python.executable,
-        python.withArgs([helperPath, wav, temp, modelPath]),
+        python.withArgs(
+            [helperPath, wav, temp, modelPath, requestedProvider]),
       );
       final progress = RegExp(r'^PROGRESS\s+(\d+)/(\d+)$');
+      final providerLine = RegExp(r'^PROVIDER\s+(.+)$');
       var fraction = 0.0;
       final stderr = StringBuffer();
       final stdoutDone = process.stdout
           .transform(const SystemEncoding().decoder)
           .listen((chunk) {
         for (final line in chunk.split('\n')) {
-          final match = progress.firstMatch(line.trim());
+          final trimmed = line.trim();
+          final providerMatch = providerLine.firstMatch(trimmed);
+          if (providerMatch != null) {
+            _provider = providerMatch.group(1)!.trim();
+            continue;
+          }
+          final match = progress.firstMatch(trimmed);
           if (match != null) {
             final current = int.tryParse(match.group(1) ?? '') ?? 0;
             final total = int.tryParse(match.group(2) ?? '') ?? 1;

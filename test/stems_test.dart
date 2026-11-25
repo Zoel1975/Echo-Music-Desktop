@@ -87,6 +87,12 @@ void main() {
         File('lib/services/stem_separation_queue.dart').readAsStringSync();
     expect(q, contains('Future<void> startAll('));
     expect(q, contains('allProgress'));
+    expect(q, contains('PROVIDER'));
+    final helper =
+        File('tools/stems/separate.py').readAsStringSync();
+    expect(helper, contains('DmlExecutionProvider'));
+    expect(helper, contains('CUDAExecutionProvider'));
+    expect(helper, contains('PROVIDER {used}'));
   });
 
   test('the helper and player wiring are present', () {

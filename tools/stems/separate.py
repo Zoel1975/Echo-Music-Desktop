@@ -32,15 +32,35 @@ def make_window(n: int, overlap: int) -> np.ndarray:
     return window
 
 
-def separate(mix: np.ndarray, model_path: Path) -> np.ndarray:
+def provider_list(requested: str) -> list[str]:
+    available = set(ort.get_available_providers())
+    gpu = [
+        name for name in ("DmlExecutionProvider", "CUDAExecutionProvider")
+        if name in available
+    ]
+    if requested == "cpu":
+        return ["CPUExecutionProvider"]
+    if requested == "dml":
+        return ["DmlExecutionProvider", "CPUExecutionProvider"]
+    if requested == "cuda":
+        return ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    # auto: GPU first when available, otherwise CPU.
+    return gpu + ["CPUExecutionProvider"]
+
+
+def separate(mix: np.ndarray, model_path: Path, requested: str) -> np.ndarray:
     if mix.ndim != 2 or mix.shape[0] != 2:
         raise ValueError(f"expected (2, samples), got {mix.shape}")
     options = ort.SessionOptions()
     options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    providers = provider_list(requested)
+    if not any(p != "CPUExecutionProvider" for p in providers):
+        providers = ["CPUExecutionProvider"]
     session = ort.InferenceSession(
-        str(model_path), sess_options=options,
-        providers=["CPUExecutionProvider"],
+        str(model_path), sess_options=options, providers=providers,
     )
+    used = session.get_providers()[0]
+    print(f"PROVIDER {used}", flush=True)
     total = mix.shape[1]
     chunks = max(1, (total + STRIDE - 1) // STRIDE)
     window = make_window(N_SAMPLES, OVERLAP)
@@ -67,12 +87,14 @@ def separate(mix: np.ndarray, model_path: Path) -> np.ndarray:
 
 
 def main() -> int:
-    if len(sys.argv) != 4:
-        print("usage: separate.py INPUT.wav OUTPUT.wav MODEL.onnx", file=sys.stderr)
+    if len(sys.argv) not in (4, 5):
+        print("usage: separate.py INPUT.wav OUTPUT.wav MODEL.onnx [PROVIDER]",
+              file=sys.stderr)
         return 2
     source = Path(sys.argv[1])
     target = Path(sys.argv[2])
     model = Path(sys.argv[3])
+    requested = sys.argv[4] if len(sys.argv) == 5 else "auto"
     if not source.exists() or not model.exists():
         print("input or model missing", file=sys.stderr)
         return 2
@@ -80,7 +102,7 @@ def main() -> int:
     if sample_rate != SAMPLE_RATE:
         print(f"ERROR: sample rate is {sample_rate}, expected {SAMPLE_RATE}", file=sys.stderr)
         return 2
-    stems = separate(audio.T, model)
+    stems = separate(audio.T, model, requested)
     # Four mono channels: drums, bass, other, vocals. mpv duplicates them to
     # stereo with the pan filter, so no extra bandwidth is spent on dual mono.
     mono = stems.mean(axis=1).T  # (samples, 4)
