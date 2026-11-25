@@ -102,12 +102,12 @@ class StemMixerService extends ChangeNotifier {
 
   /// Attach a separated file for the current track. [path] is a four-channel
   /// WAV produced by the separation queue, or null when none exists.
-  void setStemFile(String? path, String? videoId) {
+  void setStemFile(String? path, String? videoId, {bool autoApply = true}) {
     _stemPath = path;
     _stemVideoId = videoId;
     useStems = path != null;
     _state = _state.copyWith(stemsLoaded: path != null);
-    unawaited(apply());
+    if (autoApply) unawaited(apply());
     notifyListeners();
   }
 

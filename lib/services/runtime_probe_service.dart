@@ -1507,11 +1507,14 @@ class RuntimeProbeService {
       if (filePath.isEmpty || !File(filePath).existsSync()) {
         mixer.setStemFile(null, null);
       } else {
-        mixer.setStemFile(filePath, videoId);
+        mixer.setStemFile(filePath, videoId, autoApply: false);
+        await mixer.apply();
+        await GetIt.I<MediaPlayer>().reloadCurrentSource();
       }
-      await GetIt.I<MediaPlayer>().reloadCurrentSource();
       _json(request.response, 200, {
         'useStems': mixer.useStems,
+        'stemVideoId': mixer.stemVideoId,
+        'mixPath': mixer.mixPath,
         'filter': mixer.currentFilter(GetIt.I<SettingsManager>()),
       });
       return;
