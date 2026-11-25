@@ -281,36 +281,61 @@ class Modals {
                     ),
                     if (state.stemsLoaded) ...[
                       const Divider(),
-                      ...List.generate(4, (i) {
-                        return ListTile(
-                          title: Text(stemNames[i]),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TextButton(
-                                onPressed: () => mixer.solo(i),
-                                child: const Text('Solo'),
-                              ),
-                              Switch(
-                                value: state.enabled[i],
-                                onChanged: (v) => mixer.setStemEnabled(i, v),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
+                      Text(
+                        'Active stems: '
+                        '${state.enabled.where((v) => v).length}/4 — tap to '
+                        'enable or disable any of them',
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: List.generate(4, (i) {
+                          return FilterChip(
+                            label: Text(
+                                '${stemNames[i]} ${state.enabled[i] ? 'ON' : 'OFF'}'),
+                            selected: state.enabled[i],
+                            onSelected: (v) => mixer.setStemEnabled(i, v),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 4,
+                        children: List.generate(4, (i) {
+                          return TextButton(
+                            onPressed: () => mixer.solo(i),
+                            child: Text('Solo ${stemNames[i]}'),
+                          );
+                        }),
+                      ),
                       TextButton(
                         onPressed: mixer.restoreAll,
-                        child: const Text('Restore full mix'),
+                        child: const Text('Enable all'),
                       ),
                     ],
                     const Divider(),
-                    if (queue.setupBusy) ...[
-                      Text(queue.setupStatus),
-                      LinearProgressIndicator(value: queue.setupProgress),
+                    if (queue.setupBusy || task != null) ...[
+                      Text(
+                        queue.setupBusy
+                            ? queue.setupStatus
+                            : task == null
+                                ? ''
+                                : task.status == StemTaskStatus.done
+                                    ? 'Separation complete'
+                                    : task.status == StemTaskStatus.failed
+                                        ? 'Separation failed'
+                                        : 'Separating… '
+                                            '${(task.progress * 100).round()}%',
+                      ),
+                      const SizedBox(height: 6),
+                      LinearProgressIndicator(
+                        value: queue.setupBusy
+                            ? queue.setupProgress
+                            : task?.progress,
+                      ),
+                      const SizedBox(height: 10),
                     ],
-                    if (task != null && !queue.setupBusy)
-                      LinearProgressIndicator(value: task.progress),
                     if (task?.error != null)
                       Text(task!.error!,
                           style: const TextStyle(color: Colors.red)),

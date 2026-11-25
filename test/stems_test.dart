@@ -76,6 +76,9 @@ void main() {
     final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
     expect(modal, contains("'Download & separate'"));
     expect(modal, contains('downloadSong('));
+    expect(modal, contains('FilterChip('));
+    expect(modal, contains("'Enable all'"));
+    expect(modal, contains("'Separating… '"));
   });
 
   test('the helper and player wiring are present', () {
