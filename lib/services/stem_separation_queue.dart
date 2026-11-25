@@ -77,12 +77,14 @@ class StemSeparationQueue extends ChangeNotifier {
   String _allStatus = '';
   double _allProgress = 0.0;
   String _provider = 'CPUExecutionProvider';
+  String _stage = '';
   int _chunkCurrent = 0;
   int _chunkTotal = 0;
   DateTime? _runStart;
 
   List<StemTask> get tasks => List.unmodifiable(_tasks);
   String get provider => _provider;
+  String get stage => _stage;
   int get chunkCurrent => _chunkCurrent;
   int get chunkTotal => _chunkTotal;
   int get elapsedSeconds => _runStart == null
@@ -247,21 +249,41 @@ class StemSeparationQueue extends ChangeNotifier {
   }
 
   Future<void> _run(String id) async {
-    final i = _tasks.indexWhere((t) => t.id == id);
-    if (i < 0) return;
-    final task = _tasks[i];
+    final startIndex = _tasks.indexWhere((t) => t.id == id);
+    if (startIndex < 0) return;
+    final task = _tasks[startIndex];
+    void update({
+      StemTaskStatus? status,
+      double? progress,
+      String? error,
+    }) {
+      // Never keep a captured index: tasks can be added or cleared while the
+      // helper process runs, which would update the wrong task.
+      final index = _tasks.indexWhere((t) => t.id == id);
+      if (index >= 0) _update(index, status: status, progress: progress, error: error);
+    }
+
+    void stage(String value) {
+      _stage = value;
+      debugPrint('[stems] $id stage: $value');
+      notifyListeners();
+    }
+
     Directory dir;
     _chunkCurrent = 0;
     _chunkTotal = 0;
     _runStart = null;
     try {
+      stage('decoding');
       dir = await cacheDir.create(recursive: true);
       if (!File(task.sourcePath).existsSync()) {
         throw const StemException('Source file is missing');
       }
       final wav = p.join(dir.path, '${_safe(task.videoId)}.decode.wav');
       await _decode(task.sourcePath, wav);
+      stage('model');
       await _ensureModel();
+      stage('starting helper');
       final target = task.outputPath;
       final temp = '$target.part';
       final python = await StemPythonSetup.instance.ensure();
@@ -299,15 +321,18 @@ class StemSeparationQueue extends ChangeNotifier {
             final current = _chunkCurrent;
             final total = _chunkTotal;
             fraction = (current / total).clamp(0.0, 1.0);
-            _update(i, progress: 0.2 + fraction * 0.8);
+            update(progress: 0.2 + fraction * 0.8);
           }
         }
       });
+      stage('waiting for helper streams');
       await process.stderr
           .transform(const SystemEncoding().decoder)
           .forEach(stderr.write);
       await stdoutDone.asFuture<void>();
+      stage('helper exited');
       final code = await process.exitCode;
+      stage('return code $code');
       if (code != 0 || !File(temp).existsSync()) {
         final detail = stderr.toString().trim().isEmpty
             ? 'separator exited with code $code'
@@ -315,16 +340,19 @@ class StemSeparationQueue extends ChangeNotifier {
         debugPrint('[stems] helper stderr: ${stderr.toString()}');
         throw StemException(detail);
       }
+      stage('writing output');
       final targetFile = File(target);
       if (targetFile.existsSync()) await targetFile.delete();
       await File(temp).rename(target);
       try {
         await File(wav).delete();
       } catch (_) {}
-      _update(i, status: StemTaskStatus.done, progress: 1.0);
+      stage('done');
+      update(status: StemTaskStatus.done, progress: 1.0);
       StemMixerService.instance.setStemFile(target, task.videoId);
     } catch (e) {
-      _update(i,
+      stage('failed: $e');
+      update(
           status: StemTaskStatus.failed,
           error: e is StemException ? e.message : e.toString());
     }

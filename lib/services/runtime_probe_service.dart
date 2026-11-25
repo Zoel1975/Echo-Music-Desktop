@@ -1512,6 +1512,7 @@ class RuntimeProbeService {
                 })
             .toList(),
         'setup': StemSeparationQueue.instance.setupStatus,
+        'stage': StemSeparationQueue.instance.stage,
       });
       return;
     }
@@ -1541,6 +1542,7 @@ class RuntimeProbeService {
         'taskProgress': task?.progress,
         'output': queue.cachedPath(id),
         'exists': queue.cached(id),
+        'stage': queue.stage,
       });
       return;
     }
