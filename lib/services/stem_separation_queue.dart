@@ -82,8 +82,8 @@ class StemSeparationQueue extends ChangeNotifier {
 
   String get modelPath =>
       p.join(cacheDir.path, 'models', 'htdemucs_fp16weights.onnx');
-  String get helperPath =>
-      p.join(Directory.current.path, 'tools', 'stems', 'separate.py');
+  String get helperPath => p.join(File(Platform.resolvedExecutable).parent.path,
+      'tools', 'stems', 'separate.py');
 
   String cachedPath(String videoId) =>
       p.join(cacheDir.path, '${_safe(videoId)}.stems.wav');
