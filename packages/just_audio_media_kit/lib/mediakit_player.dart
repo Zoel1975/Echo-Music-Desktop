@@ -55,11 +55,9 @@ class MediaKitPlayer extends AudioPlayerPlatform {
     final platform = _player.platform;
     if (platform is! NativePlayer) return false;
     try {
-      if (filter.isEmpty) {
-        await platform.command(['af', 'clear']);
-      } else {
-        await platform.command(['af', 'set', filter]);
-      }
+      // The `af` property setter rebuilds the filter chain in this libmpv
+      // build; the `af set` command is a no-op here.
+      await setProperty(_player, 'af', filter);
       return true;
     } catch (_) {
       isReleased = true;
