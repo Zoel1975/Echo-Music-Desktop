@@ -42,6 +42,19 @@ class MediaKitPlayer extends AudioPlayerPlatform {
     return platform.getProperty(key);
   }
 
+  /// mpv's `af set` command reinitializes the audio filter chain while the
+  /// player is running. Setting the `af` property alone can leave the old
+  /// chain active, which made the instant vocal mute inaudible.
+  Future<void> setMpvAf(String filter) async {
+    final platform = _player.platform;
+    if (platform is! NativePlayer) return;
+    if (filter.isEmpty) {
+      await platform.command(['af', 'clear']);
+    } else {
+      await platform.command(['af', 'set', filter]);
+    }
+  }
+
   static final _logger = Logger('MediaKitPlayer');
 
   final _eventController = StreamController<PlaybackEventMessage>.broadcast();

@@ -127,8 +127,8 @@ class StemMixerService extends ChangeNotifier {
       stemPanFilter:
           _state.stemsLoaded ? SilenceFilter.stemPan(_state.enabled) : null,
     );
-    if (isDesktop && filter.isNotEmpty) {
-      await JustAudioMediaKit.setMainPlayerProperty('af', filter);
+    if (isDesktop) {
+      await JustAudioMediaKit.setMainPlayerAf(filter);
     }
   }
 }

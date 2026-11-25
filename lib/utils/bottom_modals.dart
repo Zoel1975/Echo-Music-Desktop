@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:Echo/services/song_dna_service.dart';
 import 'package:Echo/services/stem_mixer_service.dart';
+import 'package:Echo/services/stem_python_setup.dart';
 import 'package:Echo/services/stem_separation_queue.dart';
 import 'package:Echo/services/settings_manager.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
@@ -225,7 +226,8 @@ class Modals {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: ListenableBuilder(
-            listenable: Listenable.merge([mixer, queue]),
+            listenable: Listenable.merge(
+                [mixer, queue, StemPythonSetup.instance]),
             builder: (context, _) {
               final state = mixer.state;
               final cached = videoId != null && queue.cached(videoId);
@@ -306,6 +308,11 @@ class Modals {
                       ),
                     ],
                     const Divider(),
+                    if (StemPythonSetup.instance.busy) ...[
+                      Text(StemPythonSetup.instance.status),
+                      LinearProgressIndicator(
+                          value: StemPythonSetup.instance.progress),
+                    ],
                     if (task != null)
                       LinearProgressIndicator(value: task.progress),
                     if (task?.error != null)
@@ -314,8 +321,14 @@ class Modals {
                       onPressed: sourcePath != null &&
                               (task == null ||
                                   task.status == StemTaskStatus.failed)
-                          ? () {
-                              unawaited(queue.enqueue(videoId ?? '', sourcePath!));
+                          ? () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              try {
+                                await StemPythonSetup.instance.ensure();
+                                await queue.enqueue(videoId ?? '', sourcePath!);
+                              } catch (e) {
+                                BottomMessage.showText(messenger.context, '$e');
+                              }
                             }
                           : null,
                       icon: const Icon(Icons.call_split),
@@ -323,9 +336,10 @@ class Modals {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Separation needs Python 3 with numpy, onnxruntime and '
-                      'soundfile. The 166 MB model is downloaded once and '
-                      'cached; set python path in Settings → Player → Stems.',
+                      'Python is detected automatically. If none is installed, '
+                      'a portable Python with numpy, onnxruntime and soundfile '
+                      'is downloaded and set up on first use. The 166 MB model '
+                      'is cached in Downloads/Echo/Music/Stems.',
                       style: TextStyle(fontSize: 12),
                     ),
                   ],

@@ -62,6 +62,12 @@ class JustAudioMediaKit extends JustAudioPlatform {
     await MediaKitPlayer.firstPlayer?.setMpvProperty(key, value);
   }
 
+  /// Apply an audio-filter change to the live main player using mpv's
+  /// `af set` command (the property setter does not reinitialize the chain).
+  static Future<void> setMainPlayerAf(String filter) async {
+    await MediaKitPlayer.firstPlayer?.setMpvAf(filter);
+  }
+
   /// Read a property from the same player, for runtime verification.
   static Future<String?> getMainPlayerProperty(String key) async {
     return MediaKitPlayer.firstPlayer?.getMpvProperty(key);
