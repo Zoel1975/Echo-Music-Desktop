@@ -111,14 +111,16 @@ class MediaKitPlayer extends AudioPlayerPlatform {
       setProperty(_player, 'prefetch-playlist', 'yes');
     }
 
-    // Apply the optional mpv audio-filter chain (e.g. silenceremove for
-    // desktop skip-silence). setProperty is fire-and-forget; mpv applies it
-    // before playback starts.
-    final filter = JustAudioMediaKit.audioFilter;
-    if (filter != null && filter.isNotEmpty) {
-      setProperty(_player, 'af', filter);
-      print('[just_audio_media_kit] applied mpv af filter: $filter');
-    }
+    // Apply the optional mpv audio-filter chain only after the native player
+    // is ready. At construction time `platform` is not yet a NativePlayer, so
+    // the old fire-and-forget setProperty silently dropped every filter
+    // (skip-silence, EQ and stem mixing).
+    unawaited(_readyCompleter.future.then((_) async {
+      final filter = JustAudioMediaKit.audioFilter;
+      if (filter != null && filter.isNotEmpty) {
+        await setMpvAf(filter);
+      }
+    }));
 
     _streamSubscriptions = [
       _player.stream.duration.listen((duration) {
