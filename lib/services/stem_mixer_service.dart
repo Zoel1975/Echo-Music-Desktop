@@ -69,6 +69,9 @@ class StemMixerService extends ChangeNotifier {
   /// Called when the playing track changes: a cached stem file belongs to the
   /// previous video id and must not be applied to another song.
   void onTrackChanged(String? videoId) {
+    // Clearing/reloading the player temporarily emits a null track id. Never
+    // drop the selected stems because of that transient state.
+    if (videoId == null || videoId.isEmpty) return;
     if (_stemVideoId == null || _stemVideoId == videoId) return;
     _stemPath = null;
     _stemVideoId = null;
