@@ -934,25 +934,31 @@ class StreamResolver {
         if (!_statusOk(data)) continue;
         final streaming = data['streamingData'];
         if (streaming is! Map) continue;
-        final formats = <Map<String, dynamic>>[
-          ...(streaming['formats'] is List
-              ? (streaming['formats'] as List).whereType<Map>().map(
-                  (f) => Map<String, dynamic>.from(f))
-              : const <Map<String, dynamic>>[]),
-          ...(streaming['adaptiveFormats'] is List
-              ? (streaming['adaptiveFormats'] as List).whereType<Map>().map(
-                  (f) => Map<String, dynamic>.from(f))
-              : const <Map<String, dynamic>>[]),
-        ].where((f) {
+        bool usable(dynamic f) {
+          if (f is! Map) return false;
           final mime = f['mimeType']?.toString() ?? '';
           return mime.startsWith('video/') && f['url'] is String;
-        }).toList();
+        }
+
+        // Prefer progressive (muxed) MP4: Windows Media Foundation opens those
+        // directly, while adaptive video-only URLs often need a ciphered
+        // signature and fail to decode.
+        final progressive = (streaming['formats'] is List
+                ? (streaming['formats'] as List).where(usable)
+                : const <dynamic>[])
+            .map((f) => Map<String, dynamic>.from(f as Map))
+            .toList();
+        final adaptive = (streaming['adaptiveFormats'] is List
+                ? (streaming['adaptiveFormats'] as List).where(usable)
+                : const <dynamic>[])
+            .map((f) => Map<String, dynamic>.from(f as Map))
+            .toList();
+        final formats = <Map<String, dynamic>>[...progressive, ...adaptive];
         if (formats.isEmpty) continue;
         int height(Map<String, dynamic> f) => (f['height'] is num)
             ? (f['height'] as num).toInt()
             : (int.tryParse(f['height']?.toString() ?? '') ?? 0);
-        final mp4 = formats.where((f) => f['mimeType'].toString().contains('mp4')).toList();
-        final pool = mp4.isNotEmpty ? mp4 : formats;
+        final pool = progressive.isNotEmpty ? progressive : formats;
         pool.sort((a, b) => height(b).compareTo(height(a)));
         final chosen = pool.firstWhere(
           (f) => height(f) <= 1080,
