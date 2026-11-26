@@ -9,7 +9,6 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'media_player.dart';
 import 'settings_manager.dart';
 import 'stem_mixer_service.dart';
-import '../ytmusic/ytmusic.dart';
 
 /// Opt-in beta: a muted, looping canvas video behind the full-screen player,
 /// mirroring the Android app's `CanvasArtworkPlayer`. The mobile app does not
@@ -97,7 +96,7 @@ class VideoBackdropService extends ChangeNotifier {
   ];
 
   Future<String?> _officialVideoId(
-      Map<String, dynamic> song, String fallback) async {
+      YoutubeExplode yt, Map<String, dynamic> song, String fallback) async {
     final title = song['title']?.toString() ?? '';
     final artist = song['artist']?.toString() ??
         (song['artists'] is List && (song['artists'] as List).isNotEmpty
@@ -108,27 +107,21 @@ class VideoBackdropService extends ChangeNotifier {
     final lowerClean = clean.toLowerCase();
     if (nonVideoWords.any((w) => lowerClean.contains(w))) return null;
     try {
-      final result = await GetIt.I<YTMusic>().search(
-        '"$clean" $artist official music video',
-        filter: 'videos',
-        limit: 10,
-      );
-      for (final section in (result['sections'] as List? ?? const [])) {
-        if (section is! Map) continue;
-        for (final item in (section['items'] as List? ?? const [])) {
-          if (item is! Map) continue;
-          final id = item['videoId']?.toString() ?? '';
-          final itemTitle = (item['title']?.toString() ?? '').toLowerCase();
-          if (id.isEmpty || itemTitle.isEmpty) continue;
-          if (nonVideoWords.any((w) => itemTitle.contains(w))) continue;
-          final keywords = lowerClean
-              .split(' ')
-              .where((w) => w.length > 2 && RegExp(r'[a-z0-9]').hasMatch(w))
-              .toList();
-          final matches = keywords.isEmpty ||
-              keywords.every((w) => itemTitle.contains(w));
-          if (matches) return id;
-        }
+      // Use the resolver's own search: YTMusic.search applies the user's
+      // "hide video songs" filter, which can hide every result we need.
+      final videos = await yt.search('"$clean" $artist official music video');
+      for (final item in videos) {
+        final id = item.id.value;
+        final itemTitle = item.title.toLowerCase();
+        if (id.isEmpty || itemTitle.isEmpty) continue;
+        if (nonVideoWords.any((w) => itemTitle.contains(w))) continue;
+        final keywords = lowerClean
+            .split(' ')
+            .where((w) => w.length > 2 && RegExp(r'[a-z0-9]').hasMatch(w))
+            .toList();
+        final matches =
+            keywords.isEmpty || keywords.every((w) => itemTitle.contains(w));
+        if (matches) return id;
       }
     } catch (e) {
       debugPrint('[video backdrop] official video search failed: $e');
@@ -145,7 +138,7 @@ class VideoBackdropService extends ChangeNotifier {
     final yt = YoutubeExplode();
     try {
       final song = _currentSong() ?? const <String, dynamic>{};
-      final targetId = await _officialVideoId(song, videoId);
+      final targetId = await _officialVideoId(yt, song, videoId);
       if (targetId == null) throw 'no official video (album-track artwork)';
       final manifest = await yt.videos.streamsClient.getManifest(
         targetId,
