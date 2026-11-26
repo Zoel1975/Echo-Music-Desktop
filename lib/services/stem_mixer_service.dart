@@ -133,6 +133,9 @@ class StemMixerService extends ChangeNotifier {
         debugPrint('stem playback toggle failed: $e');
       }
     }
+    // The player buttons rebuild from this notifier; without it the icon
+    // stayed on "pause" after a click while stems were active.
+    notifyListeners();
   }
 
   bool get stemsEnabled {

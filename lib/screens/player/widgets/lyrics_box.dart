@@ -7,6 +7,7 @@ import 'package:Echo/models/lyrics_model.dart'; // Import the new model
 import 'package:Echo/services/lyrics.dart'; // Import the new service
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/services/settings_manager.dart';
+import 'package:Echo/services/stem_mixer_service.dart';
 import 'translation_dialog.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
@@ -391,20 +392,38 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
     try {
       _streamSubscription =
           GetIt.I<MediaPlayer>().player.positionStream.listen((event) {
-        if (mounted) {
-          duration = event;
-          final newIndex = _findCurrentLyricIndex();
-          // Only update if the lyric index actually changed
-          if (newIndex != _currentLyricIndex) {
-            setState(() {
-              _currentLyricIndex = newIndex;
-            });
-            _scrollToCurrentLyric(newIndex);
-          }
-        }
+        // Stem mode keeps the main player paused; follow the stem clock instead.
+        if (StemMixerService.instance.state.stemsLoaded) return;
+        _updatePosition(event);
       });
+      // The mixer ticks its own position while stems are active.
+      StemMixerService.instance.addListener(_onMixerChanged);
+      StemMixerService.instance.positionNotifier.addListener(_onMixerChanged);
     } catch (e) {
       print("Error attaching position stream: $e");
+    }
+  }
+
+  void _onMixerChanged() {
+    if (!mounted) return;
+    final mixer = StemMixerService.instance;
+    if (!mixer.state.stemsLoaded) {
+      _updatePosition(GetIt.I<MediaPlayer>().player.position);
+    } else {
+      _updatePosition(mixer.position);
+    }
+  }
+
+  void _updatePosition(Duration event) {
+    if (!mounted) return;
+    duration = event;
+    final newIndex = _findCurrentLyricIndex();
+    // Only update if the lyric index actually changed
+    if (newIndex != _currentLyricIndex) {
+      setState(() {
+        _currentLyricIndex = newIndex;
+      });
+      _scrollToCurrentLyric(newIndex);
     }
   }
 
@@ -413,6 +432,8 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
     _userScrollTimer?.cancel();
     _glowController.dispose();
     _streamSubscription?.cancel();
+    StemMixerService.instance.removeListener(_onMixerChanged);
+    StemMixerService.instance.positionNotifier.removeListener(_onMixerChanged);
     super.dispose();
   }
 

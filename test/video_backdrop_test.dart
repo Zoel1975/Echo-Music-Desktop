@@ -15,6 +15,15 @@ void main() {
     expect(service, contains('yt.search('));
     expect(service, contains('StreamResolver.instance.resolveVideo('));
     expect(service, contains('void _safeVideo('));
+
+    final mixer =
+        File('lib/services/stem_mixer_service.dart').readAsStringSync();
+    expect(mixer, contains('notifyListeners();'));
+    final lyrics =
+        File('lib/screens/player/widgets/lyrics_box.dart').readAsStringSync();
+    expect(lyrics, contains('StemMixerService.instance.positionNotifier'));
+    expect(lyrics, contains('void _updatePosition(Duration event)'));
+    expect(lyrics, contains('stem clock instead'));
     expect(service, contains('2500'));
     expect(service, contains('5000'));
     expect(service, isNot(contains('mixer.seekBy(')));
