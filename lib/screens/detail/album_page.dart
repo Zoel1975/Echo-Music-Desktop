@@ -11,6 +11,7 @@ import 'package:Echo/services/library.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:Echo/utils/playable.dart';
+import 'package:Echo/utils/enhanced_image.dart';
 
 /// Desktop port of `ui/screens/AlbumScreen.kt`.
 ///
@@ -132,7 +133,7 @@ class _AlbumHeaderState extends State<_AlbumHeader> {
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: CachedNetworkImage(
-              imageUrl: thumbnails.first['url'] as String,
+              imageUrl: bestThumbnailUrl(thumbnails, width: 260) ?? '',
               width: 260,
               height: 260,
               fit: BoxFit.cover,

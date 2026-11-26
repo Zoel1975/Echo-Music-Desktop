@@ -17,6 +17,7 @@ import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
 import 'package:Echo/core/theme/tokens.dart';
 import 'package:Echo/core/widgets/echo_surface.dart';
 import 'package:Echo/utils/playlist_thumbnail.dart';
+import 'package:Echo/utils/enhanced_image.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -1016,9 +1017,7 @@ BottomModalLayout _addToPlaylist(BuildContext context, Map item) {
                               borderRadius: BorderRadius.circular(
                                   playlist['type'] == 'ARTIST' ? 50 : 3),
                               child: CachedNetworkImage(
-                                imageUrl: playlist['thumbnails']
-                                    .first['url']
-                                    .replaceAll('w540-h225', 'w60-h60'),
+                                imageUrl: bestThumbnailUrl(playlist['thumbnails'], width: 50) ?? '',
                                 height: 50,
                                 width: 50,
                               ))
@@ -1634,7 +1633,7 @@ BottomModalLayout _songBottomModal(BuildContext context, Map song) {
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: CachedNetworkImage(
-          imageUrl: song['thumbnails'].first['url'],
+          imageUrl: bestThumbnailUrl(song['thumbnails'], width: 48) ?? '',
           height: 50,
           width: song['type'] == 'VIDEO' ? 80 : 50,
         ),
@@ -2675,7 +2674,7 @@ class _SongWindowContent extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
-                imageUrl: song['thumbnails'].first['url'],
+                imageUrl: bestThumbnailUrl(song['thumbnails'], width: 48) ?? '',
                 height: 60,
                 width: song['type'] == 'VIDEO' ? 100 : 60,
                 fit: BoxFit.cover,
@@ -2921,7 +2920,7 @@ class _PlaylistWindowContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: (playlist['thumbnails']?.isNotEmpty == true)
                   ? CachedNetworkImage(
-                      imageUrl: playlist['thumbnails'].first['url'],
+                      imageUrl: bestThumbnailUrl(playlist['thumbnails'], width: 120) ?? '',
                       height: 60,
                       width: 60,
                       fit: BoxFit.cover,

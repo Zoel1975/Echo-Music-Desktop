@@ -266,6 +266,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "BackgroundExportTaskQueue": MessageLookupByLibrary.simpleMessage("پس منظر میں ایکسپورٹ قطار"),
     "BaseURL": MessageLookupByLibrary.simpleMessage("بنیادی URL"),
     "BitPerfectUSBDACOutput": MessageLookupByLibrary.simpleMessage("بٹ پرفیکٹ USB DAC آؤٹ پٹ"),
+    "VideoBehindArtwork": MessageLookupByLibrary.simpleMessage("فل اسکرین پر آرٹ ورک کے پیچھے ویڈیو"),
     "BlendTheEndOfASongIntoTheNext": MessageLookupByLibrary.simpleMessage("گانے کے آخر کو اگلے سے ملائیں"),
     "BlockedArtists": MessageLookupByLibrary.simpleMessage("بلاک شدہ فنکار"),
     "CacheAndDownloads": MessageLookupByLibrary.simpleMessage("کیش اور ڈاؤن لوڈز"),

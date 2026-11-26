@@ -333,6 +333,8 @@
   "BaseURL": "URL base",
   "@BaseURL": {},
   "BitPerfectUSBDACOutput": "Salida USB DAC bit-perfect",
+  "VideoBehindArtwork": "Vídeo detrás de la portada (pantalla completa)",
+  "@VideoBehindArtwork": {},
   "@BitPerfectUSBDACOutput": {},
   "BlendTheEndOfASongIntoTheNext": "Mezclar el final de una canción con la siguiente",
   "@BlendTheEndOfASongIntoTheNext": {},

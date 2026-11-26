@@ -9,6 +9,7 @@ import 'package:Echo/screens/browse/cubit/browse_cubit.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:Echo/utils/playable.dart';
+import 'package:Echo/utils/enhanced_image.dart';
 
 /// Desktop port of `ui/screens/artist/ArtistScreen.kt`.
 ///
@@ -105,7 +106,7 @@ class _ArtistHeader extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: CachedNetworkImage(
-              imageUrl: thumbnails.first['url'] as String,
+              imageUrl: bestThumbnailUrl(thumbnails, width: 260) ?? '',
               width: 260,
               height: 260,
               fit: BoxFit.cover,

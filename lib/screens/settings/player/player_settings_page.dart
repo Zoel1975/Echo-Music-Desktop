@@ -342,6 +342,14 @@ class PlayerSettingsPage extends StatelessWidget {
                       title: S.of(context).BitPerfectUSBDACOutput,
                       feature: 'Direct UAC1/UAC2 driver bypass (Android audio '
                           'HAL only).',
+                    ),
+                    _comingSoon(
+                      context,
+                      title: S.of(context).VideoBehindArtwork,
+                      feature: 'Needs a Windows video decoder and a resolved '
+                          'YouTube video stream. This build uses the audio-only '
+                          'media_kit backend; enabling libmpv video output would '
+                          'risk the playback stability already achieved.',
                       isLast: true,
                     ),
                     const SizedBox(height: 100), // extra padding for miniplayer

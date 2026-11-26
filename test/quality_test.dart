@@ -228,8 +228,8 @@ void main() {
         reason: 'extra desktop-only settings entry must be removed');
 
     final thumb = File('lib/utils/song_thumbnail.dart').readAsStringSync();
-    expect(thumb, contains("thumbnails.first['url']"),
-        reason: 'artwork is still used when present');
+    expect(thumb, contains('bestThumbnailUrl(thumbnails)'),
+        reason: 'the largest available artwork is still used when present');
     expect(thumb, contains('baseUrl.isEmpty'));
   });
 }

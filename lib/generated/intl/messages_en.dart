@@ -282,6 +282,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "BackgroundExportTaskQueue": MessageLookupByLibrary.simpleMessage("Background export task queue"),
     "BaseURL": MessageLookupByLibrary.simpleMessage("Base URL"),
     "BitPerfectUSBDACOutput": MessageLookupByLibrary.simpleMessage("Bit-perfect USB DAC output"),
+    "VideoBehindArtwork": MessageLookupByLibrary.simpleMessage("Video behind artwork (full screen)"),
     "BlendTheEndOfASongIntoTheNext": MessageLookupByLibrary.simpleMessage("Blend the end of a song into the next"),
     "BlockedArtists": MessageLookupByLibrary.simpleMessage("Blocked Artists"),
     "CacheAndDownloads": MessageLookupByLibrary.simpleMessage("Cache and downloads"),

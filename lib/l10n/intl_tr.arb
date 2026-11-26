@@ -333,6 +333,8 @@
   "BaseURL": "Temel URL",
   "@BaseURL": {},
   "BitPerfectUSBDACOutput": "Bit-perfect USB DAC çıkışı",
+  "VideoBehindArtwork": "Tam ekranda kapak arkasında video",
+  "@VideoBehindArtwork": {},
   "@BitPerfectUSBDACOutput": {},
   "BlendTheEndOfASongIntoTheNext": "Bir şarkının sonunu sonrakine karıştır",
   "@BlendTheEndOfASongIntoTheNext": {},

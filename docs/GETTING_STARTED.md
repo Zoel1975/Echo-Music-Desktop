@@ -79,6 +79,19 @@ Click the Cast icon in the player. The app searches over mDNS and DIAL. Select a
 Shortcuts are global and are ignored while typing in a text field. A held key
 restores only its own stem, so several keys can be held together.
 
+## Cover art and player background
+
+Playlist, album and song covers are loaded from the largest thumbnail the
+service provides and requested at the pixel size actually displayed (including
+the display scale factor), so artwork stays sharp in grids and full-screen
+headers.
+
+A "Video behind artwork (full screen)" entry is listed under player settings as
+a future update. The Windows build uses an audio-only media kit backend: real
+video playback would require a video decoder plus YouTube video-stream
+resolution, and adding libmpv video output risks the playback stability already
+achieved. It is shown explicitly instead of being a silent no-op.
+
 ## Troubleshooting
 
 | Symptom | Check |

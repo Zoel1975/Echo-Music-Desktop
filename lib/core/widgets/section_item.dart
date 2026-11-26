@@ -325,10 +325,7 @@ class SongTile extends StatelessWidget {
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(3),
           child: CachedNetworkImage(
-            imageUrl: thumbnails
-                .where((el) => el['width'] >= 50)
-                .toList()
-                .first['url'],
+            imageUrl: bestThumbnailUrl(thumbnails, width: 50) ?? '',
             height: height,
             width: 50,
             fit: BoxFit.cover,

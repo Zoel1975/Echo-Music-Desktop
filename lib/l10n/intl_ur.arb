@@ -333,6 +333,8 @@
   "BaseURL": "بنیادی URL",
   "@BaseURL": {},
   "BitPerfectUSBDACOutput": "بٹ پرفیکٹ USB DAC آؤٹ پٹ",
+  "VideoBehindArtwork": "فل اسکرین پر آرٹ ورک کے پیچھے ویڈیو",
+  "@VideoBehindArtwork": {},
   "@BitPerfectUSBDACOutput": {},
   "BlendTheEndOfASongIntoTheNext": "گانے کے آخر کو اگلے سے ملائیں",
   "@BlendTheEndOfASongIntoTheNext": {},

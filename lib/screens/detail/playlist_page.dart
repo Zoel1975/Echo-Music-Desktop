@@ -8,6 +8,7 @@ import 'package:Echo/core/widgets/back_button.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/services/stem_separation_queue.dart';
 import 'package:Echo/utils/playable.dart';
+import 'package:Echo/utils/enhanced_image.dart';
 import 'package:Echo/utils/safe_cast.dart';
 import 'package:Echo/ytmusic/ytmusic.dart';
 
@@ -390,7 +391,7 @@ class _PlaylistHeader extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: CachedNetworkImage(
-              imageUrl: thumb.first['url'] as String,
+              imageUrl: bestThumbnailUrl(thumb, width: 300) ?? '',
               width: 300,
               height: 300,
               fit: BoxFit.cover,
@@ -448,7 +449,7 @@ class _PlaylistRow extends StatelessWidget {
           : ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: CachedNetworkImage(
-                imageUrl: thumbnails.first['url'] as String,
+                imageUrl: bestThumbnailUrl(thumbnails, width: 48) ?? '',
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,

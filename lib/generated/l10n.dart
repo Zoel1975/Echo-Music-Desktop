@@ -1389,6 +1389,15 @@ class S {
     );
   }
 
+  String get VideoBehindArtwork {
+    return Intl.message(
+      'Video behind artwork (full screen)',
+      name: 'VideoBehindArtwork',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Blend the end of a song into the next`
   String get BlendTheEndOfASongIntoTheNext {
     return Intl.message(

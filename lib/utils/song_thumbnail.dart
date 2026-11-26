@@ -122,17 +122,16 @@ class _SongThumbnailState extends State<SongThumbnail> {
     // Music Flow / radio items can arrive without artwork. Calling `.first`
     // on a null list used to crash the whole app with a red error screen.
     final thumbnails = safeMapList(widget.song['thumbnails']);
-    final String baseUrl = thumbnails.isEmpty
-        ? ''
-        : (thumbnails.first['url']?.toString() ?? '');
+    final baseUrl = bestThumbnailUrl(thumbnails) ?? '';
     if (baseUrl.isEmpty) {
       return widget.errorWidget?.call(context, '', '') ??
           const Icon(Icons.music_note, color: Colors.white54);
     }
+    final dp = widget.dp ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
     final List<String> urls = [
-      getEnhancedImage(baseUrl, dp: widget.dp, width: widget.width),
+      getEnhancedImage(baseUrl, dp: dp, width: widget.width ?? 300),
+      getEnhancedImage(baseUrl, quality: 'high'),
       getEnhancedImage(baseUrl, quality: 'medium'),
-      getEnhancedImage(baseUrl, quality: 'low'),
     ];
     return _buildCachedNetworkImage(urls, 0);
   }
