@@ -8,6 +8,9 @@ import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../core/app_messenger.dart';
+
+import 'bottom_message.dart';
 import 'download_manager.dart';
 import 'file_storage.dart';
 import 'settings_manager.dart';
@@ -134,6 +137,15 @@ class StemSeparationQueue extends ChangeNotifier {
   bool get allBusy => _allBusy;
   String get allStatus => _allStatus;
   double get allProgress => _allProgress;
+
+  /// Global feedback that survives leaving the playlist page: the batch can
+  /// run for hours, so the user must be able to see that it is alive.
+  void _notify(String text) {
+    final messenger = appScaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    BottomMessage.showOn(messenger, text,
+        duration: const Duration(seconds: 5));
+  }
 
   void _setAll(String status, double progress) {
     _allStatus = status;
@@ -290,6 +302,7 @@ class StemSeparationQueue extends ChangeNotifier {
     _playlistSkipped = 0;
     _playlistErrors.clear();
     notifyListeners();
+    _notify('Stem separation started for $songs.length songs (runs in background)');
     try {
       await prepare();
       final downloads = GetIt.I<DownloadManager>();
@@ -359,6 +372,11 @@ class StemSeparationQueue extends ChangeNotifier {
     } finally {
       _playlistBusy = false;
       notifyListeners();
+      _notify(_playlistErrors.isEmpty
+          ? 'Stem batch finished: $_playlistSeparated separated, '
+              '$_playlistSkipped already ready'
+          : 'Stem batch finished: $_playlistSeparated separated, '
+              '${_playlistErrors.length} failed — ${_playlistErrors.first}');
     }
   }
 

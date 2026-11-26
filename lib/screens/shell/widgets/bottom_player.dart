@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
 
@@ -9,6 +10,7 @@ import 'package:Echo/core/widgets/echo_surface.dart';
 import 'package:Echo/core/widgets/motion_effects.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/services/settings_manager.dart';
+import 'package:Echo/services/stem_mixer_service.dart';
 import 'package:Echo/utils/adaptive_widgets/buttons.dart';
 import 'package:Echo/utils/adaptive_widgets/progress_ring.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
@@ -195,33 +197,42 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                 valueListenable:
                                     GetIt.I<MediaPlayer>().buttonState,
                                 builder: (context, buttonState, child) {
-                                  return (buttonState == ButtonState.loading)
-                                      ? const SizedBox(
+                                  return AnimatedBuilder(
+                                    animation: StemMixerService.instance,
+                                    builder: (context, _) {
+                                      final mixer = StemMixerService.instance;
+                                      final stems = mixer.state.stemsLoaded;
+                                      if (!stems &&
+                                          buttonState == ButtonState.loading) {
+                                        return const SizedBox(
                                           height: 24,
                                           width: 24,
                                           child: AdaptiveProgressRing(),
-                                        )
-                                      : AdaptiveIconButton(
-                                          onPressed: () {
-                                            GetIt.I<MediaPlayer>()
-                                                    .player
-                                                    .playing
-                                                ? GetIt.I<MediaPlayer>()
-                                                    .player
-                                                    .pause()
-                                                : GetIt.I<MediaPlayer>()
-                                                    .player
-                                                    .play();
-                                          },
-                                          icon: Icon(
-                                            buttonState ==
-                                                    ButtonState.playing
-                                                ? Icons.pause
-                                                : Icons.play_arrow,
-                                            size: 30, // Slightly smaller play button
-                                            color: foreground,
-                                          ),
                                         );
+                                      }
+                                      final playing = stems
+                                          ? mixer.isPlaying
+                                          : buttonState == ButtonState.playing;
+                                      return AdaptiveIconButton(
+                                        onPressed: () {
+                                          if (mixer.state.stemsLoaded) {
+                                            unawaited(mixer
+                                                .setPlaying(!mixer.isPlaying));
+                                          } else {
+                                            final p =
+                                                GetIt.I<MediaPlayer>().player;
+                                            unawaited(
+                                                p.playing ? p.pause() : p.play());
+                                          }
+                                        },
+                                        icon: Icon(
+                                          playing ? Icons.pause : Icons.play_arrow,
+                                          size: 30,
+                                          color: foreground,
+                                        ),
+                                      );
+                                    },
+                                  );
                                 },
                               ),
                               const SizedBox(width: 4),

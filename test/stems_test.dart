@@ -104,6 +104,34 @@ void main() {
         File('lib/services/keyboard_shortcuts.dart').readAsStringSync();
     expect(keys, contains('KeyRepeatEvent'));
     expect(keys, contains('void _safe('));
-    expect(keys, contains('if (!_vHeld) return'));
+    expect(keys, contains('LogicalKeyboardKey.keyD'));
+    expect(keys, contains('LogicalKeyboardKey.keyB'));
+    expect(keys, contains('LogicalKeyboardKey.keyI'));
+    expect(keys, contains('stemHoldKeys'));
+    expect(keys, contains('mixer.setPlaying('));
+    expect(mixer, contains('StreamSubscription<bool>? _mainGuard'));
+    expect(mixer, contains('Future<void> _installMainGuard('));
+    expect(mixer, contains('bool get isPlaying'));
+    expect(mixer, contains('Future<void> setPlaying(bool value)'));
+
+    expect(mixer, contains('List<Color> stemColors'));
+    expect(mixer, contains('const List<String> stemKeys'));
+    final player =
+        File('lib/screens/player/player_page.dart').readAsStringSync();
+    expect(player, contains('_stemChip('));
+    expect(player, contains('stemShortNames[i]'));
+    expect(player, contains('Tooltip('));
+    final modalSrc =
+        File('lib/utils/bottom_modals.dart').readAsStringSync();
+    expect(modalSrc, contains('stemKeys[i]'));
+    expect(modalSrc, contains('stemColors[i]'));
+
+    expect(queue, contains('void _notify('));
+    expect(queue, contains('BottomMessage.showOn('));
+    expect(player, contains('mixer.setPlaying(!mixer.isPlaying)'));
+    final mini = File('lib/screens/shell/widgets/bottom_player.dart')
+        .readAsStringSync();
+    expect(mini, contains('StemMixerService.instance'));
+    expect(mini, contains('.setPlaying(!mixer.isPlaying)'));
   });
 }

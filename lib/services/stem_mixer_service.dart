@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
@@ -13,6 +14,14 @@ import 'stem_separation_queue.dart';
 /// Four stem slots in the order used by the Demucs ONNX output:
 /// drums, bass, other, vocals.
 const List<String> stemNames = ['Drums', 'Bass', 'Other', 'Vocals'];
+const List<String> stemShortNames = ['DRM', 'BAS', 'OTH', 'VOC'];
+const List<String> stemKeys = ['D', 'B', 'I', 'V'];
+const List<Color> stemColors = [
+  Color(0xFFF59E0B), // Drums — amber
+  Color(0xFFA855F7), // Bass — purple
+  Color(0xFF14B8A6), // Other — teal
+  Color(0xFFED5564), // Vocals — app seed colour
+];
 
 class StemMixState {
   const StemMixState({
@@ -50,6 +59,7 @@ class StemMixerService extends ChangeNotifier {
   String? _pendingVideoId;
   final List<AudioPlayer?> _players = List<AudioPlayer?>.filled(4, null);
   Timer? _syncTimer;
+  StreamSubscription<bool>? _mainGuard;
   Future<void> _transition = Future.value();
   double _masterVolume = 1.0;
   bool _wasPlaying = false;
@@ -67,6 +77,26 @@ class StemMixerService extends ChangeNotifier {
         'positionMs': p?.position.inMilliseconds ?? 0,
         'volume': p?.volume ?? 0.0,
       }).toList();
+
+  bool get isPlaying => _players.any((p) => p?.playing ?? false);
+
+  /// Play/pause all four stem players together. Used by the Space shortcut so
+  /// it controls the audible source instead of the muted main player.
+  Future<void> setPlaying(bool value) async {
+    _wasPlaying = value;
+    for (final player in _players) {
+      if (player == null) continue;
+      try {
+        if (value) {
+          await player.play();
+        } else {
+          await player.pause();
+        }
+      } catch (e) {
+        debugPrint('stem playback toggle failed: $e');
+      }
+    }
+  }
 
   bool get stemsEnabled {
     try {
@@ -249,6 +279,7 @@ class StemMixerService extends ChangeNotifier {
       _wasPlaying = wasPlaying;
       _masterVolume = master;
       _state = _state.copyWith(stemsLoaded: true);
+      await _installMainGuard(main.player);
       _startSyncTimer();
     } catch (e) {
       debugPrint('stem mode failed: $e');
@@ -270,7 +301,22 @@ class StemMixerService extends ChangeNotifier {
 
   Future<void> _enterStemMode() => _enqueue(_enterPlayers);
 
+  /// MediaPlayer starts the main track again on several async paths (queue
+  /// restore, crossfade, playAll). Keep a single listener that pauses it for
+  /// the whole time stem mode is active, so the two are never audible at once.
+  Future<void> _installMainGuard(AudioPlayer main) async {
+    await _mainGuard?.cancel();
+    _mainGuard = main.playingStream.listen((playing) {
+      if (playing && _state.stemsLoaded) {
+        debugPrint('[stems] main player resumed during stem mode; pausing it');
+        unawaited(main.pause().catchError((Object e, StackTrace st) {}));
+      }
+    });
+  }
+
   Future<void> _exitPlayersOnly() async {
+    await _mainGuard?.cancel();
+    _mainGuard = null;
     _syncTimer?.cancel();
     _syncTimer = null;
     final first = _players.firstWhere((p) => p != null, orElse: () => null);
@@ -321,6 +367,8 @@ class StemMixerService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _mainGuard?.cancel();
+    _mainGuard = null;
     _syncTimer?.cancel();
     _syncTimer = null;
     unawaited(_exitStemMode(resumeMain: false));

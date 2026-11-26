@@ -11,12 +11,22 @@ import 'stem_separation_queue.dart';
 
 /// Global keyboard shortcuts for playback and the stem mixer.
 ///
-/// Space: play/pause, arrows: previous/next, S: toggle stems, 1-4: toggle a
-/// stem, V: tap toggles vocals, hold mutes vocals until the key is released.
-Timer? _vHoldTimer;
-bool _vHeld = false;
-bool _vTemporaryMute = false;
-List<bool>? _vSavedPattern;
+/// Space: play/pause (controls the stems while they are active)
+/// ← / →: previous/next track, S: toggle stems, 1-4: toggle a stem
+/// D / B / I / V: tap toggles Drums / Bass / Other / Vocals, hold mutes that
+/// stem only while the key is down and restores its previous state on release.
+final Map<LogicalKeyboardKey, int> stemHoldKeys = {
+  LogicalKeyboardKey.keyD: 0,
+  LogicalKeyboardKey.keyB: 1,
+  LogicalKeyboardKey.keyI: 2,
+  LogicalKeyboardKey.keyV: 3,
+};
+
+final List<bool> _stemHeld = List<bool>.filled(4, false);
+final List<Timer?> _stemHoldTimers = List<Timer?>.filled(4, null);
+final List<bool?> _stemSavedEnabled = List<bool?>.filled(4, null);
+
+bool get _anyStemHeld => _stemHeld.any((held) => held);
 
 /// Player calls are fire-and-forget from the UI; contain failures so a key
 /// press can never produce an uncaught async exception.
@@ -27,10 +37,12 @@ void _safe(Future<void> Function() action) {
 }
 
 KeyEventResult handleGlobalKey(FocusNode node, KeyEvent event) {
-  // Never swallow keys typed into search boxes or settings fields.
+  // Never swallow keys typed into search boxes or settings fields. A held
+  // stem key still receives its release so it can restore the mix.
   final focusWidget = FocusManager.instance.primaryFocus?.context?.widget;
-  // Let a held V finish (and restore vocals) even if focus moved to a field.
-  if (focusWidget is EditableText && !_vHeld) return KeyEventResult.ignored;
+  if (focusWidget is EditableText && !_anyStemHeld) {
+    return KeyEventResult.ignored;
+  }
   if (event is KeyRepeatEvent) return KeyEventResult.handled;
 
   if (!GetIt.I.isRegistered<MediaPlayer>()) return KeyEventResult.ignored;
@@ -38,8 +50,14 @@ KeyEventResult handleGlobalKey(FocusNode node, KeyEvent event) {
   final key = event.logicalKey;
 
   if (key == LogicalKeyboardKey.space) {
-    final p = player.player;
-    _safe(() => p.playing ? p.pause() : p.play());
+    if (GetIt.I.isRegistered<StemMixerService>() &&
+        GetIt.I<StemMixerService>().state.stemsLoaded) {
+      final mixer = GetIt.I<StemMixerService>();
+      unawaited(mixer.setPlaying(!mixer.isPlaying));
+    } else {
+      final p = player.player;
+      _safe(() => p.playing ? p.pause() : p.play());
+    }
     return KeyEventResult.handled;
   }
   if (key == LogicalKeyboardKey.arrowRight) {
@@ -65,8 +83,9 @@ KeyEventResult handleGlobalKey(FocusNode node, KeyEvent event) {
     unawaited(_toggleStem(digitIndex));
     return KeyEventResult.handled;
   }
-  if (key == LogicalKeyboardKey.keyV) {
-    _handleVocalKey(event);
+  final stemIndex = stemHoldKeys[key];
+  if (stemIndex != null) {
+    _handleStemKey(event, stemIndex);
     return KeyEventResult.handled;
   }
   return KeyEventResult.ignored;
@@ -105,37 +124,34 @@ Future<void> _toggleStem(int index) async {
   mixer.setStemEnabled(index, !mixer.state.enabled[index]);
 }
 
-void _handleVocalKey(KeyEvent event) {
+void _handleStemKey(KeyEvent event, int index) {
   if (!GetIt.I.isRegistered<StemMixerService>()) return;
   final mixer = GetIt.I<StemMixerService>();
   if (event is KeyDownEvent) {
-    if (_vHeld) return; // key repeat guard
-    _vHeld = true;
-    _vTemporaryMute = false;
-    _vSavedPattern = null;
-    _vHoldTimer?.cancel();
-    _vHoldTimer = Timer(const Duration(milliseconds: 250), () async {
-      if (!_vHeld) return;
+    if (_stemHeld[index]) return; // key repeat guard
+    _stemHeld[index] = true;
+    _stemSavedEnabled[index] = null;
+    _stemHoldTimers[index]?.cancel();
+    _stemHoldTimers[index] = Timer(const Duration(milliseconds: 250), () async {
+      if (!_stemHeld[index]) return;
       await _ensureStems();
-      if (!_vHeld) return; // released while the stems were loading
-      if (!mixer.state.stemsLoaded) return;
-      _vSavedPattern = List<bool>.from(mixer.state.enabled);
-      mixer.setStemEnabled(3, false);
-      _vTemporaryMute = true;
+      if (!_stemHeld[index] || !mixer.state.stemsLoaded) return;
+      _stemSavedEnabled[index] = mixer.state.enabled[index];
+      mixer.setStemEnabled(index, false);
     });
     return;
   }
-  if (event is KeyUpEvent && _vHeld) {
-    _vHeld = false;
-    _vHoldTimer?.cancel();
-    _vHoldTimer = null;
-    if (_vTemporaryMute) {
-      final saved = _vSavedPattern;
-      if (saved != null) mixer.applyPattern(saved);
-      _vTemporaryMute = false;
-      _vSavedPattern = null;
+  if (event is KeyUpEvent && _stemHeld[index]) {
+    _stemHeld[index] = false;
+    _stemHoldTimers[index]?.cancel();
+    _stemHoldTimers[index] = null;
+    final saved = _stemSavedEnabled[index];
+    if (saved != null) {
+      // Restore only this stem so multiple held keys compose correctly.
+      mixer.setStemEnabled(index, saved);
+      _stemSavedEnabled[index] = null;
     } else {
-      unawaited(_toggleStem(3));
+      unawaited(_toggleStem(index));
     }
   }
 }

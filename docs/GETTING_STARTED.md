@@ -69,14 +69,15 @@ Click the Cast icon in the player. The app searches over mDNS and DIAL. Select a
 
 | Key | Action |
 |---|---|
-| Space | Play / pause |
-| ← / → | Previous / next track |
+| Space | Play / pause — controls the separated stems while they are active |
+| Left / Right arrow | Previous / next track |
 | S | Enable or disable separated stems for the current track |
 | 1 / 2 / 3 / 4 | Toggle Drums / Bass / Other / Vocals |
-| V (tap) | Toggle the vocals stem |
-| V (hold) | Mute vocals while the key is held, then restore |
+| D / B / I / V (tap) | Toggle Drums / Bass / Other (instrument) / Vocals |
+| D / B / I / V (hold) | Mute that stem while the key is held, then restore it |
 
-Shortcuts are global and are ignored while typing in a text field.
+Shortcuts are global and are ignored while typing in a text field. A held key
+restores only its own stem, so several keys can be held together.
 
 ## Troubleshooting
 

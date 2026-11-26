@@ -129,16 +129,9 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
       return;
     }
     _showMessage('Separazione di ${_songs.length} brani avviata…');
+    // The queue posts a global toast when the (possibly hours-long) job ends,
+    // so it is visible even after leaving this page.
     await queue.enqueuePlaylist(_songs);
-    if (!mounted) return;
-    final errors = queue.playlistErrors;
-    if (errors.isEmpty) {
-      _showMessage('Stem pronti: ${queue.playlistSeparated} separati, '
-          '${queue.playlistSkipped} già presenti');
-    } else {
-      _showMessage('Stem: ${queue.playlistSeparated} separati, '
-          '${errors.length} errori — ${errors.first}');
-    }
   }
 
   Future<void> _addSongs() async {

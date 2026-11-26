@@ -827,28 +827,41 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
               child: ValueListenableBuilder(
                 valueListenable: mediaPlayer.buttonState,
                 builder: (context, ButtonState value, child) {
-                  if (value == ButtonState.loading) {
-                    return const Center(
-                        child: CircularProgressIndicator(color: Colors.black));
-                  }
-                  final wavy =
-                      playerSettings.extra<bool>('wavyPlayPause', false);
-                    return IconButton(
-                      onPressed: () {
-                        value == ButtonState.playing
-                            ? mediaPlayer.player.pause()
-                            : mediaPlayer.player.play();
-                      },
-                      icon: wavy
-                          ? WavyPlayPause(playing: value == ButtonState.playing)
-                          : Icon(
-                              value == ButtonState.playing
-                                  ? Icons.pause
-                                  : Icons.play_arrow,
-                              size: 32,
-                              color: Colors.black,
-                            ),
-                    );
+                  return AnimatedBuilder(
+                    animation: StemMixerService.instance,
+                    builder: (context, _) {
+                      final mixer = StemMixerService.instance;
+                      if (value == ButtonState.loading &&
+                          !mixer.state.stemsLoaded) {
+                        return const Center(
+                            child:
+                                CircularProgressIndicator(color: Colors.black));
+                      }
+                      final playing = mixer.state.stemsLoaded
+                          ? mixer.isPlaying
+                          : value == ButtonState.playing;
+                      final wavy =
+                          playerSettings.extra<bool>('wavyPlayPause', false);
+                      return IconButton(
+                        onPressed: () {
+                          if (mixer.state.stemsLoaded) {
+                            unawaited(mixer.setPlaying(!mixer.isPlaying));
+                          } else {
+                            unawaited(playing
+                                ? mediaPlayer.player.pause()
+                                : mediaPlayer.player.play());
+                          }
+                        },
+                        icon: wavy
+                            ? WavyPlayPause(playing: playing)
+                            : Icon(
+                                playing ? Icons.pause : Icons.play_arrow,
+                                size: 32,
+                                color: Colors.black,
+                              ),
+                      );
+                    },
+                  );
                 },
               ),
             ),
@@ -910,12 +923,6 @@ class _StemArtworkControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final mixer = StemMixerService.instance;
     final scheme = Theme.of(context).colorScheme;
-    final icons = <IconData>[
-      Icons.graphic_eq,
-      Icons.audiotrack,
-      Icons.equalizer,
-      Icons.mic_none,
-    ];
     return Center(
       child: AnimatedBuilder(
         animation: mixer,
@@ -931,23 +938,32 @@ class _StemArtworkControls extends StatelessWidget {
                 Icon(Icons.call_split, size: 16, color: scheme.primary),
                 const SizedBox(width: EchoTokens.space1),
                 ...List.generate(4, (i) {
-                  return _stemIcon(
-                    icon: icons[i],
-                    active: state.stemsLoaded && state.enabled[i],
-                    enabled: state.stemsLoaded,
-                    color: scheme,
-                    onTap: () => mixer.setStemEnabled(i, !state.enabled[i]),
+                  return Tooltip(
+                    message: '${stemNames[i]} (${stemKeys[i]} — tap to toggle, '
+                        'hold to mute)',
+                    child: _stemChip(
+                      label: stemShortNames[i],
+                      color: stemColors[i],
+                      active: state.stemsLoaded && state.enabled[i],
+                      enabled: state.stemsLoaded,
+                      scheme: scheme,
+                      onTap: () => mixer.setStemEnabled(i, !state.enabled[i]),
+                    ),
                   );
                 }),
-                _stemIcon(
-                  icon: Icons.more_horiz,
-                  active: false,
-                  enabled: true,
-                  color: scheme,
-                  onTap: () => Modals.showStemsSheet(
-                    context,
-                    GetIt.I<MediaPlayer>().currentSongNotifier.value?.extras ??
-                        {},
+                Tooltip(
+                  message: 'All stem options',
+                  child: _stemChip(
+                    label: 'MORE',
+                    color: scheme.primary,
+                    active: false,
+                    enabled: true,
+                    scheme: scheme,
+                    onTap: () => Modals.showStemsSheet(
+                      context,
+                      GetIt.I<MediaPlayer>().currentSongNotifier.value?.extras ??
+                          {},
+                    ),
                   ),
                 ),
               ],
@@ -958,26 +974,57 @@ class _StemArtworkControls extends StatelessWidget {
     );
   }
 
-  static Widget _stemIcon({
-    required IconData icon,
+  static Widget _stemChip({
+    required String label,
+    required Color color,
     required bool active,
     required bool enabled,
-    required ColorScheme color,
+    required ColorScheme scheme,
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(EchoTokens.floatingBarRadius),
+      borderRadius: BorderRadius.circular(EchoTokens.cornerSmall),
       onTap: enabled ? onTap : null,
-      child: Padding(
-        padding: const EdgeInsets.all(EchoTokens.space1 + 2),
-        child: Icon(
-          icon,
-          size: 16,
-          color: !enabled
-              ? color.onSurface.withValues(alpha: 0.35)
-              : active
-                  ? color.primary
-                  : color.onSurface.withValues(alpha: 0.85),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(
+            horizontal: EchoTokens.space2, vertical: EchoTokens.space1),
+        decoration: BoxDecoration(
+          color: active
+              ? color.withValues(alpha: 0.22)
+              : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(EchoTokens.cornerSmall),
+          border: Border.all(
+            color: active ? color : scheme.outlineVariant.withValues(alpha: 0.4),
+            width: active ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: enabled ? color : scheme.onSurface.withValues(alpha: 0.3),
+              ),
+            ),
+            const SizedBox(width: EchoTokens.space1),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
+                color: !enabled
+                    ? scheme.onSurface.withValues(alpha: 0.35)
+                    : active
+                        ? scheme.onSurface
+                        : scheme.onSurface.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
         ),
       ),
     );

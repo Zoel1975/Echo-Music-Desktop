@@ -38,10 +38,12 @@ The model is HT-Demucs (MIT), exported to ONNX by StemSplitio. No audio is uploa
 | ← / → | Previous / next track |
 | S | Enable or disable stems |
 | 1 / 2 / 3 / 4 | Toggle Drums / Bass / Other / Vocals |
-| V (tap) | Toggle vocals |
-| V (hold) | Mute vocals while held, then restore |
+| D / B / I / V (tap) | Toggle Drums / Bass / Other / Vocals |
+| D / B / I / V (hold) | Mute that stem while held, then restore it |
 
-Shortcuts are ignored while typing in a text field. A held V always restores the previous mix on release.
+Shortcuts are ignored while typing in a text field. Each stem has its own
+colour and short label (DRM / BAS / OTH / VOC) on the cover and in the Stems
+sheet, so the four channels are easy to tell apart.
 
 ## Cleanup
 

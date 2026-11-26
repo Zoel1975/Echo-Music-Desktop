@@ -265,12 +265,6 @@ class Modals {
                   }
                 }
               }
-              final icons = <IconData>[
-                Icons.graphic_eq,
-                Icons.audiotrack,
-                Icons.equalizer,
-                Icons.mic_none,
-              ];
               return Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: EchoTokens.space2, vertical: EchoTokens.space2),
@@ -306,7 +300,8 @@ class Modals {
                           if (state.stemsLoaded) ...[
                             const Divider(height: EchoTokens.space4),
                             Text(
-                              '${state.enabled.where((v) => v).length} of 4 active',
+                              '${state.enabled.where((v) => v).length} of 4 active '
+                              '· tap a stem or hold D/B/I/V to mute it',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             const SizedBox(height: EchoTokens.space3),
@@ -330,29 +325,32 @@ class Modals {
                                         vertical: EchoTokens.space2),
                                     decoration: BoxDecoration(
                                       color: active
-                                          ? scheme.primary.withValues(alpha: 0.18)
+                                          ? stemColors[i].withValues(alpha: 0.18)
                                           : scheme.surfaceContainerHighest
                                               .withValues(alpha: 0.5),
                                       borderRadius: BorderRadius.circular(
                                           EchoTokens.cornerMedium),
                                       border: Border.all(
                                         color: active
-                                            ? scheme.primary
+                                            ? stemColors[i]
                                             : scheme.outlineVariant
                                                 .withValues(alpha: 0.4),
                                       ),
                                     ),
                                     child: Row(
                                       children: [
-                                        Icon(icons[i],
-                                            size: 18,
-                                            color: active
-                                                ? scheme.primary
-                                                : scheme.onSurfaceVariant),
+                                        Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: stemColors[i],
+                                          ),
+                                        ),
                                         const SizedBox(width: EchoTokens.space2),
                                         Expanded(
                                           child: Text(
-                                            stemNames[i],
+                                            '${stemNames[i]}  [${stemKeys[i]}]',
                                             style: TextStyle(
                                               color: active
                                                   ? scheme.onSurface
