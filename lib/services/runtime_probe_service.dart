@@ -1548,6 +1548,18 @@ class RuntimeProbeService {
       });
       return;
     }
+    if (path == '/stems/batch' && request.method == 'POST') {
+      final songs = OnlinePlaylistPage.songs ?? const <Map<String, dynamic>>[];
+      final queue = StemSeparationQueue.instance;
+      await queue.enqueuePlaylist(List<Map<String, dynamic>>.from(songs));
+      _json(request.response, 200, {
+        'songs': songs.length,
+        'separated': queue.playlistSeparated,
+        'skipped': queue.playlistSkipped,
+        'errors': queue.playlistErrors,
+      });
+      return;
+    }
     if (path == '/stems/run' && request.method == 'POST') {
       final id = request.uri.queryParameters['id'] ?? 'probe-stems';
       final source = request.uri.queryParameters['path'] ?? '';

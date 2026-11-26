@@ -89,6 +89,15 @@ void main() {
     expect(queue, contains("'.decode.wav'"));
     expect(queue, contains("'.part'"));
     expect(queue, contains('stemPaths(videoId).every'));
+    expect(queue, contains('_playlistErrors'));
+    expect(queue, contains('playlistSeparated'));
+    expect(queue, contains('Duration(milliseconds: 200)'));
+    expect(queue, contains('lastDownloadError'));
+    final page =
+        File('lib/screens/detail/playlist_page.dart').readAsStringSync();
+    expect(page, contains('Separazione già in corso'));
+    expect(page, contains('Nessun brano nella playlist'));
+    expect(page, contains('playlistErrors'));
 
     final keys =
         File('lib/services/keyboard_shortcuts.dart').readAsStringSync();

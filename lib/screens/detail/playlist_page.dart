@@ -119,9 +119,26 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
   }
 
   Future<void> _separateAll() async {
-    if (_songs.isEmpty || StemSeparationQueue.instance.playlistBusy) return;
-    await StemSeparationQueue.instance.enqueuePlaylist(_songs);
-    if (mounted) _showMessage('Separazione stem completata');
+    final queue = StemSeparationQueue.instance;
+    if (queue.playlistBusy) {
+      _showMessage('Separazione già in corso');
+      return;
+    }
+    if (_songs.isEmpty) {
+      _showMessage('Nessun brano nella playlist');
+      return;
+    }
+    _showMessage('Separazione di ${_songs.length} brani avviata…');
+    await queue.enqueuePlaylist(_songs);
+    if (!mounted) return;
+    final errors = queue.playlistErrors;
+    if (errors.isEmpty) {
+      _showMessage('Stem pronti: ${queue.playlistSeparated} separati, '
+          '${queue.playlistSkipped} già presenti');
+    } else {
+      _showMessage('Stem: ${queue.playlistSeparated} separati, '
+          '${errors.length} errori — ${errors.first}');
+    }
   }
 
   Future<void> _addSongs() async {
@@ -190,7 +207,9 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
                 child: Column(
                   children: [
                     Text('Separating stems ${queue.playlistDone}/'
-                        '${queue.playlistTotal}'),
+                        '${queue.playlistTotal} · '
+                        '${queue.playlistSeparated} done, '
+                        '${queue.playlistErrors.length} failed'),
                     const SizedBox(height: 4),
                     LinearProgressIndicator(value: queue.playlistProgress),
                   ],

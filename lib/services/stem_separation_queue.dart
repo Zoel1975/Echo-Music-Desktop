@@ -100,6 +100,9 @@ class StemSeparationQueue extends ChangeNotifier {
   bool _playlistBusy = false;
   int _playlistDone = 0;
   int _playlistTotal = 0;
+  final List<String> _playlistErrors = [];
+  int _playlistSeparated = 0;
+  int _playlistSkipped = 0;
   bool _allBusy = false;
   String _allStatus = '';
   double _allProgress = 0.0;
@@ -123,6 +126,9 @@ class StemSeparationQueue extends ChangeNotifier {
   bool get playlistBusy => _playlistBusy;
   int get playlistDone => _playlistDone;
   int get playlistTotal => _playlistTotal;
+  List<String> get playlistErrors => List.unmodifiable(_playlistErrors);
+  int get playlistSeparated => _playlistSeparated;
+  int get playlistSkipped => _playlistSkipped;
   double get playlistProgress =>
       _playlistTotal == 0 ? 0 : _playlistDone / _playlistTotal;
   bool get allBusy => _allBusy;
@@ -259,36 +265,80 @@ class StemSeparationQueue extends ChangeNotifier {
     }
   }
 
+  Future<String?> _downloadedPath(String videoId) async {
+    try {
+      for (final download in GetIt.I<DownloadManager>().downloads.value) {
+        if (download['videoId']?.toString() != videoId) continue;
+        final path = download['path']?.toString();
+        if (path != null && path.isNotEmpty && File(path).existsSync()) {
+          return path;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Queue every track of a playlist. Missing files are downloaded first;
-  /// a failed track does not stop the rest.
+  /// a failed track does not stop the rest. Every failure is recorded so the
+  /// button can explain what happened instead of silently doing nothing.
   Future<void> enqueuePlaylist(List<Map<String, dynamic>> songs) async {
     if (_playlistBusy) return;
     _playlistBusy = true;
     _playlistTotal = songs.length;
     _playlistDone = 0;
+    _playlistSeparated = 0;
+    _playlistSkipped = 0;
+    _playlistErrors.clear();
     notifyListeners();
     try {
       await prepare();
       for (final song in songs) {
         final id = song['videoId']?.toString() ?? '';
-        if (id.isNotEmpty && !cached(id)) {
-          try {
-            var path = song['path']?.toString();
-            if (path == null || path.isEmpty || !File(path).existsSync()) {
-              await GetIt.I<DownloadManager>().downloadSong(song);
-              for (final d in GetIt.I<DownloadManager>().downloads.value) {
-                if (d['videoId']?.toString() == id && d['path'] != null) {
-                  path = d['path'].toString();
-                  break;
-                }
+        if (id.isEmpty) {
+          _playlistErrors.add('Brano senza identificativo');
+          _playlistDone++;
+          notifyListeners();
+          continue;
+        }
+        if (cached(id)) {
+          _playlistSkipped++;
+          _playlistDone++;
+          notifyListeners();
+          continue;
+        }
+        try {
+          var path = song['path']?.toString();
+          if (path == null || path.isEmpty || !File(path).existsSync()) {
+            path = await _downloadedPath(id);
+          }
+          if (path == null) {
+            final downloads = GetIt.I<DownloadManager>();
+            await downloads.downloadSong(song);
+            // A download can be queued behind other downloads, so the path is
+            // not necessarily available when downloadSong returns.
+            for (var attempt = 0; attempt < 300 && path == null; attempt++) {
+              path = await _downloadedPath(id);
+              if (path == null) {
+                await Future<void>.delayed(const Duration(milliseconds: 200));
               }
             }
-            if (path != null && path.isNotEmpty && File(path).existsSync()) {
-              await enqueue(id, path);
+            if (path == null) {
+              final reason = downloads.lastDownloadError;
+              throw reason == null
+                  ? 'download non riuscito'
+                  : 'download non riuscito: $reason';
             }
-          } catch (e) {
-            debugPrint('stem playlist: $id failed: $e');
           }
+          if (!File(path).existsSync()) throw 'file audio mancante: $path';
+          final task = await enqueue(id, path);
+          if (task.status == StemTaskStatus.failed) {
+            _playlistErrors.add('$id: ${task.error ?? 'separazione fallita'}');
+          } else {
+            _playlistSeparated++;
+          }
+        } catch (e) {
+          debugPrint('stem playlist: $id failed: $e');
+          _playlistErrors.add('$id: $e');
         }
         _playlistDone++;
         notifyListeners();
