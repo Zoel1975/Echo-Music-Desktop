@@ -410,6 +410,19 @@ class StemMixerService extends ChangeNotifier {
   void _startPositionTimer() {
     _positionTimer?.cancel();
     _positionTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      // MediaPlayer re-applies its track fade-in volume after we mute it, so
+      // hold the main player muted for the whole stem session. While it is
+      // still audible, adopt its settled volume for the stem mix.
+      if (_state.stemsLoaded && GetIt.I.isRegistered<MediaPlayer>()) {
+        final main = GetIt.I<MediaPlayer>().player;
+        if (main.volume > 0.01) {
+          _masterVolume = main.volume;
+          _updateVolumes();
+          try {
+            unawaited(main.setVolume(0));
+          } catch (_) {}
+        }
+      }
       final leader = _players.firstWhere((p) => p != null, orElse: () => null);
       final pos = leader?.position;
       if (pos == null) return;

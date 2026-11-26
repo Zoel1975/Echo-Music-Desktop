@@ -112,6 +112,7 @@ void main() {
     expect(mixer, contains('await main.player.setVolume(0)'));
     expect(mixer, contains('restoreMainVolume'));
     expect(mixer, contains('authoritative timeline for automix'));
+    expect(mixer, contains('MediaPlayer re-applies its track fade-in volume'));
     expect(mixer, contains('bool get isPlaying'));
     expect(mixer, contains('Future<void> setPlaying(bool value)'));
 

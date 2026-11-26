@@ -24,6 +24,8 @@ class HomeCubit extends Cubit<HomeState> {
 
   @override
   void emit(HomeState state) {
+    // A slow home fetch can finish after the cubit was closed (app shutdown).
+    if (isClosed) return;
     lastState = state;
     super.emit(state);
   }
