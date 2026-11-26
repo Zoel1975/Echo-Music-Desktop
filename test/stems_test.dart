@@ -61,6 +61,12 @@ void main() {
         File('lib/services/stem_mixer_service.dart').readAsStringSync();
     expect(mixerGlobal, contains('bool get stemsEnabled'));
     expect(mixerGlobal, contains('Future<void> _switchTrack('));
+    expect(mixerGlobal, contains('void applyPattern('));
+    final keys = File('lib/services/keyboard_shortcuts.dart').readAsStringSync();
+    expect(keys, contains('LogicalKeyboardKey.space'));
+    expect(keys, contains('LogicalKeyboardKey.arrowRight'));
+    expect(keys, contains('LogicalKeyboardKey.keyV'));
+    expect(keys, contains('Duration(milliseconds: 250)'));
     final files =
         File('lib/services/file_storage.dart').readAsStringSync();
     expect(files, contains("get('APP_FOLDER')"));

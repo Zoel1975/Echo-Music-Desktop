@@ -128,7 +128,13 @@ class StemMixerService extends ChangeNotifier {
   }
 
   void restoreAll() {
-    _state = _state.copyWith(enabled: const [true, true, true, true]);
+    applyPattern(const [true, true, true, true]);
+  }
+
+  /// Replace the whole enabled pattern at once (used by hold-to-mute keys).
+  void applyPattern(List<bool> enabled) {
+    if (enabled.length != 4) return;
+    _state = _state.copyWith(enabled: List<bool>.from(enabled));
     _updateVolumes();
     notifyListeners();
   }

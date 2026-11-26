@@ -22,6 +22,7 @@ import 'services/error_log.dart';
 import 'services/cast/cast_service.dart';
 import 'services/download_manager.dart';
 import 'services/file_storage.dart';
+import 'services/keyboard_shortcuts.dart';
 import 'services/storage_service.dart';
 import 'services/content_filter_service.dart';
 import 'services/eq_settings.dart';
@@ -316,11 +317,14 @@ class Echo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsManager>();
-    return Shortcuts(
-      shortcuts: <LogicalKeySet, Intent>{
-        LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
-      },
-      child: MaterialApp.router(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: handleGlobalKey,
+      child: Shortcuts(
+        shortcuts: <LogicalKeySet, Intent>{
+          LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
+        },
+        child: MaterialApp.router(
         title: 'Echo Music',
         routerConfig: router,
         scaffoldMessengerKey: appScaffoldMessengerKey,
@@ -342,6 +346,7 @@ class Echo extends StatelessWidget {
             primary: settings.accentColor,
             amoled: settings.amoledBlack,
             density: _densityScale(settings)),
+      ),
       ),
     );
   }
