@@ -20,6 +20,8 @@ import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:text_scroll/text_scroll.dart';
 import 'package:palette_generator/palette_generator.dart';
 
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/echo_surface.dart';
 import '../../core/widgets/motion_effects.dart';
 import 'widgets/animated_gradient_bg.dart';
 import 'widgets/comment_sheet.dart';
@@ -907,62 +909,75 @@ class _StemArtworkControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mixer = StemMixerService.instance;
-    return AnimatedBuilder(
-      animation: mixer,
-      builder: (context, _) {
-        final state = mixer.state;
-        return Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ...List.generate(4, (i) {
-                    return _stemChip(
-                      label: stemNames[i].substring(0, 1),
-                      active: state.stemsLoaded && state.enabled[i],
-                      enabled: state.stemsLoaded,
-                      onTap: () => mixer.setStemEnabled(i, !state.enabled[i]),
-                    );
-                  }),
-                  _stemChip(
-                    label: '…',
-                    active: false,
-                    onTap: () => Modals.showStemsSheet(
-                        context, GetIt.I<MediaPlayer>().currentSongNotifier.value?.extras ?? {}),
+    final scheme = Theme.of(context).colorScheme;
+    final icons = <IconData>[
+      Icons.graphic_eq,
+      Icons.audiotrack,
+      Icons.equalizer,
+      Icons.mic_none,
+    ];
+    return Center(
+      child: AnimatedBuilder(
+        animation: mixer,
+        builder: (context, _) {
+          final state = mixer.state;
+          return EchoSurface(
+            radius: BorderRadius.circular(EchoTokens.floatingBarRadius),
+            padding: const EdgeInsets.symmetric(
+                horizontal: EchoTokens.space2, vertical: EchoTokens.space1),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.call_split, size: 16, color: scheme.primary),
+                const SizedBox(width: EchoTokens.space1),
+                ...List.generate(4, (i) {
+                  return _stemIcon(
+                    icon: icons[i],
+                    active: state.stemsLoaded && state.enabled[i],
+                    enabled: state.stemsLoaded,
+                    color: scheme,
+                    onTap: () => mixer.setStemEnabled(i, !state.enabled[i]),
+                  );
+                }),
+                _stemIcon(
+                  icon: Icons.more_horiz,
+                  active: false,
+                  enabled: true,
+                  color: scheme,
+                  onTap: () => Modals.showStemsSheet(
+                    context,
+                    GetIt.I<MediaPlayer>().currentSongNotifier.value?.extras ??
+                        {},
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
-  static Widget _stemChip({
-    required String label,
+  static Widget _stemIcon({
+    required IconData icon,
     required bool active,
+    required bool enabled,
+    required ColorScheme color,
     required VoidCallback onTap,
-    bool enabled = true,
   }) {
     return InkWell(
+      borderRadius: BorderRadius.circular(EchoTokens.floatingBarRadius),
       onTap: enabled ? onTap : null,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: active ? FontWeight.bold : FontWeight.normal,
-            color: active ? Colors.redAccent : Colors.white,
-          ),
+        padding: const EdgeInsets.all(EchoTokens.space1 + 2),
+        child: Icon(
+          icon,
+          size: 16,
+          color: !enabled
+              ? color.onSurface.withValues(alpha: 0.35)
+              : active
+                  ? color.primary
+                  : color.onSurface.withValues(alpha: 0.85),
         ),
       ),
     );

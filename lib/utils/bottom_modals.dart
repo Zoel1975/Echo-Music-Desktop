@@ -14,6 +14,8 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
+import 'package:Echo/core/theme/tokens.dart';
+import 'package:Echo/core/widgets/echo_surface.dart';
 import 'package:Echo/utils/playlist_thumbnail.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -199,8 +201,7 @@ class Modals {
     );
   }
 
-  /// Stem mixer: instant center-channel vocal mute, plus four real stems when
-  /// a separated four-channel file has been produced by the background queue.
+  /// Stem mixer panel, styled like the rest of the app's bottom sheets.
   static Future<void> showStemsSheet(BuildContext context, Map song) async {
     final mixer = GetIt.I<StemMixerService>();
     final queue = StemSeparationQueue.instance;
@@ -221,12 +222,38 @@ class Modals {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+      backgroundColor: Colors.transparent,
+      builder: (_) => BottomModalLayout(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(EchoTokens.cornerMedium),
+              ),
+              child: Icon(Icons.call_split,
+                  color: Theme.of(context).colorScheme.primary),
+            ),
+            const SizedBox(width: EchoTokens.space3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Stems',
+                      style: Theme.of(context).textTheme.titleLarge),
+                  Text('Mix the separated parts in real time',
+                      style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
           child: ListenableBuilder(
             listenable: Listenable.merge([mixer, queue]),
             builder: (context, _) {
+              final scheme = Theme.of(context).colorScheme;
               final state = mixer.state;
               final cached = videoId != null && queue.cached(videoId);
               StemTask? task;
@@ -238,175 +265,251 @@ class Modals {
                   }
                 }
               }
-              return SingleChildScrollView(
+              final icons = <IconData>[
+                Icons.graphic_eq,
+                Icons.audiotrack,
+                Icons.equalizer,
+                Icons.mic_none,
+              ];
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: EchoTokens.space2, vertical: EchoTokens.space2),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Stems', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 6),
-                    Text(
-                      cached
-                          ? 'Separated stems are available for this track.'
-                          : 'Mute the centered vocals instantly, or separate '
-                              'the track into four stems in the background.',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    EchoSurface(
+                      radius: BorderRadius.circular(EchoTokens.cornerLarge),
+                      padding: const EdgeInsets.all(EchoTokens.space4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text('Use separated stems',
+                                style: Theme.of(context).textTheme.titleMedium),
+                            subtitle: Text(cached
+                                ? 'Applies automatically to every separated track'
+                                : 'No separated stem files for this track yet'),
+                            value: mixer.stemsEnabled && cached,
+                            activeColor: scheme.primary,
+                            onChanged: cached
+                                ? (value) {
+                                    if (value) {
+                                      unawaited(mixer.setStemFiles(
+                                          videoId!, queue.stemPaths(videoId)));
+                                    } else {
+                                      unawaited(mixer.disableStems());
+                                    }
+                                  }
+                                : null,
+                          ),
+                          if (state.stemsLoaded) ...[
+                            const Divider(height: EchoTokens.space4),
+                            Text(
+                              '${state.enabled.where((v) => v).length} of 4 active',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: EchoTokens.space3),
+                            GridView.count(
+                              crossAxisCount: 2,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              mainAxisSpacing: EchoTokens.space2,
+                              crossAxisSpacing: EchoTokens.space2,
+                              childAspectRatio: 2.4,
+                              children: List.generate(4, (i) {
+                                final active = state.enabled[i];
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(
+                                      EchoTokens.cornerMedium),
+                                  onTap: () =>
+                                      mixer.setStemEnabled(i, !active),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: EchoTokens.space3,
+                                        vertical: EchoTokens.space2),
+                                    decoration: BoxDecoration(
+                                      color: active
+                                          ? scheme.primary.withValues(alpha: 0.18)
+                                          : scheme.surfaceContainerHighest
+                                              .withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(
+                                          EchoTokens.cornerMedium),
+                                      border: Border.all(
+                                        color: active
+                                            ? scheme.primary
+                                            : scheme.outlineVariant
+                                                .withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(icons[i],
+                                            size: 18,
+                                            color: active
+                                                ? scheme.primary
+                                                : scheme.onSurfaceVariant),
+                                        const SizedBox(width: EchoTokens.space2),
+                                        Expanded(
+                                          child: Text(
+                                            stemNames[i],
+                                            style: TextStyle(
+                                              color: active
+                                                  ? scheme.onSurface
+                                                  : scheme.onSurfaceVariant,
+                                              fontWeight: active
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => mixer.solo(i),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize:
+                                                MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          child: const Text('Solo'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                onPressed: mixer.restoreAll,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Enable all'),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      title: const Text('Use separated stems'),
-                      subtitle: Text(cached
-                          ? 'Play the four-channel file cached on this device'
-                          : 'No separated file yet'),
-                      value: mixer.stemsEnabled && cached,
-                      onChanged: cached
-                          ? (value) {
-                              // Each stem is a separate synced player: only
-                              // the volume changes, so no gap or render.
-                              if (value) {
-                                unawaited(mixer.setStemFiles(
-                                    videoId!, queue.stemPaths(videoId)));
-                              } else {
-                                unawaited(mixer.disableStems());
-                              }
-                            }
-                          : null,
-                    ),
-                    if (state.stemsLoaded) ...[
-                      const Divider(),
-                      Text(
-                        'Active stems: '
-                        '${state.enabled.where((v) => v).length}/4 — tap to '
-                        'enable or disable any of them',
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: List.generate(4, (i) {
-                          return FilterChip(
-                            label: Text(
-                                '${stemNames[i]} ${state.enabled[i] ? 'ON' : 'OFF'}'),
-                            selected: state.enabled[i],
-                            onSelected: (v) => mixer.setStemEnabled(i, v),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 4,
-                        children: List.generate(4, (i) {
-                          return TextButton(
-                            onPressed: () => mixer.solo(i),
-                            child: Text('Solo ${stemNames[i]}'),
-                          );
-                        }),
-                      ),
-                      TextButton(
-                        onPressed: mixer.restoreAll,
-                        child: const Text('Enable all'),
-                      ),
-                    ],
-                    const Divider(),
-                    if (queue.allBusy) ...[
-                      Text(
-                        queue.setupBusy
-                            ? queue.setupStatus
-                            : queue.chunkTotal > 0
-                                ? 'Separating… ${queue.chunkCurrent}/'
-                                    '${queue.chunkTotal} chunks · '
-                                    '${queue.elapsedSeconds}s elapsed'
-                                : '${queue.allStatus} — '
-                                    '${(queue.allProgress * 100).round()}%',
-                      ),
-                      const SizedBox(height: 6),
-                      LinearProgressIndicator(value: queue.allProgress),
-                      if (queue.setupBusy) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Model download: '
-                          '${(queue.setupProgress * 100).round()}%',
+                    if (queue.allBusy || queue.setupBusy || task != null) ...[
+                      const SizedBox(height: EchoTokens.space3),
+                      EchoSurface(
+                        radius:
+                            BorderRadius.circular(EchoTokens.cornerLarge),
+                        padding: const EdgeInsets.all(EchoTokens.space4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              queue.setupBusy
+                                  ? queue.setupStatus
+                                  : queue.allBusy && queue.chunkTotal > 0
+                                      ? 'Separating ${queue.chunkCurrent}/'
+                                          '${queue.chunkTotal} · '
+                                          '${queue.elapsedSeconds}s'
+                                      : task?.status == StemTaskStatus.done
+                                          ? 'Done — stems ready'
+                                          : task?.status == StemTaskStatus.failed
+                                              ? 'Separation failed'
+                                              : '${queue.allStatus} '
+                                                  '${(queue.allProgress * 100).round()}%',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: EchoTokens.space2),
+                            LinearProgressIndicator(
+                              value: queue.setupBusy
+                                  ? queue.setupProgress
+                                  : queue.allBusy
+                                      ? queue.allProgress
+                                      : task?.progress,
+                              color: scheme.primary,
+                              backgroundColor:
+                                  scheme.primary.withValues(alpha: 0.18),
+                            ),
+                            if (queue.setupBusy) ...[
+                              const SizedBox(height: EchoTokens.space2),
+                              Text(
+                                'Model ${(queue.setupProgress * 100).round()}%',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        LinearProgressIndicator(value: queue.setupProgress),
-                      ],
-                      const SizedBox(height: 10),
-                    ] else if (queue.setupBusy) ...[
-                      Text(
-                        'Model download: '
-                        '${(queue.setupProgress * 100).round()}%'),
-                      LinearProgressIndicator(value: queue.setupProgress),
-                      const SizedBox(height: 10),
-                    ] else if (task != null) ...[
-                      Text(
-                        task.status == StemTaskStatus.done
-                            ? 'Separation complete'
-                            : task.status == StemTaskStatus.failed
-                                ? 'Separation failed'
-                                : queue.chunkTotal > 0
-                                    ? 'Separating… ${queue.chunkCurrent}/'
-                                        '${queue.chunkTotal} chunks · '
-                                        '${queue.elapsedSeconds}s elapsed'
-                                    : 'Separating… '
-                                        '${(task.progress * 100).round()}%',
                       ),
-                      const SizedBox(height: 6),
-                      LinearProgressIndicator(value: task.progress),
-                      const SizedBox(height: 10),
                     ],
                     if (task?.error != null)
-                      Text(task!.error!,
-                          style: const TextStyle(color: Colors.red)),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Text('Separation speed'),
-                        const Spacer(),
-                        DropdownButton<bool>(
-                          value: GetIt.I<SettingsManager>()
-                              .extra<bool>('stemFast', true),
-                          items: const [
-                            DropdownMenuItem(
-                                value: true, child: Text('Fast')),
-                            DropdownMenuItem(
-                                value: false, child: Text('Quality')),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) {
-                              GetIt.I<SettingsManager>()
-                                  .setExtra<bool>('stemFast', v);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Text('GPU acceleration'),
-                        const Spacer(),
-                        DropdownButton<String>(
-                          value: GetIt.I<SettingsManager>()
-                              .extra<String>('stemGpu', 'auto'),
-                          items: const [
-                            DropdownMenuItem(value: 'auto', child: Text('Auto')),
-                            DropdownMenuItem(value: 'cpu', child: Text('CPU')),
-                            DropdownMenuItem(
-                                value: 'dml', child: Text('DirectML')),
-                            DropdownMenuItem(value: 'cuda', child: Text('CUDA')),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) {
-                              GetIt.I<SettingsManager>()
-                                  .setExtra<String>('stemGpu', v);
-                            }
-                          },
-                        ),
-                      ],
+                      Padding(
+                        padding: const EdgeInsets.only(top: EchoTokens.space2),
+                        child: Text(task!.error!,
+                            style: TextStyle(color: scheme.error)),
+                      ),
+                    const SizedBox(height: EchoTokens.space3),
+                    EchoSurface(
+                      radius: BorderRadius.circular(EchoTokens.cornerLarge),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: EchoTokens.space4,
+                          vertical: EchoTokens.space1),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Text('Speed'),
+                              const Spacer(),
+                              DropdownButton<bool>(
+                                value: GetIt.I<SettingsManager>()
+                                    .extra<bool>('stemFast', true),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: true, child: Text('Fast')),
+                                  DropdownMenuItem(
+                                      value: false, child: Text('Quality')),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    GetIt.I<SettingsManager>()
+                                        .setExtra<bool>('stemFast', v);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Text('GPU'),
+                              const Spacer(),
+                              DropdownButton<String>(
+                                value: GetIt.I<SettingsManager>()
+                                    .extra<String>('stemGpu', 'auto'),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: 'auto', child: Text('Auto')),
+                                  DropdownMenuItem(
+                                      value: 'cpu', child: Text('CPU')),
+                                  DropdownMenuItem(
+                                      value: 'dml', child: Text('DirectML')),
+                                  DropdownMenuItem(
+                                      value: 'cuda', child: Text('CUDA')),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    GetIt.I<SettingsManager>()
+                                        .setExtra<String>('stemGpu', v);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     if (queue.provider.isNotEmpty)
-                      Text('Inference provider: ${queue.provider}',
-                          style: Theme.of(context).textTheme.bodySmall),
+                      Padding(
+                        padding: const EdgeInsets.only(top: EchoTokens.space2),
+                        child: Text('Provider: ${queue.provider}',
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ),
+                    const SizedBox(height: EchoTokens.space4),
                     FilledButton.icon(
                       onPressed: queue.allBusy
                           ? null
@@ -417,18 +520,19 @@ class Modals {
                                     Map<String, dynamic>.from(song),
                                     videoId ?? '');
                               } catch (e) {
-                                BottomMessage.showText(messenger.context, '$e');
+                                BottomMessage.showText(
+                                    messenger.context, '$e');
                               }
                             },
                       icon: const Icon(Icons.download_for_offline),
                       label: const Text('Download all & separate'),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Automatic: the app finds or installs Python, downloads '
-                      'the 166 MB model once and caches everything in '
-                      'Downloads/Echo/Music/Stems. Just press the button.',
-                      style: TextStyle(fontSize: 12),
+                    const SizedBox(height: EchoTokens.space2),
+                    Text(
+                      'Python, model and stem files are stored in your chosen '
+                      'music folder. Everything runs on this device.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),

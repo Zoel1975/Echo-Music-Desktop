@@ -41,7 +41,9 @@ void main() {
     final modal = File('lib/utils/bottom_modals.dart').readAsStringSync();
     expect(modal, contains('queue.stemPaths('));
     expect(modal, contains('mixer.disableStems()'));
-    expect(modal, contains('FilterChip('));
+    expect(modal, contains('EchoSurface('));
+    expect(modal, contains('GridView.count'));
+    expect(modal, contains('BottomModalLayout('));
     expect(modal, isNot(contains("'Mute vocals (instant)'")));
     final helper = File('tools/stems/separate.py').readAsStringSync();
     expect(helper, contains('format="WAV"'));
