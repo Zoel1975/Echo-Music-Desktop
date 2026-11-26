@@ -14,6 +14,7 @@ void main() {
     expect(service, contains('nonVideoWords'));
     expect(service, contains('yt.search('));
     expect(service, contains('StreamResolver.instance.resolveVideo('));
+    expect(service, contains('void _safeVideo('));
     expect(service, contains('2500'));
     expect(service, contains('5000'));
     expect(service, isNot(contains('mixer.seekBy(')));

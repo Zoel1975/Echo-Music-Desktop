@@ -1518,6 +1518,10 @@ class RuntimeProbeService {
         'hasVideo': VideoBackdropService.instance.hasVideo,
         'busy': VideoBackdropService.instance.busy,
         'error': VideoBackdropService.instance.error,
+        'controller': VideoBackdropService.instance.controllerPresent,
+        'playing': VideoBackdropService.instance.controllerPlaying,
+        'positionMs': VideoBackdropService.instance.controllerPositionMs,
+        'videoError': VideoBackdropService.instance.videoError,
       });
       return;
     }

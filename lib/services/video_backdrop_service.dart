@@ -35,6 +35,11 @@ class VideoBackdropService extends ChangeNotifier {
 
   WinVideoPlayerController? get controller => _controller;
   String? get error => _error;
+  String? get videoError => _controller?.value.errorDescription;
+  bool get controllerPresent => _controller != null;
+  bool get controllerPlaying => _controller?.value.isPlaying ?? false;
+  int get controllerPositionMs =>
+      _controller?.value.position.inMilliseconds ?? 0;
   bool get busy => _busy;
   bool get hasVideo =>
       _controller != null && (_controller?.value.isInitialized ?? false);
@@ -190,12 +195,12 @@ class VideoBackdropService extends ChangeNotifier {
               GetIt.I<MediaPlayer>().player.playing);
       try {
         if (!audioPlaying && video.value.isPlaying) {
-          unawaited(video.pause());
+          _safeVideo(() => video.pause());
         } else if (audioPlaying && !video.value.isPlaying) {
-          unawaited(video.play());
+          _safeVideo(() => video.play());
         }
         if (video.value.position.inMilliseconds >= _clipEndMs - 120) {
-          unawaited(video.seekTo(Duration(milliseconds: _clipStartMs)));
+          _safeVideo(() => video.seekTo(Duration(milliseconds: _clipStartMs)));
         }
       } catch (e) {
         debugPrint('[video backdrop] loop skipped: $e');
@@ -203,17 +208,30 @@ class VideoBackdropService extends ChangeNotifier {
     });
   }
 
+  /// The Windows controller throws synchronously when the file was never
+  /// opened (e.g. a stream failed). Wrap every call in an async closure so a
+  /// sync throw cannot escape as an uncaught error.
+  void _safeVideo(Future<void> Function() action) {
+    unawaited(() async {
+      try {
+        await action();
+      } catch (e) {
+        debugPrint('[video backdrop] ignored: $e');
+      }
+    }());
+  }
+
   void _disposeController() {
     final controller = _controller;
     _controller = null;
     _videoId = null;
     if (controller == null) return;
-    try {
-      unawaited(controller.pause());
-    } catch (_) {}
-    try {
-      unawaited(controller.dispose());
-    } catch (_) {}
+    _safeVideo(() async {
+      try {
+        await controller.pause();
+      } catch (_) {}
+      await controller.dispose();
+    });
   }
 
   @override
