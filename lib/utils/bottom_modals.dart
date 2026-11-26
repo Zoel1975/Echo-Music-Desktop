@@ -258,7 +258,7 @@ class Modals {
                       subtitle: Text(cached
                           ? 'Play the four-channel file cached on this device'
                           : 'No separated file yet'),
-                      value: mixer.useStems && cached,
+                      value: mixer.stemsEnabled && cached,
                       onChanged: cached
                           ? (value) {
                               // Each stem is a separate synced player: only

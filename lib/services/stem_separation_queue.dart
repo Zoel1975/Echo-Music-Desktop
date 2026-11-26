@@ -405,8 +405,10 @@ class StemSeparationQueue extends ChangeNotifier {
       } catch (_) {}
       stage('done');
       update(status: StemTaskStatus.done, progress: 1.0);
-      unawaited(StemMixerService.instance
-          .setStemFiles(task.videoId, stemPaths(task.videoId)));
+      if (StemMixerService.instance.stemsEnabled) {
+        unawaited(StemMixerService.instance
+            .setStemFiles(task.videoId, stemPaths(task.videoId)));
+      }
     } catch (e) {
       stage('failed: $e');
       update(

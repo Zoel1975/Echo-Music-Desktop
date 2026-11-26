@@ -55,6 +55,10 @@ void main() {
         File('lib/screens/settings/storage/storage_page.dart').readAsStringSync();
     expect(storage, contains('FilePicker.getDirectoryPath()'));
     expect(storage, contains('setCustomFolder('));
+    final mixerSrc =
+        File('lib/services/stem_mixer_service.dart').readAsStringSync();
+    expect(mixerSrc, contains('bool get stemsEnabled'));
+    expect(mixerSrc, contains('Future<void> _switchTrack('));
     final files =
         File('lib/services/file_storage.dart').readAsStringSync();
     expect(files, contains("get('APP_FOLDER')"));

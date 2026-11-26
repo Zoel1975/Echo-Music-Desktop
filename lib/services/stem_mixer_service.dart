@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 import 'eq_settings.dart';
 import 'media_player.dart';
 import 'settings_manager.dart';
+import 'stem_separation_queue.dart';
 
 /// Four stem slots in the order used by the Demucs ONNX output:
 /// drums, bass, other, vocals.
@@ -61,14 +62,53 @@ class StemMixerService extends ChangeNotifier {
         'volume': p?.volume ?? 0.0,
       }).toList();
 
+  bool get stemsEnabled {
+    try {
+      return GetIt.I.isRegistered<SettingsManager>() &&
+          GetIt.I<SettingsManager>().extra<bool>('stemsEnabled', false);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  set stemsEnabled(bool value) {
+    if (GetIt.I.isRegistered<SettingsManager>()) {
+      GetIt.I<SettingsManager>().setExtra<bool>('stemsEnabled', value);
+    }
+  }
+
   bool hasStemsFor(String? videoId) =>
       videoId != null && _stemVideoId == videoId && _stemPaths != null;
 
   void onTrackChanged(String? videoId) {
     if (videoId == null || videoId.isEmpty) return;
-    if (_stemVideoId != null && _stemVideoId != videoId) {
-      unawaited(_exitStemMode(resumeMain: false));
+    if (_stemVideoId == videoId) return;
+    if (!stemsEnabled) {
+      if (_state.stemsLoaded) unawaited(_exitStemMode(resumeMain: false));
+      return;
     }
+    unawaited(_switchTrack(videoId));
+  }
+
+  /// Automatically reuse the four stem players for the new track when stem
+  /// mode is globally enabled and that track has been separated.
+  Future<void> _switchTrack(String videoId) async {
+    final paths = StemSeparationQueue.instance.stemPaths(videoId);
+    if (paths.any((p) => !File(p).existsSync())) {
+      _state = _state.copyWith(stemsLoaded: false);
+      _stemPaths = null;
+      _stemVideoId = videoId;
+      await _exitStemMode(resumeMain: false);
+      notifyListeners();
+      return;
+    }
+    await _exitStemMode(resumeMain: false);
+    _stemPaths = paths;
+    _stemVideoId = videoId;
+    _position = Duration.zero;
+    _state = _state.copyWith(stemsLoaded: true);
+    await _enterStemMode();
+    notifyListeners();
   }
 
   void setStemEnabled(int index, bool value) {
@@ -97,6 +137,7 @@ class StemMixerService extends ChangeNotifier {
   /// files written by the separator.
   Future<void> setStemFiles(String videoId, List<String> paths) async {
     if (paths.length != 4 || paths.any((p) => !File(p).existsSync())) return;
+    stemsEnabled = true;
     _stemVideoId = videoId;
     _stemPaths = List<String>.from(paths);
     _state = _state.copyWith(stemsLoaded: true);
@@ -105,6 +146,7 @@ class StemMixerService extends ChangeNotifier {
   }
 
   Future<void> disableStems() async {
+    stemsEnabled = false;
     _state = _state.copyWith(stemsLoaded: false);
     _stemPaths = null;
     _stemVideoId = null;
