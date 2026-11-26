@@ -77,7 +77,7 @@ void main() {
         File('lib/services/stem_mixer_service.dart').readAsStringSync();
     expect(mixer, contains('Future<void> _enqueue('));
     expect(mixer, contains('Future<void> _enterPlayers('));
-    expect(mixer, contains('Future<void> _exitPlayersOnly()'));
+    expect(mixer, contains('Future<void> _exitPlayersOnly('));
     expect(mixer, contains('orElse: () => null'));
     expect(mixer, contains('catchError'));
     expect(mixer, contains('Future<void> activateIfCurrent('));
@@ -109,8 +109,9 @@ void main() {
     expect(keys, contains('LogicalKeyboardKey.keyI'));
     expect(keys, contains('stemHoldKeys'));
     expect(keys, contains('mixer.setPlaying('));
-    expect(mixer, contains('StreamSubscription<bool>? _mainGuard'));
-    expect(mixer, contains('Future<void> _installMainGuard('));
+    expect(mixer, contains('await main.player.setVolume(0)'));
+    expect(mixer, contains('restoreMainVolume'));
+    expect(mixer, contains('authoritative timeline for automix'));
     expect(mixer, contains('bool get isPlaying'));
     expect(mixer, contains('Future<void> setPlaying(bool value)'));
 

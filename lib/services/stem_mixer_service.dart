@@ -62,7 +62,6 @@ class StemMixerService extends ChangeNotifier {
   Timer? _positionTimer;
   final ValueNotifier<Duration> positionNotifier =
       ValueNotifier<Duration>(Duration.zero);
-  StreamSubscription<bool>? _mainGuard;
   Future<void> _transition = Future.value();
   double _masterVolume = 1.0;
   bool _wasPlaying = false;
@@ -121,6 +120,20 @@ class StemMixerService extends ChangeNotifier {
   /// it controls the audible source instead of the muted main player.
   Future<void> setPlaying(bool value) async {
     _wasPlaying = value;
+    // The muted main player is the timeline for automix, crossfade and
+    // next-track logic: keep it in sync with the stem play/pause intent.
+    if (GetIt.I.isRegistered<MediaPlayer>()) {
+      try {
+        final main = GetIt.I<MediaPlayer>().player;
+        if (value) {
+          await main.play();
+        } else {
+          await main.pause();
+        }
+      } catch (e) {
+        debugPrint('main playback toggle failed: $e');
+      }
+    }
     for (final player in _players) {
       if (player == null) continue;
       try {
@@ -195,14 +208,14 @@ class StemMixerService extends ChangeNotifier {
         final target = _pendingVideoId ?? videoId;
         final paths = StemSeparationQueue.instance.stemPaths(target);
         if (paths.any((p) => !File(p).existsSync())) {
-          await _exitPlayersOnly();
+          await _exitPlayersOnly(restoreMainVolume: false);
           _stemPaths = null;
           _stemVideoId = target;
           _state = _state.copyWith(stemsLoaded: false);
           notifyListeners();
           return;
         }
-        await _exitPlayersOnly();
+        await _exitPlayersOnly(restoreMainVolume: false);
         _stemPaths = paths;
         _stemVideoId = target;
         _position = Duration.zero;
@@ -289,16 +302,23 @@ class StemMixerService extends ChangeNotifier {
   Future<void> _enterPlayers({bool forcePlay = false}) async {
     final paths = _stemPaths;
     if (paths == null || paths.length != 4) return;
-    if (_players.any((p) => p != null)) await _exitPlayersOnly();
+    if (_players.any((p) => p != null)) {
+      await _exitPlayersOnly(restoreMainVolume: false);
+    }
     if (!GetIt.I.isRegistered<MediaPlayer>()) return;
     final main = GetIt.I<MediaPlayer>();
     final position = main.player.position;
-    // While stem mode is active the main player is deliberately kept paused,
-    // so its playing flag alone would make every track change silent. Keep the
-    // user's last audible intent instead.
+    // Keep the main player RUNNING but muted. Media3/just_audio drives
+    // automix, crossfade, position and next-track from it; pausing it froze
+    // progression even though the four stem players were audible.
     final wasPlaying = forcePlay || main.player.playing || _wasPlaying;
     final master = main.player.volume;
-    await main.player.pause();
+    try {
+      await main.player.setVolume(0);
+      if (wasPlaying && !main.player.playing) await main.player.play();
+    } catch (e) {
+      debugPrint('stem main mute failed: $e');
+    }
     final created = <AudioPlayer>[];
     try {
       for (var i = 0; i < 4; i++) {
@@ -322,7 +342,6 @@ class StemMixerService extends ChangeNotifier {
       _wasPlaying = wasPlaying;
       _masterVolume = master;
       _state = _state.copyWith(stemsLoaded: true);
-      await _installMainGuard(main.player);
       positionNotifier.value = position;
       _startPositionTimer();
       _startSyncTimer();
@@ -338,6 +357,7 @@ class StemMixerService extends ChangeNotifier {
       }
       _state = _state.copyWith(stemsLoaded: false);
       try {
+        await main.player.setVolume(master);
         await main.player.seek(position);
         if (wasPlaying) await main.player.play();
       } catch (_) {}
@@ -347,22 +367,7 @@ class StemMixerService extends ChangeNotifier {
   Future<void> _enterStemMode({bool forcePlay = false}) =>
       _enqueue(() => _enterPlayers(forcePlay: forcePlay));
 
-  /// MediaPlayer starts the main track again on several async paths (queue
-  /// restore, crossfade, playAll). Keep a single listener that pauses it for
-  /// the whole time stem mode is active, so the two are never audible at once.
-  Future<void> _installMainGuard(AudioPlayer main) async {
-    await _mainGuard?.cancel();
-    _mainGuard = main.playingStream.listen((playing) {
-      if (playing && _state.stemsLoaded) {
-        debugPrint('[stems] main player resumed during stem mode; pausing it');
-        unawaited(main.pause().catchError((Object e, StackTrace st) {}));
-      }
-    });
-  }
-
-  Future<void> _exitPlayersOnly() async {
-    await _mainGuard?.cancel();
-    _mainGuard = null;
+  Future<void> _exitPlayersOnly({bool restoreMainVolume = true}) async {
     _positionTimer?.cancel();
     _positionTimer = null;
     _syncTimer?.cancel();
@@ -382,6 +387,11 @@ class StemMixerService extends ChangeNotifier {
       } catch (_) {}
       try {
         await player.dispose();
+      } catch (_) {}
+    }
+    if (restoreMainVolume && GetIt.I.isRegistered<MediaPlayer>()) {
+      try {
+        await GetIt.I<MediaPlayer>().player.setVolume(_masterVolume);
       } catch (_) {}
     }
   }
@@ -414,6 +424,22 @@ class StemMixerService extends ChangeNotifier {
       final leader = _players.firstWhere((p) => p != null, orElse: () => null);
       final pos = leader?.position;
       if (pos == null) return;
+      // The muted main player is the authoritative timeline for automix and
+      // next-track decisions. Pull the stems back to it when they drift.
+      if (GetIt.I.isRegistered<MediaPlayer>()) {
+        final mainPos = GetIt.I<MediaPlayer>().player.position;
+        if ((pos - mainPos).inMilliseconds.abs() > 400) {
+          for (final player in _players) {
+            if (player != null) {
+              unawaited(player
+                  .seek(mainPos)
+                  .catchError((Object e, StackTrace st) {}));
+            }
+          }
+          positionNotifier.value = mainPos;
+          return;
+        }
+      }
       for (final player in _players) {
         if (player != null &&
             (player.position - pos).inMilliseconds.abs() > 80) {
@@ -425,8 +451,6 @@ class StemMixerService extends ChangeNotifier {
 
   @override
   void dispose() {
-    _mainGuard?.cancel();
-    _mainGuard = null;
     _positionTimer?.cancel();
     _positionTimer = null;
     _syncTimer?.cancel();
