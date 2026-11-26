@@ -34,6 +34,11 @@ class StemMixState {
 /// Each stem is played by its own synchronized AudioPlayer. Toggling a stem
 /// only changes that player's volume, so there is no file render, no source
 /// reload and no audible gap.
+///
+/// just_audio throws PlayerInterruptedException when two setAudioSource calls
+/// overlap, so every enter/exit transition goes through [_enqueue]. This keeps
+/// rapid track changes and batch-separation completions from leaking players
+/// or leaving stale decoders running.
 class StemMixerService extends ChangeNotifier {
   StemMixerService._();
 
@@ -42,9 +47,10 @@ class StemMixerService extends ChangeNotifier {
   StemMixState _state = const StemMixState();
   List<String>? _stemPaths;
   String? _stemVideoId;
+  String? _pendingVideoId;
   final List<AudioPlayer?> _players = List<AudioPlayer?>.filled(4, null);
   Timer? _syncTimer;
-  bool _switching = false;
+  Future<void> _transition = Future.value();
   double _masterVolume = 1.0;
   bool _wasPlaying = false;
   Duration _position = Duration.zero;
@@ -80,11 +86,27 @@ class StemMixerService extends ChangeNotifier {
   bool hasStemsFor(String? videoId) =>
       videoId != null && _stemVideoId == videoId && _stemPaths != null;
 
+  /// Serialize every player transition. Errors are contained here so a failed
+  /// switch can never surface as an uncaught async exception.
+  Future<void> _enqueue(Future<void> Function() action) {
+    final next = _transition.then((_) async {
+      try {
+        await action();
+      } catch (e, st) {
+        debugPrint('stem transition failed: $e\n$st');
+      }
+    });
+    _transition = next.catchError((Object _, StackTrace __) {});
+    return next;
+  }
+
   void onTrackChanged(String? videoId) {
     if (videoId == null || videoId.isEmpty) return;
-    if (_stemVideoId == videoId) return;
+    _pendingVideoId = videoId;
+    if (_stemVideoId == videoId && _state.stemsLoaded) return;
     if (!stemsEnabled) {
-      if (_state.stemsLoaded) unawaited(_exitStemMode(resumeMain: false));
+      _pendingVideoId = null;
+      unawaited(_exitStemMode(resumeMain: false));
       return;
     }
     unawaited(_switchTrack(videoId));
@@ -92,24 +114,31 @@ class StemMixerService extends ChangeNotifier {
 
   /// Automatically reuse the four stem players for the new track when stem
   /// mode is globally enabled and that track has been separated.
-  Future<void> _switchTrack(String videoId) async {
-    final paths = StemSeparationQueue.instance.stemPaths(videoId);
-    if (paths.any((p) => !File(p).existsSync())) {
-      _state = _state.copyWith(stemsLoaded: false);
-      _stemPaths = null;
-      _stemVideoId = videoId;
-      await _exitStemMode(resumeMain: false);
-      notifyListeners();
-      return;
-    }
-    await _exitStemMode(resumeMain: false);
-    _stemPaths = paths;
-    _stemVideoId = videoId;
-    _position = Duration.zero;
-    _state = _state.copyWith(stemsLoaded: true);
-    await _enterStemMode();
-    notifyListeners();
-  }
+  Future<void> _switchTrack(String videoId) => _enqueue(() async {
+        // A disable request can be queued behind a track change.
+        if (!stemsEnabled) {
+          await _exitPlayersOnly();
+          _pendingVideoId = null;
+          return;
+        }
+        // Use the latest requested track: rapid skips coalesce to the last one.
+        final target = _pendingVideoId ?? videoId;
+        final paths = StemSeparationQueue.instance.stemPaths(target);
+        if (paths.any((p) => !File(p).existsSync())) {
+          await _exitPlayersOnly();
+          _stemPaths = null;
+          _stemVideoId = target;
+          _state = _state.copyWith(stemsLoaded: false);
+          notifyListeners();
+          return;
+        }
+        await _exitPlayersOnly();
+        _stemPaths = paths;
+        _stemVideoId = target;
+        _position = Duration.zero;
+        await _enterPlayers();
+        notifyListeners();
+      });
 
   void setStemEnabled(int index, bool value) {
     if (index < 0 || index > 3 || _state.enabled[index] == value) return;
@@ -144,6 +173,7 @@ class StemMixerService extends ChangeNotifier {
   Future<void> setStemFiles(String videoId, List<String> paths) async {
     if (paths.length != 4 || paths.any((p) => !File(p).existsSync())) return;
     stemsEnabled = true;
+    _pendingVideoId = videoId;
     _stemVideoId = videoId;
     _stemPaths = List<String>.from(paths);
     _state = _state.copyWith(stemsLoaded: true);
@@ -151,11 +181,23 @@ class StemMixerService extends ChangeNotifier {
     await _enterStemMode();
   }
 
+  /// Called when a background separation finishes. During a playlist batch
+  /// many tracks complete in a row; only the one currently playing may take
+  /// over the mixer, otherwise the audio would jump to a finished track.
+  Future<void> activateIfCurrent(String videoId, List<String> paths) async {
+    if (!stemsEnabled) return;
+    if (!GetIt.I.isRegistered<MediaPlayer>()) return;
+    final current = GetIt.I<MediaPlayer>().currentSongNotifier.value?.id;
+    if (current == null || current != videoId) return;
+    await setStemFiles(videoId, paths);
+  }
+
   Future<void> disableStems() async {
     stemsEnabled = false;
     _state = _state.copyWith(stemsLoaded: false);
     _stemPaths = null;
     _stemVideoId = null;
+    _pendingVideoId = null;
     notifyListeners();
     await _exitStemMode(resumeMain: true);
   }
@@ -165,57 +207,78 @@ class StemMixerService extends ChangeNotifier {
       final player = _players[i];
       if (player == null) continue;
       final gain = _state.enabled[i] ? _masterVolume : 0.0;
-      unawaited(player.setVolume(gain));
+      unawaited(player.setVolume(gain).catchError((Object e, StackTrace st) {
+        debugPrint('stem volume failed: $e');
+      }));
     }
   }
 
-  Future<void> _enterStemMode() async {
-    if (_switching || _players.every((p) => p != null)) return;
-    _switching = true;
+  /// Create all four players in a local list and publish them only after every
+  /// source loaded successfully. A failure therefore cannot leave half of the
+  /// slots pointing at disposed players.
+  Future<void> _enterPlayers() async {
+    final paths = _stemPaths;
+    if (paths == null || paths.length != 4) return;
+    if (_players.any((p) => p != null)) await _exitPlayersOnly();
+    if (!GetIt.I.isRegistered<MediaPlayer>()) return;
     final main = GetIt.I<MediaPlayer>();
+    final position = main.player.position;
+    final wasPlaying = main.player.playing;
+    final master = main.player.volume;
+    await main.player.pause();
+    final created = <AudioPlayer>[];
     try {
-      _position = main.player.position;
-      _wasPlaying = main.player.playing;
-      _masterVolume = main.player.volume;
-      await main.player.pause();
       for (var i = 0; i < 4; i++) {
         final player = AudioPlayer();
-        _players[i] = player;
+        created.add(player);
         await player.setAudioSource(
-          AudioSource.file(_stemPaths![i],
-              tag: main.currentSongNotifier.value),
+          AudioSource.file(paths[i], tag: main.currentSongNotifier.value),
         );
-        await player.seek(_position);
-        await player.setVolume(_state.enabled[i] ? _masterVolume : 0.0);
+        await player.seek(position);
+        await player.setVolume(_state.enabled[i] ? master : 0.0);
       }
-      for (final player in _players) {
-        if (player != null && _wasPlaying) await player.play();
-      }
-      _syncTimer?.cancel();
-      _syncTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-        final leader = _players.firstWhere((p) => p != null);
-        final pos = leader!.position;
-        for (final player in _players) {
-          if (player != null &&
-              (player.position - pos).inMilliseconds.abs() > 80) {
-            unawaited(player.seek(pos));
-          }
+      if (wasPlaying) {
+        for (final player in created) {
+          await player.play();
         }
-      });
+      }
+      for (var i = 0; i < 4; i++) {
+        _players[i] = created[i];
+      }
+      _position = position;
+      _wasPlaying = wasPlaying;
+      _masterVolume = master;
+      _state = _state.copyWith(stemsLoaded: true);
+      _startSyncTimer();
     } catch (e) {
       debugPrint('stem mode failed: $e');
-      await _exitStemMode(resumeMain: true);
-    } finally {
-      _switching = false;
+      for (final player in created) {
+        try {
+          await player.stop();
+        } catch (_) {}
+        try {
+          await player.dispose();
+        } catch (_) {}
+      }
+      _state = _state.copyWith(stemsLoaded: false);
+      try {
+        await main.player.seek(position);
+        if (wasPlaying) await main.player.play();
+      } catch (_) {}
     }
   }
 
-  Future<void> _exitStemMode({required bool resumeMain}) async {
-    if (_switching) return;
+  Future<void> _enterStemMode() => _enqueue(_enterPlayers);
+
+  Future<void> _exitPlayersOnly() async {
     _syncTimer?.cancel();
     _syncTimer = null;
     final first = _players.firstWhere((p) => p != null, orElse: () => null);
-    if (first != null) _position = first.position;
+    if (first != null) {
+      try {
+        _position = first.position;
+      } catch (_) {}
+    }
     for (var i = 0; i < 4; i++) {
       final player = _players[i];
       _players[i] = null;
@@ -227,18 +290,39 @@ class StemMixerService extends ChangeNotifier {
         await player.dispose();
       } catch (_) {}
     }
-    if (resumeMain && GetIt.I.isRegistered<MediaPlayer>()) {
-      final main = GetIt.I<MediaPlayer>().player;
-      try {
-        await main.seek(_position);
-        if (_wasPlaying) await main.play();
-      } catch (_) {}
-    }
+  }
+
+  Future<void> _exitStemMode({required bool resumeMain}) => _enqueue(() async {
+        await _exitPlayersOnly();
+        if (resumeMain && GetIt.I.isRegistered<MediaPlayer>()) {
+          final main = GetIt.I<MediaPlayer>().player;
+          try {
+            await main.seek(_position);
+            if (_wasPlaying) await main.play();
+          } catch (_) {}
+        }
+      });
+
+  void _startSyncTimer() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      // The timer can fire while a track change is disposing the players.
+      final leader = _players.firstWhere((p) => p != null, orElse: () => null);
+      final pos = leader?.position;
+      if (pos == null) return;
+      for (final player in _players) {
+        if (player != null &&
+            (player.position - pos).inMilliseconds.abs() > 80) {
+          unawaited(player.seek(pos).catchError((Object e, StackTrace st) {}));
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
     _syncTimer?.cancel();
+    _syncTimer = null;
     unawaited(_exitStemMode(resumeMain: false));
     super.dispose();
   }

@@ -291,12 +291,12 @@ class Modals {
                                 ? 'Applies automatically to every separated track'
                                 : 'No separated stem files for this track yet'),
                             value: mixer.stemsEnabled && cached,
-                            activeColor: scheme.primary,
+                            activeThumbColor: scheme.primary,
                             onChanged: cached
                                 ? (value) {
                                     if (value) {
                                       unawaited(mixer.setStemFiles(
-                                          videoId!, queue.stemPaths(videoId)));
+                                          videoId, queue.stemPaths(videoId)));
                                     } else {
                                       unawaited(mixer.disableStems());
                                     }

@@ -58,7 +58,31 @@ class StemTask {
 /// helper only needs numpy, onnxruntime and soundfile; decoding to 44.1 kHz
 /// stereo WAV is done with the FFmpeg build already bundled in the app.
 class StemSeparationQueue extends ChangeNotifier {
-  StemSeparationQueue._();
+  StemSeparationQueue._() {
+    _cleanupStaleTemps();
+  }
+
+  /// Failed or interrupted runs leave `.part` and `.decode.wav` files behind.
+  /// They can reach hundreds of megabytes each and were the main source of
+  /// startup slowdowns after a crash. Only files older than 12 hours are
+  /// removed, so a separation running in another process is never touched.
+  void _cleanupStaleTemps() {
+    try {
+      final dir = cacheDir;
+      if (!dir.existsSync()) return;
+      final cutoff = DateTime.now().subtract(const Duration(hours: 12));
+      for (final entity in dir.listSync()) {
+        if (entity is! File) continue;
+        final name = entity.path;
+        if (!name.endsWith('.part') && !name.endsWith('.decode.wav')) continue;
+        if (entity.statSync().modified.isAfter(cutoff)) continue;
+        entity.deleteSync();
+        debugPrint('[stems] removed stale temp: ${entity.path}');
+      }
+    } catch (e) {
+      debugPrint('[stems] temp cleanup skipped: $e');
+    }
+  }
 
   static final StemSeparationQueue instance = StemSeparationQueue._();
 
@@ -156,7 +180,12 @@ class StemSeparationQueue extends ChangeNotifier {
     return Platform.environment['ECHO_PYTHON'] ?? 'python';
   }
 
-  bool cached(String videoId) => File(cachedPath(videoId)).existsSync();
+  /// A track is usable only when both the four-channel cache and all four
+  /// mono stems exist. A partial run can leave mono files behind, while older
+  /// caches can have only the four-channel file; neither can be mixed.
+  bool cached(String videoId) =>
+      File(cachedPath(videoId)).existsSync() &&
+      stemPaths(videoId).every((path) => File(path).existsSync());
 
   void clearCompleted() {
     _tasks.removeWhere((t) =>
@@ -323,6 +352,8 @@ class StemSeparationQueue extends ChangeNotifier {
     }
 
     Directory dir;
+    String? pendingWav;
+    String? pendingPart;
     _chunkCurrent = 0;
     _chunkTotal = 0;
     _runStart = null;
@@ -333,12 +364,14 @@ class StemSeparationQueue extends ChangeNotifier {
         throw const StemException('Source file is missing');
       }
       final wav = p.join(dir.path, '${_safe(task.videoId)}.decode.wav');
+      pendingWav = wav;
       await _decode(task.sourcePath, wav);
       stage('model');
       await _ensureModel();
       stage('starting helper');
       final target = task.outputPath;
       final temp = '$target.part';
+      pendingPart = temp;
       final python = await StemPythonSetup.instance.ensure();
       final requestedProvider = GetIt.I.isRegistered<SettingsManager>()
           ? GetIt.I<SettingsManager>().extra<String>('stemGpu', 'auto')
@@ -405,11 +438,21 @@ class StemSeparationQueue extends ChangeNotifier {
       } catch (_) {}
       stage('done');
       update(status: StemTaskStatus.done, progress: 1.0);
-      if (StemMixerService.instance.stemsEnabled) {
-        unawaited(StemMixerService.instance
-            .setStemFiles(task.videoId, stemPaths(task.videoId)));
-      }
+      // Only the track that is actually playing may take over the mixer. A
+      // playlist batch finishes tracks in the background while the user keeps
+      // listening to another song.
+      unawaited(StemMixerService.instance
+          .activateIfCurrent(task.videoId, stemPaths(task.videoId)));
     } catch (e) {
+      // Remove this run's temporary files immediately instead of leaving
+      // hundreds of megabytes behind until the next startup.
+      for (final path in [pendingPart, pendingWav]) {
+        if (path == null) continue;
+        try {
+          final file = File(path);
+          if (file.existsSync()) await file.delete();
+        } catch (_) {}
+      }
       stage('failed: $e');
       update(
           status: StemTaskStatus.failed,

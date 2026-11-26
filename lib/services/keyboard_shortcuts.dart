@@ -18,10 +18,19 @@ bool _vHeld = false;
 bool _vTemporaryMute = false;
 List<bool>? _vSavedPattern;
 
+/// Player calls are fire-and-forget from the UI; contain failures so a key
+/// press can never produce an uncaught async exception.
+void _safe(Future<void> Function() action) {
+  unawaited(action().catchError((Object e, StackTrace st) {
+    debugPrint('shortcut failed: $e');
+  }));
+}
+
 KeyEventResult handleGlobalKey(FocusNode node, KeyEvent event) {
   // Never swallow keys typed into search boxes or settings fields.
   final focusWidget = FocusManager.instance.primaryFocus?.context?.widget;
-  if (focusWidget is EditableText) return KeyEventResult.ignored;
+  // Let a held V finish (and restore vocals) even if focus moved to a field.
+  if (focusWidget is EditableText && !_vHeld) return KeyEventResult.ignored;
   if (event is KeyRepeatEvent) return KeyEventResult.handled;
 
   if (!GetIt.I.isRegistered<MediaPlayer>()) return KeyEventResult.ignored;
@@ -30,26 +39,22 @@ KeyEventResult handleGlobalKey(FocusNode node, KeyEvent event) {
 
   if (key == LogicalKeyboardKey.space) {
     final p = player.player;
-    if (p.playing) {
-      unawaited(p.pause());
-    } else {
-      unawaited(p.play());
-    }
+    _safe(() => p.playing ? p.pause() : p.play());
     return KeyEventResult.handled;
   }
   if (key == LogicalKeyboardKey.arrowRight) {
-    unawaited(player.player.seekToNext());
+    _safe(() => player.player.seekToNext());
     return KeyEventResult.handled;
   }
   if (key == LogicalKeyboardKey.arrowLeft) {
-    unawaited(player.player.seekToPrevious());
+    _safe(() => player.player.seekToPrevious());
     return KeyEventResult.handled;
   }
   if (key == LogicalKeyboardKey.keyS) {
     unawaited(_toggleStems());
     return KeyEventResult.handled;
   }
-  final digits = [
+  const digits = [
     LogicalKeyboardKey.digit1,
     LogicalKeyboardKey.digit2,
     LogicalKeyboardKey.digit3,
@@ -68,7 +73,10 @@ KeyEventResult handleGlobalKey(FocusNode node, KeyEvent event) {
 }
 
 Future<void> _ensureStems() async {
-  if (!GetIt.I.isRegistered<StemMixerService>()) return;
+  if (!GetIt.I.isRegistered<StemMixerService>() ||
+      !GetIt.I.isRegistered<MediaPlayer>()) {
+    return;
+  }
   final mixer = GetIt.I<StemMixerService>();
   if (mixer.state.stemsLoaded) return;
   final id = GetIt.I<MediaPlayer>().currentSongNotifier.value?.id;
@@ -90,6 +98,7 @@ Future<void> _toggleStems() async {
 }
 
 Future<void> _toggleStem(int index) async {
+  if (!GetIt.I.isRegistered<StemMixerService>()) return;
   final mixer = GetIt.I<StemMixerService>();
   await _ensureStems();
   if (!mixer.state.stemsLoaded) return;
@@ -105,9 +114,10 @@ void _handleVocalKey(KeyEvent event) {
     _vTemporaryMute = false;
     _vSavedPattern = null;
     _vHoldTimer?.cancel();
-    _vHoldTimer = Timer(const Duration(milliseconds: 250), () {
+    _vHoldTimer = Timer(const Duration(milliseconds: 250), () async {
       if (!_vHeld) return;
-      unawaited(_ensureStems());
+      await _ensureStems();
+      if (!_vHeld) return; // released while the stems were loading
       if (!mixer.state.stemsLoaded) return;
       _vSavedPattern = List<bool>.from(mixer.state.enabled);
       mixer.setStemEnabled(3, false);

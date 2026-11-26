@@ -71,4 +71,29 @@ void main() {
         File('lib/services/file_storage.dart').readAsStringSync();
     expect(files, contains("get('APP_FOLDER')"));
   });
+
+  test('stem transitions are serialized and stale temp files are cleaned', () {
+    final mixer =
+        File('lib/services/stem_mixer_service.dart').readAsStringSync();
+    expect(mixer, contains('Future<void> _enqueue('));
+    expect(mixer, contains('Future<void> _enterPlayers()'));
+    expect(mixer, contains('Future<void> _exitPlayersOnly()'));
+    expect(mixer, contains('orElse: () => null'));
+    expect(mixer, contains('catchError'));
+    expect(mixer, contains('Future<void> activateIfCurrent('));
+
+    final queue =
+        File('lib/services/stem_separation_queue.dart').readAsStringSync();
+    expect(queue, contains('_cleanupStaleTemps()'));
+    expect(queue, contains('Duration(hours: 12)'));
+    expect(queue, contains("'.decode.wav'"));
+    expect(queue, contains("'.part'"));
+    expect(queue, contains('stemPaths(videoId).every'));
+
+    final keys =
+        File('lib/services/keyboard_shortcuts.dart').readAsStringSync();
+    expect(keys, contains('KeyRepeatEvent'));
+    expect(keys, contains('void _safe('));
+    expect(keys, contains('if (!_vHeld) return'));
+  });
 }

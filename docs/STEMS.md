@@ -27,3 +27,22 @@ The model is HT-Demucs (MIT), exported to ONNX by StemSplitio. No audio is uploa
 - The separator writes four mono stem WAVs alongside the four-channel cache file.
 - Toggling stems only changes volume: no FFmpeg render and no audio-source reload. The four players are re-synced every 15 seconds if they drift.
 - Muting all four stems is silent by design; use **Enable all** to reset.
+- Stem mode is global: once enabled it follows every separated track automatically. Each player transition is serialized so rapid skips or batch completions cannot leave stale decoders running.
+- A track counts as ready only when the four-channel cache **and** all four mono stems exist. Incomplete files are ignored and can be regenerated.
+
+## Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| Space | Play / pause |
+| ← / → | Previous / next track |
+| S | Enable or disable stems |
+| 1 / 2 / 3 / 4 | Toggle Drums / Bass / Other / Vocals |
+| V (tap) | Toggle vocals |
+| V (hold) | Mute vocals while held, then restore |
+
+Shortcuts are ignored while typing in a text field. A held V always restores the previous mix on release.
+
+## Cleanup
+
+Interrupted separations leave temporary `.part` and `.decode.wav` files. The app removes such files older than 12 hours at startup, and deletes the current run's temporaries immediately after a failure. Files still being written are never touched.
