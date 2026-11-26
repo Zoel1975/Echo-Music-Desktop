@@ -89,8 +89,9 @@ headers.
 A beta "Video behind artwork (full screen)" switch is available under player
 settings, off by default. When enabled, the full-screen player mirrors the Android app's canvas: it finds
 an official music video by title/artist, takes a five-second clip from its
-centre and loops it silently behind the artwork (album tracks whose "video" is
-a still cover are skipped). It is isolated from playback: the audio backend is
+centre and loops it silently behind the entire full-screen player, not just
+behind the artwork; a dark scrim keeps titles and controls readable. Album
+tracks whose "video" is a still cover are skipped. It is isolated from playback: the audio backend is
 untouched, the controller exists only while the player page is open, and any
 decoder or stream failure disables only the backdrop. Video availability
 depends on the codecs installed in Windows.

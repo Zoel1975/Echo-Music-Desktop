@@ -27,7 +27,8 @@ void main() {
         .readAsStringSync();
     expect(widget, contains('WinVideoPlayer(controller)'));
     expect(widget, contains('IgnorePointer'));
-    expect(widget, contains('Opacity('));
+    expect(widget, contains('StackFit.expand'));
+    expect(widget, contains('DecoratedBox('));
 
     final page = File('lib/screens/player/player_page.dart').readAsStringSync();
     expect(page, contains('VideoBackdropService.instance.attach()'));

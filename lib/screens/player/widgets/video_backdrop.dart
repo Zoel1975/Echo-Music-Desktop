@@ -21,18 +21,35 @@ class VideoBackdrop extends StatelessWidget {
         if (size.width <= 0 || size.height <= 0) {
           return const SizedBox.shrink();
         }
+        // Full-window layer: it is placed behind every player widget, not
+        // just behind the round artwork.
         return IgnorePointer(
-          child: Opacity(
-            opacity: 0.32,
-            child: FittedBox(
-              fit: BoxFit.cover,
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(
-                width: size.width,
-                height: size.height,
-                child: WinVideoPlayer(controller),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              FittedBox(
+                fit: BoxFit.cover,
+                clipBehavior: Clip.hardEdge,
+                child: SizedBox(
+                  width: size.width,
+                  height: size.height,
+                  child: WinVideoPlayer(controller),
+                ),
               ),
-            ),
+              // Keep titles and controls readable over the video.
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0x99000000),
+                      Color(0x66000000),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
