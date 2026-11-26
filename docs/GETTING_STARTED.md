@@ -65,6 +65,19 @@ For song recognition, open **Settings → Song recognition**, click **Index libr
 
 Click the Cast icon in the player. The app searches over mDNS and DIAL. Select a TV or Chromecast to play the audio on that device.
 
+## Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| Space | Play / pause |
+| ← / → | Previous / next track |
+| S | Enable or disable separated stems for the current track |
+| 1 / 2 / 3 / 4 | Toggle Drums / Bass / Other / Vocals |
+| V (tap) | Toggle the vocals stem |
+| V (hold) | Mute vocals while the key is held, then restore |
+
+Shortcuts are global and are ignored while typing in a text field.
+
 ## Troubleshooting
 
 | Symptom | Check |
