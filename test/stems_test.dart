@@ -93,6 +93,7 @@ void main() {
     expect(queue, contains('playlistSeparated'));
     expect(queue, contains('Duration(milliseconds: 200)'));
     expect(queue, contains('lastDownloadError'));
+    expect(queue, contains('ahead <= index + 3'));
     final page =
         File('lib/screens/detail/playlist_page.dart').readAsStringSync();
     expect(page, contains('Separazione già in corso'));

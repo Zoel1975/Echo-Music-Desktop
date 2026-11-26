@@ -292,7 +292,21 @@ class StemSeparationQueue extends ChangeNotifier {
     notifyListeners();
     try {
       await prepare();
-      for (final song in songs) {
+      final downloads = GetIt.I<DownloadManager>();
+      for (var index = 0; index < songs.length; index++) {
+        final song = songs[index];
+        // Start the next few downloads while the current track is being
+        // separated. Inference stays sequential, but the network no longer
+        // adds a full round trip to every track of a long playlist.
+        for (var ahead = index + 1;
+            ahead <= index + 3 && ahead < songs.length;
+            ahead++) {
+          final nextId = songs[ahead]['videoId']?.toString() ?? '';
+          if (nextId.isEmpty || cached(nextId)) continue;
+          unawaited(downloads.downloadSong(songs[ahead]).catchError((Object e) {
+            debugPrint('stem playlist prefetch: $nextId failed: $e');
+          }));
+        }
         final id = song['videoId']?.toString() ?? '';
         if (id.isEmpty) {
           _playlistErrors.add('Brano senza identificativo');
@@ -312,11 +326,10 @@ class StemSeparationQueue extends ChangeNotifier {
             path = await _downloadedPath(id);
           }
           if (path == null) {
-            final downloads = GetIt.I<DownloadManager>();
             await downloads.downloadSong(song);
             // A download can be queued behind other downloads, so the path is
             // not necessarily available when downloadSong returns.
-            for (var attempt = 0; attempt < 300 && path == null; attempt++) {
+            for (var attempt = 0; attempt < 150 && path == null; attempt++) {
               path = await _downloadedPath(id);
               if (path == null) {
                 await Future<void>.delayed(const Duration(milliseconds: 200));

@@ -209,7 +209,8 @@ class _OnlinePlaylistPageState extends State<OnlinePlaylistPage> {
                     Text('Separating stems ${queue.playlistDone}/'
                         '${queue.playlistTotal} · '
                         '${queue.playlistSeparated} done, '
-                        '${queue.playlistErrors.length} failed'),
+                        '${queue.playlistErrors.length} failed\n'
+                        'Runs in the background — you can keep listening'),
                     const SizedBox(height: 4),
                     LinearProgressIndicator(value: queue.playlistProgress),
                   ],
