@@ -302,7 +302,8 @@ class StemSeparationQueue extends ChangeNotifier {
     _playlistSkipped = 0;
     _playlistErrors.clear();
     notifyListeners();
-    _notify('Stem separation started for $songs.length songs (runs in background)');
+    _notify('Stem separation started for ${songs.length} songs '
+        '(runs in background)');
     try {
       await prepare();
       final downloads = GetIt.I<DownloadManager>();

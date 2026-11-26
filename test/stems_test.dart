@@ -128,6 +128,8 @@ void main() {
 
     expect(queue, contains('void _notify('));
     expect(queue, contains('BottomMessage.showOn('));
+    expect(queue, contains(r'${songs.length}'));
+    expect(queue, isNot(contains(r'$songs.length')));
     expect(player, contains('mixer.setPlaying(!mixer.isPlaying)'));
     final mini = File('lib/screens/shell/widgets/bottom_player.dart')
         .readAsStringSync();
