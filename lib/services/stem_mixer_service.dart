@@ -253,7 +253,10 @@ class StemMixerService extends ChangeNotifier {
     if (!GetIt.I.isRegistered<MediaPlayer>()) return;
     final main = GetIt.I<MediaPlayer>();
     final position = main.player.position;
-    final wasPlaying = main.player.playing;
+    // While stem mode is active the main player is deliberately kept paused,
+    // so its playing flag alone would make every track change silent. Keep the
+    // user's last audible intent instead.
+    final wasPlaying = main.player.playing || _wasPlaying;
     final master = main.player.volume;
     await main.player.pause();
     final created = <AudioPlayer>[];
