@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:Echo/services/stream_resolver.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,6 +36,14 @@ void main() {
       ];
       expect(StreamResolver.pick(opusOnly, 'high', 'VISIONOS')!.mimeType, 'audio/webm');
     });
+  });
+
+  test('video backdrop resolves through the shared anti-bot chain', () {
+    final src = File('lib/services/stream_resolver.dart').readAsStringSync();
+    expect(src, contains('Future<String?> resolveVideo(String videoId)'));
+    expect(src, contains("startsWith('video/')"));
+    expect(src, contains('YtPlayerClient.fallbackOrder'));
+    expect(src, contains("'pot': pot"));
   });
 
   group('visitorData (no-login playback)', () {

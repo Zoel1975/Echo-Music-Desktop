@@ -9,6 +9,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'media_player.dart';
 import 'settings_manager.dart';
 import 'stem_mixer_service.dart';
+import 'stream_resolver.dart';
 
 /// Opt-in beta: a muted, looping canvas video behind the full-screen player,
 /// mirroring the Android app's `CanvasArtworkPlayer`. The mobile app does not
@@ -140,32 +141,10 @@ class VideoBackdropService extends ChangeNotifier {
       final song = _currentSong() ?? const <String, dynamic>{};
       final targetId = await _officialVideoId(yt, song, videoId);
       if (targetId == null) throw 'no official video (album-track artwork)';
-      final manifest = await yt.videos.streamsClient.getManifest(
-        targetId,
-        requireWatchPage: false,
-        ytClients: [
-          YoutubeApiClient.tvSimplyEmbedded,
-          YoutubeApiClient.webCreator,
-          YoutubeApiClient.androidVr,
-        ],
-      );
-      final streams = <dynamic>[
-        ...manifest.muxed,
-        ...manifest.videoOnly,
-      ];
-      if (streams.isEmpty) throw 'no video stream available';
-      // MP4 is decoded by Windows Media Foundation out of the box.
-      dynamic chosen;
-      for (final stream in streams) {
-        if (stream.container == StreamContainer.mp4) {
-          chosen = stream;
-          break;
-        }
-      }
-      chosen ??= streams.last;
-      final controller = WinVideoPlayerController.networkUrl(
-        Uri.parse(chosen.url.toString()),
-      );
+      // Use the same anti-bot client chain as audio playback.
+      final url = await StreamResolver.instance.resolveVideo(targetId);
+      if (url == null || url.isEmpty) throw 'no video stream available';
+      final controller = WinVideoPlayerController.networkUrl(Uri.parse(url));
       await controller.initialize().timeout(const Duration(seconds: 20));
       if (!controller.value.isInitialized) {
         await controller.dispose();

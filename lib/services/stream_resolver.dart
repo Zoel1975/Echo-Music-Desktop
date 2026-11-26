@@ -903,6 +903,80 @@ class StreamResolver {
     }
   }
 
+  /// Resolves a video-only stream for the opt-in canvas backdrop. Uses the
+  /// same client chain, visitor data and PoTokens as audio, so the beta does
+  /// not need a separate YouTube client that gets bot-blocked.
+  Future<String?> resolveVideo(String videoId) async {
+    final visitorData = await _getVisitorData();
+    final sts = await _getSignatureTimestamp(videoId);
+    for (final client in YtPlayerClient.fallbackOrder) {
+      try {
+        final music = client.name == 'WEB_REMIX';
+        final endpoint = client.name == 'WEB_CREATOR'
+            ? _studioPlayerUrl
+            : music
+                ? _musicPlayerUrl
+                : _playerUrl;
+        final response = await _client
+            .post(
+              Uri.parse(endpoint),
+              headers: _headers(client, music: music),
+              body: jsonEncode(_body(
+                client,
+                videoId,
+                visitorData: music ? _signedInVisitor : visitorData,
+                signatureTimestamp: sts,
+              )),
+            )
+            .timeout(const Duration(seconds: 20));
+        if (response.statusCode != 200) continue;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (!_statusOk(data)) continue;
+        final streaming = data['streamingData'];
+        if (streaming is! Map) continue;
+        final formats = <Map<String, dynamic>>[
+          ...(streaming['formats'] is List
+              ? (streaming['formats'] as List).whereType<Map>().map(
+                  (f) => Map<String, dynamic>.from(f))
+              : const <Map<String, dynamic>>[]),
+          ...(streaming['adaptiveFormats'] is List
+              ? (streaming['adaptiveFormats'] as List).whereType<Map>().map(
+                  (f) => Map<String, dynamic>.from(f))
+              : const <Map<String, dynamic>>[]),
+        ].where((f) {
+          final mime = f['mimeType']?.toString() ?? '';
+          return mime.startsWith('video/') && f['url'] is String;
+        }).toList();
+        if (formats.isEmpty) continue;
+        int height(Map<String, dynamic> f) => (f['height'] is num)
+            ? (f['height'] as num).toInt()
+            : (int.tryParse(f['height']?.toString() ?? '') ?? 0);
+        final mp4 = formats.where((f) => f['mimeType'].toString().contains('mp4')).toList();
+        final pool = mp4.isNotEmpty ? mp4 : formats;
+        pool.sort((a, b) => height(b).compareTo(height(a)));
+        final chosen = pool.firstWhere(
+          (f) => height(f) <= 1080,
+          orElse: () => pool.first,
+        );
+        var url = chosen['url'] as String;
+        final pot = poTokenFor(videoId, gvs: true);
+        if (pot != null && pot.isNotEmpty) {
+          final uri = Uri.tryParse(url);
+          if (uri != null) {
+            url = uri.replace(queryParameters: {
+              ...uri.queryParameters,
+              'pot': pot,
+            }).toString();
+          }
+        }
+        return url;
+      } catch (e) {
+        debugPrint('[resolver] video client ${client.name} failed: $e');
+      }
+    }
+    return null;
+  }
+
   Future<ResolvedStream> resolve(
     String videoId, {
     String quality = 'high',
