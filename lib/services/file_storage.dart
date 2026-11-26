@@ -2,17 +2,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as path;
 import 'package:share_plus/share_plus.dart';
 
-import '../utils/enhanced_image.dart';
 import '../ytmusic/ytmusic.dart';
 import 'library.dart';
 import 'settings_manager.dart';
@@ -30,10 +29,12 @@ class FileStorage {
   }
 
   static Future<void> initialise() async {
-    Directory directory = Directory("dir");
-    if (Platform.isAndroid) {
-      directory = Directory(Hive.box('SETTINGS')
-          .get('APP_FOLDER', defaultValue: FileStorage.defaultPath));
+    final configured = Hive.box('SETTINGS').get('APP_FOLDER')?.toString();
+    Directory directory;
+    if (configured != null && configured.isNotEmpty) {
+      directory = Directory(configured);
+    } else if (Platform.isAndroid) {
+      directory = Directory(FileStorage.defaultPath);
     } else if (Platform.isWindows) {
       directory =
           Directory(path.join((await getDownloadsDirectory())!.path, 'Echo'));
@@ -52,11 +53,12 @@ class FileStorage {
   }
 
   Future<void> updateDirectories() async {
-    Directory directory = Directory("dir");
-    if (Platform.isAndroid) {
-      directory = Directory(Hive.box('SETTINGS')
-              .get('APP_FOLDER', defaultValue: FileStorage.defaultPath) +
-          '/Echo');
+    final configured = Hive.box('SETTINGS').get('APP_FOLDER')?.toString();
+    Directory directory;
+    if (configured != null && configured.isNotEmpty) {
+      directory = Directory(configured);
+    } else if (Platform.isAndroid) {
+      directory = Directory(FileStorage.defaultPath);
     } else if (Platform.isWindows) {
       directory =
           Directory(path.join((await getDownloadsDirectory())!.path, 'Echo'));
@@ -68,6 +70,24 @@ class FileStorage {
       backupPath: path.join(directory.path, 'Back Up'),
       musicPath: path.join(directory.path, 'Music'),
     );
+    await _getDirectory(_storagePaths.backupPath);
+    await _getDirectory(_storagePaths.musicPath);
+    _initialised = true;
+  }
+
+  /// Choose the folder that holds downloaded tracks, backups and stems.
+  Future<void> setCustomFolder(String folder) async {
+    final directory = Directory(folder);
+    if (!directory.existsSync()) {
+      await directory.create(recursive: true);
+    }
+    await Hive.box('SETTINGS').put('APP_FOLDER', directory.path);
+    _storagePaths = StoragePaths(
+      basePath: directory.path,
+      backupPath: path.join(directory.path, 'Back Up'),
+      musicPath: path.join(directory.path, 'Music'),
+    );
+    storagePaths = _storagePaths;
     await _getDirectory(_storagePaths.backupPath);
     await _getDirectory(_storagePaths.musicPath);
     _initialised = true;
@@ -108,30 +128,42 @@ class FileStorage {
     }
   }
 
+  /// Windows-safe file name for a downloaded track. Keeps the true error
+  /// visible instead of hiding it behind a generic "File saving failed".
+  static String safeMusicFileName(Map song) {
+    var name = (song['title'] ?? song['videoId'] ?? 'track').toString();
+    name = name.replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), ' ');
+    name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Trailing dots and spaces are stripped by Windows and break writes.
+    name = name.replaceAll(RegExp(r'[. ]+$'), '');
+    if (name.length > 120) name = name.substring(0, 120).trimRight();
+    if (name.isEmpty) name = song['videoId']?.toString() ?? 'track';
+    const reserved = {
+      'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
+      'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4',
+      'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+    };
+    if (reserved.contains(name.toUpperCase())) name = '_$name';
+    return name;
+  }
+
   Future<File?> saveMusic(List<int> data, Map song, {extension = 'm4a'}) async {
-    String fileName = song['title'];
-    final RegExp avoid = RegExp(r'[\.\\\*\:\(\)\"\?#/;\|]');
-    fileName = fileName.replaceAll(avoid, '').replaceAll("'", '');
-    //fileName = Uri.decodeFull(fileName);
+    final fileName = safeMusicFileName(song);
     if (!(await requestPermissions())) return null;
-    Directory directory = await _getDirectory(storagePaths.musicPath);
+    final Directory directory = await _getDirectory(storagePaths.musicPath);
 
     File file = File(path.join(directory.path, '$fileName.$extension'));
-    int number = 1;
-    while (file.existsSync()) {
-      file = File((path.join(directory.path, '$fileName($number).$extension')));
+    var number = 1;
+    while (FileSystemEntity.typeSync(file.path) != FileSystemEntityType.notFound) {
+      file = File(path.join(directory.path, '$fileName($number).$extension'));
       number++;
     }
     try {
-      if (await file.exists()) {
-        await file.delete();
-      }
-      await file.writeAsBytes(data, flush: true);
-
       await file.writeAsBytes(data, flush: true);
       return file;
-    } catch (e) {
-      return null;
+    } catch (e, st) {
+      debugPrint('saveMusic failed for ${file.path}: $e\n$st');
+      rethrow;
     }
   }
 

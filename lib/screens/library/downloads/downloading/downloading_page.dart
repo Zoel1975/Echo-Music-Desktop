@@ -5,6 +5,7 @@ import 'package:Echo/screens/library/downloads/downloading/widgets/downloading_s
 import '../../../../../generated/l10n.dart';
 import 'cubit/downloading_cubit.dart';
 import 'widgets/downloading_song_tile.dart';
+import '../../../../../core/widgets/back_button.dart';
 
 class DownloadingPage extends StatelessWidget {
   const DownloadingPage({super.key});
@@ -15,7 +16,8 @@ class DownloadingPage extends StatelessWidget {
       create: (_) => DownloadingCubit()..load(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(S.of(context).Downloading),
+        leading: echoBackButton(context),
+        title: Text(S.of(context).Downloading),
           centerTitle: true,
         ),
         body: BlocBuilder<DownloadingCubit, DownloadingState>(

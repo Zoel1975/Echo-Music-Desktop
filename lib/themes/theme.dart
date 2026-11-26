@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/theme/tokens.dart';
 import 'typography.dart';
 
+/// Set at startup by the "Theme variant" setting (monochrome).
+Color? themeSeedOverride;
+
 class AppTheme {
-  static ThemeData light({Color? primary}) {
-    final colorScheme = ColorScheme.fromSeed(
-            seedColor: primary??Colors.red,
-            brightness: Brightness.light,
-          );
+  /// When "AMOLED black" is on, dark surfaces use pure black instead of the
+  /// seeded dark grey. Port of Android's `amoledBlack` preference.
+  static ThemeData light(
+      {Color? primary, bool amoled = false, double density = 1.0}) {
+    final colorScheme =
+        ColorScheme.fromSeed(
+            seedColor: primary ?? themeSeedOverride ?? EchoTokens.seedColor,
+            brightness: Brightness.light);
 
     return ThemeData.light(useMaterial3: true).copyWith(
       scaffoldBackgroundColor: Colors.transparent,
       textTheme: appTextTheme(ThemeData.light().textTheme),
       colorScheme: colorScheme,
-      visualDensity: VisualDensity.adaptivePlatformDensity,
+      visualDensity: density == 1.0
+          ? VisualDensity.adaptivePlatformDensity
+          : VisualDensity(
+              horizontal: (density - 1) * 5, vertical: (density - 1) * 5),
       appBarTheme: AppBarTheme(
         systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarBrightness: Brightness.light,
@@ -42,22 +52,29 @@ class AppTheme {
     );
   }
 
-  static ThemeData dark({Color? primary}) {
-    final colorScheme = ColorScheme.dark(
-      primary: Colors.white,
-      onPrimary: Colors.black,
-      secondary: Colors.white,
-      onSecondary: Colors.black,
-      surface: Colors.black,
-      onSurface: Colors.white,
-      error: Colors.red,
-      onError: Colors.white,
+  static ThemeData dark(
+      {Color? primary, bool amoled = false, double density = 1.0}) {
+    final seeded = ColorScheme.fromSeed(
+      seedColor: primary ?? themeSeedOverride ?? EchoTokens.seedColor,
+      brightness: Brightness.dark,
     );
+    final colorScheme = amoled
+        ? seeded.copyWith(
+            surface: Colors.black,
+            onSurface: Colors.white,
+            surfaceContainerHighest: const Color(0xFF0A0A0A),
+            surfaceContainerLow: Colors.black,
+            background: Colors.black,
+          )
+        : seeded;
     return ThemeData.dark(useMaterial3: true).copyWith(
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor: amoled ? Colors.black : Colors.transparent,
       textTheme: appTextTheme(ThemeData.dark().textTheme),
       colorScheme: colorScheme,
-      visualDensity: VisualDensity.adaptivePlatformDensity,
+      visualDensity: density == 1.0
+          ? VisualDensity.adaptivePlatformDensity
+          : VisualDensity(
+              horizontal: (density - 1) * 5, vertical: (density - 1) * 5),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,

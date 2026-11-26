@@ -13,7 +13,8 @@ mixin LibraryMixin on YTClient {
     Map outerContents = {};
     if (continuationParams != null) {
       outerContents =
-          nav(response, ['continuationContents', 'musicShelfContinuation']);
+          nav(response, ['continuationContents', 'musicShelfContinuation']) ??
+              {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -25,9 +26,11 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
+      ]) ?? {};
+      outerContents = firstMapOrEmpty(contents, [
+        ['musicShelfRenderer'],
+        ['itemSectionRenderer'],
       ]);
-      outerContents = nav(contents, ['musicShelfRenderer']) ??
-          nav(contents, ['itemSectionRenderer']);
     }
 
     String? continuation = nav(outerContents,
@@ -35,7 +38,7 @@ mixin LibraryMixin on YTClient {
     if (continuation != null) {
       continuation = getContinuationString(continuation);
     }
-    List contents = nav(outerContents, ['contents']);
+    List contents = nav(outerContents, ['contents']) ?? const [];
 
     return {
       'contents': handleContents(contents),
@@ -49,7 +52,7 @@ mixin LibraryMixin on YTClient {
     Map outerContents = {};
     if (continuationParams != null) {
       outerContents =
-          nav(response, ['continuationContents', 'gridContinuation']);
+          nav(response, ['continuationContents', 'gridContinuation']) ?? {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -61,13 +64,11 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
+      ]) ?? {};
+      outerContents = firstMapOrEmpty(contents, [
+        ['gridRenderer'],
+        ['itemSectionRenderer'],
       ]);
-      outerContents = nav(contents, [
-            'gridRenderer',
-          ]) ??
-          nav(contents, [
-            'itemSectionRenderer',
-          ]);
     }
     String? continuation = nav(outerContents,
         ['continuations', 0, 'nextContinuationData', 'continuation']);
@@ -75,7 +76,7 @@ mixin LibraryMixin on YTClient {
       continuation = getContinuationString(continuation);
     }
     List contents =
-        nav(outerContents, ['items']) ?? nav(outerContents, ['contents']);
+        nav(outerContents, ['items']) ?? nav(outerContents, ['contents']) ?? const [];
 
     return {
       'contents': handleContents(contents),
@@ -93,7 +94,8 @@ mixin LibraryMixin on YTClient {
     Map outerContents = {};
     if (continuationParams != null) {
       outerContents =
-          nav(response, ['continuationContents', 'musicShelfContinuation']);
+          nav(response, ['continuationContents', 'musicShelfContinuation']) ??
+              {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -105,20 +107,18 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
+      ]) ?? {};
+      outerContents = firstMapOrEmpty(contents, [
+        ['musicShelfRenderer'],
+        ['itemSectionRenderer'],
       ]);
-      outerContents = nav(contents, [
-            'musicShelfRenderer',
-          ]) ??
-          nav(contents, [
-            'itemSectionRenderer',
-          ]);
     }
     String? continuation = nav(outerContents,
         ['continuations', 0, 'nextContinuationData', 'continuation']);
     if (continuation != null) {
       continuation = getContinuationString(continuation);
     }
-    List contents = nav(outerContents, ['contents']);
+    List contents = nav(outerContents, ['contents']) ?? const [];
     return {
       'contents': handleContents(contents),
       'continuation': continuation,
@@ -133,7 +133,7 @@ mixin LibraryMixin on YTClient {
     Map outerContents = {};
     if (continuationParams != null) {
       outerContents =
-          nav(response, ['continuationContents', 'gridContinuation']);
+          nav(response, ['continuationContents', 'gridContinuation']) ?? {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -145,19 +145,20 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
+      ]) ?? {};
+      outerContents = firstMapOrEmpty(contents, [
+        ['gridRenderer'],
+        ['itemSectionRenderer'],
       ]);
-      outerContents = nav(contents, ['gridRenderer']) ??
-          nav(contents, [
-            'itemSectionRenderer',
-          ]);
     }
     String? continuation = nav(outerContents,
         ['continuations', 0, 'nextContinuationData', 'continuation']);
     if (continuation != null) {
       continuation = getContinuationString(continuation);
     }
-    List contents = nav(outerContents, ['items']);
-    if (continuationParams == null) {
+    List contents = nav(outerContents, ['items']) ?? const [];
+    if (continuationParams == null && contents.isNotEmpty) {
+      // First item is the "New playlist" card.
       contents = contents.sublist(1);
     }
 
@@ -167,14 +168,51 @@ mixin LibraryMixin on YTClient {
     };
   }
 
+  /// Podcast episodes shown in Android's `LibraryFilter.PODCASTS` tab.
+  Future<Map> getLibraryPodcasts({String? continuationParams}) async {
+    final response = await sendRequest('browse',
+        {'browseId': continuationParams == null ? 'FEmusic_podcasts' : 'FEmusic_home'},
+        additionalParams: continuationParams ?? '');
+    Map? shelf = nav(response, [
+          'contents',
+          'singleColumnBrowseResultsRenderer',
+          'tabs',
+          0,
+          'tabRenderer',
+          'content',
+          'sectionListRenderer',
+          'contents',
+          0,
+          'musicShelfRenderer',
+        ]) ??
+        nav(response, [
+          'contents',
+          'singleColumnBrowseResultsRenderer',
+          'tabs',
+          0,
+          'tabRenderer',
+          'content',
+          'sectionListRenderer',
+          'contents',
+          0,
+          'gridRenderer',
+        ]);
+    final raw = nav(shelf, ['items']) ?? nav(shelf, ['contents']) ?? const [];
+    return {
+      'contents': handleContents(raw),
+      'continuation': null,
+    };
+  }
+
   Future<Map> getLibrarySubscriptions({String? continuationParams}) async {
     Map<String, dynamic> body = {'browseId': 'FEmusic_library_corpus_artists'};
     final response = await sendRequest('browse', body,
         additionalParams: continuationParams ?? '');
     Map outerContents = {};
     if (continuationParams != null) {
-      outerContents = outerContents =
-          nav(response, ['continuationContents', 'musicShelfContinuation']);
+      outerContents =
+          nav(response, ['continuationContents', 'musicShelfContinuation']) ??
+              {};
     } else {
       Map contents = nav(response, [
         'contents',
@@ -186,20 +224,18 @@ mixin LibraryMixin on YTClient {
         'sectionListRenderer',
         'contents',
         0,
+      ]) ?? {};
+      outerContents = firstMapOrEmpty(contents, [
+        ['musicShelfRenderer'],
+        ['itemSectionRenderer'],
       ]);
-      outerContents = nav(contents, [
-            'musicShelfRenderer',
-          ]) ??
-          nav(contents, [
-            'itemSectionRenderer',
-          ]);
     }
     String? continuation = nav(outerContents,
         ['continuations', 0, 'nextContinuationData', 'continuation']);
     if (continuation != null) {
       continuation = getContinuationString(continuation);
     }
-    List contents = nav(outerContents, ['contents']);
+    List contents = nav(outerContents, ['contents']) ?? const [];
 
     return {
       'contents': handleContents(contents),
@@ -210,7 +246,7 @@ mixin LibraryMixin on YTClient {
   Future<Map<String, dynamic>> importPlaylist(String browseId) async {
     Map<String, dynamic> body = {'browseId': browseId};
     var response = await sendRequest('browse', body);
-    Map<String, dynamic> header = nav(response, [
+    final rawHeader = nav(response, [
       'contents',
       'twoColumnBrowseResultsRenderer',
       'tabs',
@@ -222,6 +258,9 @@ mixin LibraryMixin on YTClient {
       0,
       'musicResponsiveHeaderRenderer'
     ]);
+    final Map<String, dynamic> header = rawHeader is Map
+        ? Map<String, dynamic>.from(rawHeader)
+        : <String, dynamic>{};
     Map<String, dynamic> result = handlePageHeader(header);
     if (result['endpoint'] == null) {
       result['endpoint'] = {"browseId": browseId};
@@ -229,30 +268,125 @@ mixin LibraryMixin on YTClient {
     return result;
   }
 
-  Future<List> getHistory() async {
-    Map<String, dynamic> body = {'browseId': 'FEmusic_history'};
-    var response = await sendRequest('browse', body);
+  /// Signed-in YouTube Music listening history (`FEmusic_history`), with
+  /// continuation pages and per-track duration so the Wrapped can be computed
+  /// from real YTM data instead of the local Echo play history.
+  static int parseDurationSeconds(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) return 0;
+    final parts = text.split(':').map((p) => int.tryParse(p) ?? 0).toList();
+    if (parts.isEmpty) return 0;
+    if (parts.length == 2) return parts[0] * 60 + parts[1];
+    if (parts.length == 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return int.tryParse(text) ?? 0;
+  }
 
-    List allContents = nav(response, [
-      'contents',
-      'singleColumnBrowseResultsRenderer',
-      'tabs',
-      0,
-      'tabRenderer',
-      'content',
-      'sectionListRenderer',
-      'contents',
-    ]);
-    List result = [];
-    for (var content in allContents) {
-      List contents = nav(content, ['musicShelfRenderer', 'contents']);
-      Map header = nav(content, ['musicShelfRenderer']);
-      Map section = {
-        'title': nav(header, ['title', 'runs', 0, 'text']),
-        'contents': handleContents(contents),
-      };
-      result.add(section);
-    }
+  Future<List> getHistory({int maxPages = 12}) async {
+    final body = <String, dynamic>{'browseId': 'FEmusic_history'};
+    final result = <Map<String, dynamic>>[];
+    String? continuation;
+    var pages = 0;
+
+    do {
+      final response = await sendRequest(
+        'browse',
+        body,
+        additionalParams: continuation == null
+            ? ''
+            : getContinuationString(continuation),
+      );
+      List allContents;
+      if (continuation == null) {
+        allContents = nav(response, [
+              'contents',
+              'singleColumnBrowseResultsRenderer',
+              'tabs',
+              0,
+              'tabRenderer',
+              'content',
+              'sectionListRenderer',
+              'contents',
+            ]) ??
+            const [];
+      } else {
+        final c = nav(response, [
+          'continuationContents',
+          'musicShelfContinuation',
+        ]) ?? const {};
+        allContents = [
+          {
+            'musicShelfRenderer': c,
+          }
+        ];
+      }
+
+      for (final content in allContents) {
+        final rawContents =
+            nav(content, ['musicShelfRenderer', 'contents']) ?? const [];
+        final header = nav(content, ['musicShelfRenderer']) ?? const {};
+        final parsed = handleContents(rawContents as List);
+        final durations = <String, int>{};
+        for (final raw in rawContents) {
+          final id = nav(raw, [
+                'musicResponsiveListItemRenderer',
+                'playlistItemData',
+                'videoId',
+              ]) ??
+              nav(raw, [
+                'musicResponsiveListItemRenderer',
+                'navigationEndpoint',
+                'watchEndpoint',
+                'videoId',
+              ]);
+          if (id == null) continue;
+          final durationText = nav(raw, [
+            'musicResponsiveListItemRenderer',
+            'fixedColumns',
+            0,
+            'musicResponsiveListItemFlexColumnRenderer',
+            'text',
+            'runs',
+            0,
+            'text',
+          ]);
+          durations[id.toString()] = parseDurationSeconds(durationText);
+        }
+        for (final item in parsed) {
+          if (item is Map<String, dynamic>) {
+            item['durationSeconds'] =
+                durations[item['videoId']?.toString()] ?? 0;
+          }
+        }
+        result.add({
+          'title': nav(header, ['title', 'runs', 0, 'text']),
+          'contents': parsed,
+        });
+      }
+
+      continuation = nav(response, [
+            'continuationContents',
+            'musicShelfContinuation',
+            'continuations',
+            0,
+            'nextContinuationData',
+            'continuation',
+          ]) ??
+          nav(response, [
+            'contents',
+            'singleColumnBrowseResultsRenderer',
+            'tabs',
+            0,
+            'tabRenderer',
+            'content',
+            'sectionListRenderer',
+            'continuations',
+            0,
+            'nextContinuationData',
+            'continuation',
+          ])?.toString();
+      pages++;
+    } while (continuation != null && pages < maxPages);
+
     return result;
   }
 

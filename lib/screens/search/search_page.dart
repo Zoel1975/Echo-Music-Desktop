@@ -160,6 +160,13 @@ class _SearchPageState extends State<_SearchPage> {
                     ),
               automaticallyImplyLeading:
                   (constraints.maxWidth <= 400) ? false : true,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.library_music_outlined),
+                  tooltip: 'Search local library',
+                  onPressed: () => context.push('/search/local'),
+                ),
+              ],
             );
           }),
         ),

@@ -9,6 +9,7 @@ import 'package:Echo/core/utils/service_locator.dart';
 import 'package:Echo/screens/browse/cubit/browse_cubit.dart';
 import 'package:Echo/core/widgets/section_item.dart';
 import 'package:Echo/utils/internet_guard.dart';
+import 'package:Echo/utils/safe_cast.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
 import 'package:provider/provider.dart';
 
@@ -102,8 +103,9 @@ class _BrowsePageState extends State<_BrowsePage> {
     });
     Map<String, dynamic> home =
         await ytMusic.browseContinuation(additionalParams: continuation!);
-    List<Map<String, dynamic>>? secs =
-        home['sections']?.cast<Map<String, dynamic>>();
+    List<Map<String, dynamic>>? secs = home['sections'] == null
+        ? null
+        : safeMapList(home['sections']);
     if (mounted) {
       setState(() {
         sections.addAll(secs ?? []);

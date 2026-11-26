@@ -12,8 +12,16 @@ class SpotifyService {
     'playlist-read-collaborative',
   ];
 
+  // Public client identifier (not a secret). The client secret must never be
+  // bundled in a distributed desktop binary (CWE-798): users configure their
+  // own in Settings -> Services -> Spotify import.
   final String clientID = '4ede44382bf14ac3ba1d97ad753b233f';
-  final String clientSecret = 'fb01ad204aff4c12bbcb3ca7ac617990';
+  String get clientSecret => Hive.isBoxOpen('SETTINGS')
+      ? Hive.box('SETTINGS')
+              .get('SPOTIFY_CLIENT_SECRET', defaultValue: '')
+              ?.toString() ??
+          ''
+      : '';
   final String redirectUrl = '127.0.0.1';
   final String spotifyApiUrl = 'https://accounts.spotify.com/api';
   final String spotifyApiBaseUrl = 'https://api.spotify.com/v1';
@@ -25,6 +33,12 @@ class SpotifyService {
   final String requestToken = 'https://accounts.spotify.com/api/token';
 
   Future<String> getAccessTokenCC() async {
+    if (clientSecret.isEmpty) {
+      throw Exception(
+        'Spotify client secret is not configured. Add it in Settings -> '
+        'Services -> Spotify import.',
+      );
+    }
     final box = await Hive.openBox('SPOTIFY_TOKEN');
     final token = box.get('access_token');
     final expiry = box.get('expiry');

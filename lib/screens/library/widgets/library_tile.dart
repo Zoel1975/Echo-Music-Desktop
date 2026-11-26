@@ -8,6 +8,7 @@ import 'package:Echo/services/media_player.dart';
 import 'package:Echo/utils/adaptive_widgets/listtile.dart';
 import 'package:Echo/utils/bottom_modals.dart';
 import 'package:Echo/utils/extensions.dart';
+import 'package:Echo/utils/enhanced_image.dart';
 
 class LibraryTile extends StatelessWidget {
   const LibraryTile({required this.songs, required this.index, super.key});
@@ -31,7 +32,9 @@ class LibraryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Map song = songs[index];
-    List thumbnails = song['thumbnails'];
+    final thumbnails =
+        (song['thumbnails'] as List?)?.whereType<Map>().toList() ??
+            const <Map>[];
     double height =
         (song['aspectRatio'] != null ? 50 / song['aspectRatio'] : 50)
             .toDouble();
@@ -53,8 +56,7 @@ class LibraryTile extends StatelessWidget {
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(3),
         child: CachedNetworkImage(
-          imageUrl:
-              thumbnails.where((el) => el['width'] >= 50).toList().first['url'],
+          imageUrl: bestThumbnailUrl(thumbnails, width: 50) ?? '',
           height: height,
           width: 50,
           fit: BoxFit.cover,

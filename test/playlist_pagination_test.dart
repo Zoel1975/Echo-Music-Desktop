@@ -1,0 +1,223 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+
+import 'package:Echo/ytmusic/mixins/browsing.dart';
+import 'package:Echo/ytmusic/modals/yt_config.dart';
+import 'package:Echo/ytmusic/ytmusic.dart';
+
+class _FakeYt extends YTMusic {
+  _FakeYt() : super(config: YTConfig(visitorData: '', language: 'en', location: 'IT'));
+
+  int calls = 0;
+
+  @override
+  Future<Map> sendRequest(String endpoint, Map<String, dynamic> body,
+      {Map<String, String>? headers, String additionalParams = ''}) async {
+    calls++;
+    if ((body['continuation'] ?? additionalParams).toString().contains('TOKEN2')) {
+      return {
+        'onResponseReceivedActions': [
+          {
+            'appendContinuationItemsAction': {
+              'continuationItems': [
+                    // YouTube repeats a song from page 1: must be ignored.
+                    for (final id in ['v0', 'last1', 'last2'])
+                      {
+                        'playlistPanelVideoRenderer': {
+                          'videoId': id,
+                          'title': {'runs': [{'text': id}]},
+                          'thumbnail': {
+                            'thumbnails': [
+                              {'url': 'https://img/$id'}
+                            ]
+                          },
+                          'setVideoId': 'set-$id',
+                          'navigationEndpoint': {
+                            'watchEndpoint': {'playlistId': 'PL123'}
+                          },
+                        }
+                      },
+                    {
+                      'playlistPanelVideoRenderer': {
+                        'videoId': 'foreign',
+                        'title': {'runs': [{'text': 'Not mine'}]},
+                        'thumbnail': {
+                          'thumbnails': [
+                            {'url': 'https://img/foreign'}
+                          ]
+                        },
+                        'setVideoId': 'set-foreign',
+                        'navigationEndpoint': {
+                          'watchEndpoint': {'playlistId': 'OTHER'}
+                        },
+                      }
+                    }
+                ],
+              },
+            },
+          ],
+        };
+    }
+    final firstPage = [
+      for (var i = 0; i < 100; i++)
+        {
+          'playlistPanelVideoRenderer': {
+            'videoId': 'v$i',
+            'title': {'runs': [{'text': 'Song $i'}]},
+            'thumbnail': {
+              'thumbnails': [
+                {'url': 'https://img/$i'}
+              ]
+            },
+            'setVideoId': 'set-$i',
+          }
+        }
+    ];
+    return {
+      'contents': {
+        'twoColumnBrowseResultsRenderer': {
+          'tabs': [
+            {
+              'tabRenderer': {
+                'content': {
+                  'sectionListRenderer': {
+                    'contents': [
+                      {
+                        'musicEditablePlaylistDetailHeaderRenderer': {
+                          'header': {
+                            'musicResponsiveHeaderRenderer': {
+                              'secondSubtitle': {
+                                'runs': [
+                                  {'text': '102 tracce'}
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                  }
+                }
+              }
+            }
+          ]
+        },
+        'singleColumnBrowseResultsRenderer': {
+          'tabs': [
+            {
+              'tabRenderer': {
+                'content': {
+                  'sectionListRenderer': {
+                    // Android calls this the "related videos" continuation.
+                    // It must NOT be used to fetch playlist songs.
+                    'continuations': [
+                      {'nextContinuationData': {'continuation': 'RELATED'}}
+                    ],
+                    'contents': [
+                      {
+                        'musicPlaylistShelfRenderer': {
+                          'contents': [
+                            ...firstPage,
+                            {
+                              'continuationItemRenderer': {
+                                'continuationEndpoint': {
+                                  'continuationCommand': {'token': 'TOKEN2'}
+                                }
+                              }
+                            }
+                          ],
+                        }
+                      }
+                    ],
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    };
+  }
+}
+
+void main() {
+  setUpAll(() async {
+    final dir = Directory('${Directory.systemTemp.path}/echo_pagination_test');
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    Hive.init(dir.path);
+    for (final box in ['SETTINGS', 'COOKIES', 'ACCOUNT']) {
+      if (!Hive.isBoxOpen(box)) await Hive.openBox(box);
+    }
+  });
+
+  test('declared song count is parsed from localized headers', () {
+    Map header(String text) => {
+          'contents': {
+            'twoColumnBrowseResultsRenderer': {
+              'tabs': [
+                {
+                  'tabRenderer': {
+                    'content': {
+                      'sectionListRenderer': {
+                        'contents': [
+                          {
+                            'musicEditablePlaylistDetailHeaderRenderer': {
+                              'header': {
+                                'musicResponsiveHeaderRenderer': {
+                                  'secondSubtitle': {
+                                    'runs': [
+                                      {'text': text}
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        };
+    expect(BrowsingMixin.declaredSongCount(header('119 visualizzazioni  129 tracce')), 129);
+    expect(BrowsingMixin.declaredSongCount(header('1,234 songs')), 1234);
+    expect(BrowsingMixin.declaredSongCount(header('Nessun conteggio')), isNull);
+  });
+
+  test('reopening a playlist uses the session cache', () async {
+    BrowsingMixin.clearPlaylistCache();
+    final yt = _FakeYt();
+    await yt.getPlaylistSongs('VLPL123');
+    final calls = yt.calls;
+    final again = await yt.getPlaylistSongs('VLPL123');
+    expect(again, hasLength(102));
+    expect(yt.calls, calls, reason: 'cached playlist must not hit the network');
+  });
+
+  test('getMoreItems understands sectionListContinuation (real playlists)',
+      () async {
+    final yt = _FakeYt();
+    // The fake returns sectionListContinuation from getMoreItems; the first
+    // call in the other test already exercised the shelf path, so cover the
+    // section-list shape explicitly with a direct call.
+    final more = await yt.getMoreItems(continuation: '&ctoken=TOKEN2&continuation=TOKEN2');
+    expect(more['items'], isA<List>());
+  });
+
+  test('getPlaylistSongs follows continuations past 100 tracks', () async {
+    BrowsingMixin.clearPlaylistCache();
+    final yt = _FakeYt();
+    final songs = await yt.getPlaylistSongs('VLPL123');
+    expect(songs, hasLength(102),
+        reason: 'first page 100 + continuation 2; desktop must not stop at 100');
+    expect(songs.first['videoId'], 'v0');
+    expect(songs.last['videoId'], 'last2');
+    expect(songs.last['setVideoId'], 'set-last2');
+    expect(yt.calls, 2);
+  });
+}

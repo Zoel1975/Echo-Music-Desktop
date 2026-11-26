@@ -8,6 +8,7 @@ import '../../../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../widgets/library_tile.dart';
 import '../widgets/my_playlist_header.dart';
 import 'cubit/favourites_cubit.dart';
+import '../../../../core/widgets/back_button.dart';
 
 class FavouritesPage extends StatelessWidget {
   const FavouritesPage({super.key});
@@ -18,7 +19,8 @@ class FavouritesPage extends StatelessWidget {
       create: (_) => FavouritesCubit()..load(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(S.of(context).Favourites),
+        leading: echoBackButton(context),
+        title: Text(S.of(context).Favourites),
           centerTitle: true,
         ),
         body: BlocBuilder<FavouritesCubit, FavouritesState>(

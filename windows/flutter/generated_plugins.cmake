@@ -5,11 +5,14 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   dynamic_color
+  ffmpeg_kit_flutter_new_audio
   flutter_acrylic
   media_kit_libs_windows_audio
   permission_handler_windows
-  share_plus
   url_launcher_windows
+  share_plus
+  video_player_win
+  webview_flutter_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

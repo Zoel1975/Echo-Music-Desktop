@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:Echo/utils/enhanced_image.dart';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -36,10 +37,7 @@ class MyPlayistHeader extends StatelessWidget {
                   int index = ind.$1;
                   Map song = ind.$2;
                   return CachedNetworkImage(
-                    imageUrl: song['thumbnails']
-                        .first['url']
-                        .replaceAll('w540-h225', 'w225-h225')
-                        .replaceAll('w60-h60', 'w225-h225'),
+                    imageUrl: bestThumbnailUrl(song['thumbnails'], width: 225) ?? '',
                     height:
                         (songs.length <= 2 || (songs.length == 3 && index == 0))
                             ? 225

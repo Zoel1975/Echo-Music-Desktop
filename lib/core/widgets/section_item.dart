@@ -29,12 +29,15 @@ class SectionItem extends StatefulWidget {
 
 class _SectionItemState extends State<SectionItem> {
   final ScrollController horizontalScrollController = ScrollController();
-  PageController horizontalPageController = PageController();
+  // Created once: rebuilding a PageController on every build leaked old
+  // controllers and reset the pager position while scrolling.
+  late final PageController horizontalPageController;
   bool loadingMore = false;
 
   @override
   void initState() {
     super.initState();
+    horizontalPageController = PageController();
   }
 
   @override
@@ -63,11 +66,10 @@ class _SectionItemState extends State<SectionItem> {
 
   @override
   Widget build(BuildContext context) {
-    horizontalPageController = PageController(
-        viewportFraction: 350 / MediaQuery.of(context).size.width);
-    return widget.section['contents'].isEmpty
-        ? const SizedBox()
-        : Column(
+    return RepaintBoundary(
+      child: widget.section['contents'].isEmpty
+          ? const SizedBox()
+          : Column(
             children: [
               if (widget.section['title'] != null)
                 AdaptiveListTile(
@@ -191,7 +193,8 @@ class _SectionItemState extends State<SectionItem> {
                 AdaptiveButton(
                     onPressed: loadMoreItems, child: const Text("Load More"))
             ],
-          );
+          ),
+    );
   }
 }
 
@@ -322,10 +325,7 @@ class SongTile extends StatelessWidget {
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(3),
           child: CachedNetworkImage(
-            imageUrl: thumbnails
-                .where((el) => el['width'] >= 50)
-                .toList()
-                .first['url'],
+            imageUrl: bestThumbnailUrl(thumbnails, width: 50) ?? '',
             height: height,
             width: 50,
             fit: BoxFit.cover,
@@ -409,6 +409,7 @@ class _ItemListState extends State<ItemList> {
         height: height + (Platform.isWindows ? 102 : 78),
         child: ListView.separated(
           controller: widget.controller,
+          cacheExtent: 600,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           scrollDirection: Axis.horizontal,
           itemBuilder: (context, index) {
@@ -422,20 +423,41 @@ class _ItemListState extends State<ItemList> {
               child: AdaptiveInkWell(
                 padding: EdgeInsets.all(Platform.isWindows ? 12 : 0),
                 onTap: () async {
-                  if (widget.items[index]['chartUrl'] != null) {
+                  final item = widget.items[index];
+                  if (item['chartUrl'] != null) {
                     context.push('/chart_details',
-                        extra: widget.items[index]['chartUrl']);
-                  } else if (widget.items[index]['endpoint'] != null &&
-                      widget.items[index]['videoId'] == null) {
+                        extra: item['chartUrl']);
+                  } else if (item['type'] == 'ALBUM' &&
+                      item['endpoint']?['browseId'] != null) {
+                    // Phase 3: open the dedicated album detail page.
+                    context.push('/album',
+                        extra: {
+                          'browseId': item['endpoint']['browseId'],
+                        });
+                  } else if (item['type'] == 'ARTIST' &&
+                      item['endpoint']?['browseId'] != null) {
+                    context.push('/artist',
+                        extra: {
+                          'browseId': item['endpoint']['browseId'],
+                        });
+                  } else if (item['type'] == 'PLAYLIST' &&
+                      (item['endpoint'] != null || item['playlistId'] != null)) {
+                    Object? playlistId = item['playlistId'];
+                    playlistId ??= item['endpoint']?['browseId'];
+                    if (playlistId != null) {
+                      context.push('/playlist',
+                          extra: {'playlistId': playlistId.toString()});
+                    }
+                  } else if (item['endpoint'] != null &&
+                      item['videoId'] == null) {
                     context.push(
                       '/browse',
                       extra: {
-                        'endpoint': widget.items[index]['endpoint'],
+                        'endpoint': item['endpoint'],
                       },
                     );
                   } else {
-                    await GetIt.I<MediaPlayer>()
-                        .playSong(Map.from(widget.items[index]));
+                    await GetIt.I<MediaPlayer>().playSong(Map.from(item));
                   }
                 },
                 onSecondaryTap: () {

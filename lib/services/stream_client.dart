@@ -3,6 +3,15 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
+/// Minimal description of a downloadable audio stream. Kept independent from
+/// youtube_explode so downloads can use the same resolved URL as playback.
+class DownloadStreamInfo {
+  const DownloadStreamInfo(this.url, this.contentLength);
+
+  final Uri url;
+  final int contentLength;
+}
+
 class AudioStreamClient {
   final http.Client _httpClient = http.Client();
 
@@ -22,12 +31,12 @@ class AudioStreamClient {
     'upgrade-insecure-requests': '1',
   };
 
-  Stream<List<int>> getAudioStream(streamInfo,
+  Stream<List<int>> getAudioStream(DownloadStreamInfo streamInfo,
           {required int start, required int end}) =>
       _getStream(streamInfo, streamClient: this, start: start, end: end);
 
   Stream<List<int>> _getStream(
-    StreamInfo streamInfo, {
+    DownloadStreamInfo streamInfo, {
     Map<String, String> headers = const {},
     bool validate = true,
     required int start,

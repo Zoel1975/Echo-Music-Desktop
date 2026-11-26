@@ -2,6 +2,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:Echo/utils/enhanced_image.dart';
+import 'package:Echo/utils/safe_cast.dart';
 
 class SongThumbnail extends StatefulWidget {
   final Map song;
@@ -118,11 +119,19 @@ class _SongThumbnailState extends State<SongThumbnail> {
     if (_localImageProvider != null) {
       return _buildDisplayImage(_localImageProvider!);
     }
-    final String baseUrl = widget.song['thumbnails'].first['url'];
+    // Music Flow / radio items can arrive without artwork. Calling `.first`
+    // on a null list used to crash the whole app with a red error screen.
+    final thumbnails = safeMapList(widget.song['thumbnails']);
+    final baseUrl = bestThumbnailUrl(thumbnails) ?? '';
+    if (baseUrl.isEmpty) {
+      return widget.errorWidget?.call(context, '', '') ??
+          const Icon(Icons.music_note, color: Colors.white54);
+    }
+    final dp = widget.dp ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
     final List<String> urls = [
-      getEnhancedImage(baseUrl, dp: widget.dp, width: widget.width),
+      getEnhancedImage(baseUrl, dp: dp, width: widget.width ?? 300),
+      getEnhancedImage(baseUrl, quality: 'high'),
       getEnhancedImage(baseUrl, quality: 'medium'),
-      getEnhancedImage(baseUrl, quality: 'low'),
     ];
     return _buildCachedNetworkImage(urls, 0);
   }

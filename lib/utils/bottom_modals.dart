@@ -5,11 +5,19 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration_picker/duration_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:Echo/services/song_dna_service.dart';
+import 'package:Echo/services/stem_mixer_service.dart';
+import 'package:Echo/services/stem_separation_queue.dart';
+import 'package:Echo/services/settings_manager.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/screens/settings/player/equalizer/equalizer_page.dart';
+import 'package:Echo/core/theme/tokens.dart';
+import 'package:Echo/core/widgets/echo_surface.dart';
 import 'package:Echo/utils/playlist_thumbnail.dart';
+import 'package:Echo/utils/enhanced_image.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -28,6 +36,8 @@ import '../themes/text_styles.dart';
 import 'adaptive_widgets/adaptive_widgets.dart';
 import 'format_duration.dart';
 import '../utils/extensions.dart';
+import '../utils/export_feedback.dart';
+import '../utils/download_feedback.dart';
 
 class Modals {
   static Future<T?> showGlassWindow<T>({
@@ -128,6 +138,407 @@ class Modals {
         width: 400,
         height: 600,
         child: _SongWindowContent(song: song),
+      ),
+    );
+  }
+
+  /// Android's Song DNA bottom sheet, using the already-ported Genius +
+  /// Wikipedia service and the credentials entered in Integrations.
+  static Future<void> _showSongDna(BuildContext context, Map song) async {
+    final settings = GetIt.I<SettingsManager>();
+    final dna = GetIt.I<SongDnaService>();
+    final artist = song['artist']?.toString() ??
+        (song['artists'] is List && song['artists'].isNotEmpty
+            ? song['artists'].first['name']?.toString() ?? ''
+            : '');
+    final query = '${song['title'] ?? ''} $artist'.trim();
+    final future = dna
+        .fetchGeniusTitle(
+            token: settings.extra<String>('geniusToken', ''), query: query)
+        .then((title) async {
+      final summary = title == null
+          ? null
+          : await dna.fetchWikipedia(
+              lang: settings.extra<String>('wikipediaLang', 'en'),
+              title: title);
+      return (title: title, summary: summary);
+    });
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: FutureBuilder<({String? title, String? summary})>(
+            future: future,
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return const SizedBox(
+                  height: 160,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final data = snap.data!;
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Song DNA', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 12),
+                    Text(query, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Text(data.title ?? 'Nessun risultato Genius (controlla il token)'),
+                    const SizedBox(height: 12),
+                    Text(data.summary ?? 'Nessun riassunto Wikipedia disponibile'),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Stem mixer panel, styled like the rest of the app's bottom sheets.
+  static Future<void> showStemsSheet(BuildContext context, Map song) async {
+    final mixer = GetIt.I<StemMixerService>();
+    final queue = StemSeparationQueue.instance;
+    final videoId = song['videoId']?.toString();
+    String? sourcePath = song['path']?.toString();
+    if (sourcePath == null || !File(sourcePath).existsSync()) {
+      sourcePath = null;
+      for (final download in GetIt.I<DownloadManager>().downloads.value) {
+        if (download['videoId']?.toString() == videoId &&
+            download['path'] != null &&
+            File(download['path'].toString()).existsSync()) {
+          sourcePath = download['path'].toString();
+          break;
+        }
+      }
+    }
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => BottomModalLayout(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(EchoTokens.cornerMedium),
+              ),
+              child: Icon(Icons.call_split,
+                  color: Theme.of(context).colorScheme.primary),
+            ),
+            const SizedBox(width: EchoTokens.space3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Stems',
+                      style: Theme.of(context).textTheme.titleLarge),
+                  Text('Mix the separated parts in real time',
+                      style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
+          child: ListenableBuilder(
+            listenable: Listenable.merge([mixer, queue]),
+            builder: (context, _) {
+              final scheme = Theme.of(context).colorScheme;
+              final state = mixer.state;
+              final cached = videoId != null && queue.cached(videoId);
+              StemTask? task;
+              if (videoId != null) {
+                for (final t in queue.tasks) {
+                  if (t.videoId == videoId) {
+                    task = t;
+                    break;
+                  }
+                }
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: EchoTokens.space2, vertical: EchoTokens.space2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    EchoSurface(
+                      radius: BorderRadius.circular(EchoTokens.cornerLarge),
+                      padding: const EdgeInsets.all(EchoTokens.space4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text('Use separated stems',
+                                style: Theme.of(context).textTheme.titleMedium),
+                            subtitle: Text(cached
+                                ? 'Applies automatically to every separated track'
+                                : 'No separated stem files for this track yet'),
+                            value: mixer.stemsEnabled && cached,
+                            activeThumbColor: scheme.primary,
+                            onChanged: cached
+                                ? (value) {
+                                    if (value) {
+                                      unawaited(mixer.setStemFiles(
+                                          videoId, queue.stemPaths(videoId)));
+                                    } else {
+                                      unawaited(mixer.disableStems());
+                                    }
+                                  }
+                                : null,
+                          ),
+                          if (state.stemsLoaded) ...[
+                            const Divider(height: EchoTokens.space4),
+                            Text(
+                              '${state.enabled.where((v) => v).length} of 4 active '
+                              '· tap a stem or hold D/B/I/V to mute it',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: EchoTokens.space3),
+                            GridView.count(
+                              crossAxisCount: 2,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              mainAxisSpacing: EchoTokens.space2,
+                              crossAxisSpacing: EchoTokens.space2,
+                              childAspectRatio: 2.4,
+                              children: List.generate(4, (i) {
+                                final active = state.enabled[i];
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(
+                                      EchoTokens.cornerMedium),
+                                  onTap: () =>
+                                      mixer.setStemEnabled(i, !active),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: EchoTokens.space3,
+                                        vertical: EchoTokens.space2),
+                                    decoration: BoxDecoration(
+                                      color: active
+                                          ? stemColors[i].withValues(alpha: 0.18)
+                                          : scheme.surfaceContainerHighest
+                                              .withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(
+                                          EchoTokens.cornerMedium),
+                                      border: Border.all(
+                                        color: active
+                                            ? stemColors[i]
+                                            : scheme.outlineVariant
+                                                .withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: stemColors[i],
+                                          ),
+                                        ),
+                                        const SizedBox(width: EchoTokens.space2),
+                                        Expanded(
+                                          child: Text(
+                                            '${stemNames[i]}  [${stemKeys[i]}]',
+                                            style: TextStyle(
+                                              color: active
+                                                  ? scheme.onSurface
+                                                  : scheme.onSurfaceVariant,
+                                              fontWeight: active
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => mixer.solo(i),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize:
+                                                MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          child: const Text('Solo'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                onPressed: mixer.restoreAll,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Enable all'),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (queue.allBusy || queue.setupBusy || task != null) ...[
+                      const SizedBox(height: EchoTokens.space3),
+                      EchoSurface(
+                        radius:
+                            BorderRadius.circular(EchoTokens.cornerLarge),
+                        padding: const EdgeInsets.all(EchoTokens.space4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              queue.setupBusy
+                                  ? queue.setupStatus
+                                  : queue.allBusy && queue.chunkTotal > 0
+                                      ? 'Separating ${queue.chunkCurrent}/'
+                                          '${queue.chunkTotal} · '
+                                          '${queue.elapsedSeconds}s'
+                                      : task?.status == StemTaskStatus.done
+                                          ? 'Done — stems ready'
+                                          : task?.status == StemTaskStatus.failed
+                                              ? 'Separation failed'
+                                              : '${queue.allStatus} '
+                                                  '${(queue.allProgress * 100).round()}%',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: EchoTokens.space2),
+                            LinearProgressIndicator(
+                              value: queue.setupBusy
+                                  ? queue.setupProgress
+                                  : queue.allBusy
+                                      ? queue.allProgress
+                                      : task?.progress,
+                              color: scheme.primary,
+                              backgroundColor:
+                                  scheme.primary.withValues(alpha: 0.18),
+                            ),
+                            if (queue.setupBusy) ...[
+                              const SizedBox(height: EchoTokens.space2),
+                              Text(
+                                'Model ${(queue.setupProgress * 100).round()}%',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (task?.error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: EchoTokens.space2),
+                        child: Text(task!.error!,
+                            style: TextStyle(color: scheme.error)),
+                      ),
+                    const SizedBox(height: EchoTokens.space3),
+                    EchoSurface(
+                      radius: BorderRadius.circular(EchoTokens.cornerLarge),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: EchoTokens.space4,
+                          vertical: EchoTokens.space1),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Text('Speed'),
+                              const Spacer(),
+                              DropdownButton<bool>(
+                                value: GetIt.I<SettingsManager>()
+                                    .extra<bool>('stemFast', true),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: true, child: Text('Fast')),
+                                  DropdownMenuItem(
+                                      value: false, child: Text('Quality')),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    GetIt.I<SettingsManager>()
+                                        .setExtra<bool>('stemFast', v);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Text('GPU'),
+                              const Spacer(),
+                              DropdownButton<String>(
+                                value: GetIt.I<SettingsManager>()
+                                    .extra<String>('stemGpu', 'auto'),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: 'auto', child: Text('Auto')),
+                                  DropdownMenuItem(
+                                      value: 'cpu', child: Text('CPU')),
+                                  DropdownMenuItem(
+                                      value: 'dml', child: Text('DirectML')),
+                                  DropdownMenuItem(
+                                      value: 'cuda', child: Text('CUDA')),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    GetIt.I<SettingsManager>()
+                                        .setExtra<String>('stemGpu', v);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (queue.provider.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: EchoTokens.space2),
+                        child: Text('Provider: ${queue.provider}',
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ),
+                    const SizedBox(height: EchoTokens.space4),
+                    FilledButton.icon(
+                      onPressed: queue.allBusy
+                          ? null
+                          : () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              try {
+                                await queue.startAll(
+                                    Map<String, dynamic>.from(song),
+                                    videoId ?? '');
+                              } catch (e) {
+                                BottomMessage.showText(
+                                    messenger.context, '$e');
+                              }
+                            },
+                      icon: const Icon(Icons.download_for_offline),
+                      label: const Text('Download all & separate'),
+                    ),
+                    const SizedBox(height: EchoTokens.space2),
+                    Text(
+                      'Python, model and stem files are stored in your chosen '
+                      'music folder. Everything runs on this device.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -606,9 +1017,7 @@ BottomModalLayout _addToPlaylist(BuildContext context, Map item) {
                               borderRadius: BorderRadius.circular(
                                   playlist['type'] == 'ARTIST' ? 50 : 3),
                               child: CachedNetworkImage(
-                                imageUrl: playlist['thumbnails']
-                                    .first['url']
-                                    .replaceAll('w540-h225', 'w60-h60'),
+                                imageUrl: bestThumbnailUrl(playlist['thumbnails'], width: 50) ?? '',
                                 height: 50,
                                 width: 50,
                               ))
@@ -858,7 +1267,7 @@ class _AppleMusicStylePopup extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                      filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -870,12 +1279,22 @@ class _AppleMusicStylePopup extends StatelessWidget {
                               icon: AdaptiveIcons.download,
                               title: S.of(context).Download,
                               onTap: () {
+                                final messenger =
+                                    ScaffoldMessenger.of(context);
                                 Navigator.pop(context);
-                                BottomMessage.showText(
-                                    context, S.of(context).Download_Started);
-                                GetIt.I<DownloadManager>().downloadSong(song);
+                                unawaited(DownloadFeedback.download(
+                                    messenger, song));
                               },
                             ),
+                          _menuItem(
+                            context,
+                            icon: Icons.call_split,
+                            title: 'Stems',
+                            onTap: () {
+                              Navigator.pop(context);
+                              unawaited(Modals.showStemsSheet(context, song));
+                            },
+                          ),
                           _menuItem(
                             context,
                             icon: AdaptiveIcons.library_add,
@@ -1020,8 +1439,10 @@ BottomModalLayout _playerOptionsModal(BuildContext context, Map song) {
           // SLIDERS GROUP (Volume/Speed)
           Column(
             children: [
-              StreamBuilder(
-                stream: GetIt.I<MediaPlayer>().player.volumeStream,
+              if (!GetIt.I<SettingsManager>()
+                  .extra<bool>('hideVolumeSlider', false))
+                StreamBuilder(
+                  stream: GetIt.I<MediaPlayer>().player.volumeStream,
                 builder: (context, progress) {
                   return AdaptiveListTile(
                     dense: true,
@@ -1086,11 +1507,22 @@ BottomModalLayout _playerOptionsModal(BuildContext context, Map song) {
               title: Text(S.of(context).Download),
               leading: Icon(AdaptiveIcons.download),
               onTap: () {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
-                BottomMessage.showText(context, S.of(context).Download_Started);
-                GetIt.I<DownloadManager>().downloadSong(song);
+                unawaited(DownloadFeedback.download(messenger, song));
               },
             ),
+
+          AdaptiveListTile(
+            dense: true,
+            title: const Text('Stems'),
+            leading: const Icon(Icons.call_split),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.pop(context);
+              unawaited(Modals.showStemsSheet(context, song));
+            },
+          ),
 
           AdaptiveListTile(
             dense: true,
@@ -1201,7 +1633,7 @@ BottomModalLayout _songBottomModal(BuildContext context, Map song) {
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: CachedNetworkImage(
-          imageUrl: song['thumbnails'].first['url'],
+          imageUrl: bestThumbnailUrl(song['thumbnails'], width: 48) ?? '',
           height: 50,
           width: song['type'] == 'VIDEO' ? 80 : 50,
         ),
@@ -1271,9 +1703,9 @@ BottomModalLayout _songBottomModal(BuildContext context, Map song) {
               title: Text(S.of(context).Download),
               leading: Icon(AdaptiveIcons.download),
               onTap: () {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
-                BottomMessage.showText(context, S.of(context).Download_Started);
-                GetIt.I<DownloadManager>().downloadSong(song);
+                unawaited(DownloadFeedback.download(messenger, song));
               },
             ),
           AdaptiveListTile(
@@ -1836,7 +2268,7 @@ class _GlassWindow extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
               child: Column(
                 children: [
                   // Header
@@ -2091,14 +2523,14 @@ class _TimerWindowContentState extends State<_TimerWindowContent> {
   @override
   Widget build(BuildContext context) {
     final mediaPlayer = context.watch<MediaPlayer>();
-    final currentTimer = mediaPlayer.timerDuration.value;
+    final sleepTimer = mediaPlayer.sleepTimer;
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (currentTimer != null) ...[
+          if (sleepTimer.isActive) ...[
             const Text(
               "Timer Active",
               style: TextStyle(
@@ -2109,13 +2541,18 @@ class _TimerWindowContentState extends State<_TimerWindowContent> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              formatDuration(currentTimer),
-              style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                decoration: TextDecoration.none,
+            ValueListenableBuilder<Duration?>(
+              valueListenable: mediaPlayer.timerDuration,
+              builder: (context, remaining, _) => Text(
+                sleepTimer.pauseWhenSongEnd
+                    ? "End of track"
+                    : (remaining == null ? "--:--" : formatDuration(remaining)),
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  decoration: TextDecoration.none,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -2144,11 +2581,38 @@ class _TimerWindowContentState extends State<_TimerWindowContent> {
                 _buildPreset(const Duration(hours: 1), "1 hr"),
                 _buildPreset(const Duration(hours: 2), "2 hrs"),
                 _buildPreset(
-                    null, "Custom"), // Custom or End of Song placeholder
+                    null, "Custom"), // Custom duration picker
+                _buildEndOfTrack(),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEndOfTrack() {
+    return Material(
+      color: Colors.white.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        hoverColor: Colors.white.withOpacity(0.2),
+        onTap: () {
+          context.read<MediaPlayer>().setEndOfTrackTimer();
+          Navigator.pop(context);
+        },
+        child: const Center(
+          child: Text(
+            "End of song",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2210,7 +2674,7 @@ class _SongWindowContent extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
-                imageUrl: song['thumbnails'].first['url'],
+                imageUrl: bestThumbnailUrl(song['thumbnails'], width: 48) ?? '',
                 height: 60,
                 width: song['type'] == 'VIDEO' ? 100 : 60,
                 fit: BoxFit.cover,
@@ -2307,10 +2771,43 @@ errorWidget: (context, url, error) => const Icon(Icons.music_note),
             GetIt.I<DownloadManager>().downloadSong(song);
           },
         ),
+        if (song['status'] == 'DOWNLOADED')
+          _buildAction(
+            context,
+            icon: Icons.audiotrack,
+            title: S.of(context).ExportAsMP3,
+            onTap: () {
+              // Resolve the messenger before popping: the sheet is gone by the
+              // time the export finishes, but the progress and completion must
+              // still reach the user.
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              unawaited(ExportFeedback.exportSong(messenger, song));
+            },
+          ),
         _buildAction(
           context,
-          icon: AdaptiveIcons.library_add,
-          title: S.of(context).Add_To_Playlist,
+          icon: Icons.call_split,
+          title: 'Stems',
+          onTap: () {
+            Navigator.pop(context);
+            unawaited(Modals.showStemsSheet(context, song));
+          },
+        ),
+        if (GetIt.I<SettingsManager>().extra<bool>('songDnaEnabled', false))
+    _buildAction(
+      context,
+      icon: Icons.biotech,
+      title: 'Song DNA',
+      onTap: () {
+        Navigator.pop(context);
+        unawaited(Modals._showSongDna(context, song));
+      },
+    ),
+  _buildAction(
+      context,
+      icon: AdaptiveIcons.library_add,
+      title: S.of(context).Add_To_Playlist,
           onTap: () {
             Navigator.pop(context);
             Modals.addToPlaylist(context, song);
@@ -2423,7 +2920,7 @@ class _PlaylistWindowContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: (playlist['thumbnails']?.isNotEmpty == true)
                   ? CachedNetworkImage(
-                      imageUrl: playlist['thumbnails'].first['url'],
+                      imageUrl: bestThumbnailUrl(playlist['thumbnails'], width: 120) ?? '',
                       height: 60,
                       width: 60,
                       fit: BoxFit.cover,

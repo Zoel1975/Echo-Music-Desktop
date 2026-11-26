@@ -4,15 +4,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:Echo/core/utils/service_locator.dart';
-import 'package:Echo/utils/extensions.dart';
+import 'package:Echo/services/settings_manager.dart';
+import 'package:Echo/services/auto_playlists.dart';
+import 'package:Echo/services/media_player.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:Echo/utils/playlist_thumbnail.dart';
 
 import '../../../../generated/l10n.dart';
 import '../../../../services/library.dart';
-import '../../../../themes/colors.dart';
 import '../../../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../../../utils/bottom_modals.dart';
 import '../../../../themes/text_styles.dart';
@@ -95,26 +98,175 @@ class _LibraryBody extends StatelessWidget {
     // Collect all items into a list
     final List<Map<String, dynamic>> gridItems = [];
 
-    // Static Items
+    // Signed-in YouTube Music library (real playlists/songs/albums/artists).
     gridItems.add({
-      'title': S.of(context).Favourites,
-      'subtitle': S.of(context).nSongs(favouritesCount),
-      'icon': AdaptiveIcons.heart_fill,
-      'onTap': () => context.push('/saved/favourites_page'),
+      'title': 'YouTube Music library',
+      'subtitle': 'Your playlists, liked songs, albums & artists',
+      'icon': Icons.cloud_done,
+      'onTap': () => context.push('/ytm_library'),
     });
 
-    gridItems.add({
-      'title': S.of(context).Downloads,
-      'subtitle': S.of(context).nSongs(downloadsCount),
-      'icon': AdaptiveIcons.download,
-      'onTap': () => context.push('/saved/downloads_page'),
-    });
+    // Cloud library synced from Jellyfin / Navidrome when enabled.
+    if (GetIt.I<SettingsManager>().extra<bool>('cloudSync', false)) {
+      final cached = Hive.isBoxOpen('CLOUD_LIBRARY')
+          ? Hive.box('CLOUD_LIBRARY').get('songs')
+          : null;
+      final count = cached is List ? cached.length : 0;
+      gridItems.add({
+        'title': 'Cloud library',
+        'subtitle': '$count brani sincronizzati',
+        'icon': Icons.cloud_sync,
+        'onTap': () {
+          final songs = cached is List ? cached : const [];
+          showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Cloud library'),
+              content: SizedBox(
+                width: 320,
+                child: songs.isEmpty
+                    ? const Text('Nessun brano sincronizzato')
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: songs.length,
+                        itemBuilder: (_, i) => ListTile(
+                          title: Text(songs[i]['title']?.toString() ?? ''),
+                          subtitle: Text(songs[i]['artist']?.toString() ?? ''),
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Chiudi'))
+              ],
+            ),
+          );
+        },
+      });
+    }
+
+    // Android's automatic playlists, built from data already on disk.
+    final autoData = <String, List<Map<String, dynamic>>>{
+      'Top played': AutoPlaylists.top(),
+      'Least played': AutoPlaylists.bottom(),
+      'Cached': AutoPlaylists.cached(),
+    };
+    const autoKeys = {
+      'Top played': 'showTopPlaylist',
+      'Least played': 'showBottomPlaylist',
+      'Cached': 'showCachedPlaylist',
+    };
+    const autoIcons = {
+      'Top played': Icons.leaderboard,
+      'Least played': Icons.trending_down,
+      'Cached': Icons.cached,
+    };
+    for (final entry in autoData.entries) {
+      if (!GetIt.I<SettingsManager>()
+          .extra<bool>(autoKeys[entry.key]!, false)) {
+        continue;
+      }
+      final songs = entry.value;
+      gridItems.add({
+        'title': entry.key,
+        'subtitle': '${songs.length} songs',
+        'icon': autoIcons[entry.key]!,
+        'onTap': () => showDialog<void>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(entry.key),
+                content: SizedBox(
+                  width: 360,
+                  child: songs.isEmpty
+                      ? const Text('No songs available yet')
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: songs.length,
+                          itemBuilder: (_, i) => ListTile(
+                            title: Text(songs[i]['title']?.toString() ?? ''),
+                            subtitle: Text(
+                              songs[i]['artist']?.toString() ?? '',
+                            ),
+                          ),
+                        ),
+                ),
+                actions: [
+                  if (songs.isNotEmpty)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        GetIt.I<MediaPlayer>().playAll(songs, index: 0);
+                      },
+                      child: const Text('Play all'),
+                    ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ),
+      });
+    }
+
+    // Static Items — Android's "Show Liked / Downloaded playlist" toggles.
+    final librarySettings = GetIt.I<SettingsManager>();
+    if (librarySettings.showLikedPlaylist) {
+      gridItems.add({
+        'title': S.of(context).Favourites,
+        'subtitle': S.of(context).nSongs(favouritesCount),
+        'icon': AdaptiveIcons.heart_fill,
+        'onTap': () => context.push('/saved/favourites_page'),
+      });
+    }
+
+    if (librarySettings.showDownloadedPlaylist) {
+      gridItems.add({
+        'title': S.of(context).Downloads,
+        'subtitle': S.of(context).nSongs(downloadsCount),
+        'icon': AdaptiveIcons.download,
+        'onTap': () => context.push('/saved/downloads_page'),
+      });
+    }
 
     gridItems.add({
       'title': S.of(context).History,
       'subtitle': S.of(context).nSongs(historyCount),
       'icon': Icons.history,
       'onTap': () => context.push('/saved/history_page'),
+    });
+
+    // Android LibrarySongs/Albums/Artists screens — aggregate local songs.
+    gridItems.add({
+      'title': 'Local songs',
+      'subtitle': 'Scan and play your own audio files',
+      'icon': Icons.folder_special,
+      'onTap': () => context.push('/saved/local_songs'),
+    });
+    gridItems.add({
+      'title': 'Songs',
+      'subtitle': 'All songs in your library',
+      'icon': Icons.music_note,
+      'onTap': () => context.push('/saved/library_songs', extra: 0),
+    });
+    gridItems.add({
+      'title': 'Albums',
+      'subtitle': 'Browse by album',
+      'icon': Icons.album,
+      'onTap': () => context.push('/saved/library_songs', extra: 1),
+    });
+    gridItems.add({
+      'title': 'Artists',
+      'subtitle': 'Browse by artist',
+      'icon': Icons.person,
+      'onTap': () => context.push('/saved/library_songs', extra: 2),
+    });
+    gridItems.add({
+      'title': 'Podcasts',
+      'subtitle': 'Podcast e serie YouTube Music',
+      'icon': Icons.podcasts,
+      'onTap': () => context.push('/podcasts'),
     });
 
     // Playlists
@@ -167,8 +319,13 @@ class _LibraryBody extends StatelessWidget {
       builder: (context, constraints) {
         return GridView.builder(
           padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 200,
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: switch (
+                GetIt.I<SettingsManager>().extra<String>('gridCellSize', 'Medium')) {
+              'Small' => 150.0,
+              'Large' => 260.0,
+              _ => 200.0,
+            },
             childAspectRatio: 0.8,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,

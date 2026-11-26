@@ -1,16 +1,32 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
 
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:Echo/services/cast/cast_device.dart';
+import 'package:Echo/services/cast/cast_service.dart';
+import 'package:Echo/core/widgets/echo_surface.dart';
+import 'package:Echo/core/widgets/motion_effects.dart';
 import 'package:Echo/services/media_player.dart';
+import 'package:Echo/services/settings_manager.dart';
+import 'package:Echo/services/stem_mixer_service.dart';
 import 'package:Echo/utils/adaptive_widgets/buttons.dart';
-import 'package:Echo/utils/adaptive_widgets/listtile.dart';
 import 'package:Echo/utils/adaptive_widgets/progress_ring.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui' as ui;
-import 'package:Echo/utils/bottom_modals.dart';
+
+/// Palette colors extracted from album art can be almost white. Returned color
+/// is always dark enough for the white mini-player labels to stay readable.
+Color readableMiniPlayerBackground(Color source) {
+  double luminance(Color c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  var color = source;
+  for (var t = 0.0; t <= 1.0; t += 0.1) {
+    color = Color.lerp(source, Colors.black, t) ?? Colors.black;
+    if (luminance(color) <= 0.22) break;
+  }
+  return color;
+}
 
 class BottomPlayer extends StatefulWidget {
   const BottomPlayer({super.key});
@@ -29,18 +45,31 @@ class _BottomPlayerState extends State<BottomPlayer> {
       image,
       maximumColorCount: 20,
     );
-    if (mounted) {
-      if (palette.dominantColor != null &&
-          backgroundColor != palette.dominantColor!.color) {
-        setState(() {
-          backgroundColor = palette.dominantColor!.color;
-        });
-      }
+    if (!mounted) return;
+    final source = palette.darkVibrantColor?.color ??
+        palette.darkMutedColor?.color ??
+        palette.vibrantColor?.color ??
+        palette.dominantColor?.color;
+    if (source == null) return;
+    final readable = readableMiniPlayerBackground(source);
+    if (backgroundColor != readable) {
+      setState(() => backgroundColor = readable);
     }
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    // Rebuild when appearance settings (mini-player style, glass) change,
+    // without requiring a Provider ancestor.
+    if (!GetIt.I.isRegistered<SettingsManager>()) return _buildPlayer(context);
+    return AnimatedBuilder(
+      animation: GetIt.I<SettingsManager>(),
+      builder: (context, _) => _buildPlayer(context),
+    );
+  }
+
+  Widget _buildPlayer(BuildContext context) {
     final mediaPlayer = GetIt.I<MediaPlayer>();
     return StreamBuilder(
         stream: mediaPlayer.currentTrackStream,
@@ -53,27 +82,33 @@ class _BottomPlayerState extends State<BottomPlayer> {
           if (currentSong == null) {
             return const SizedBox(); // or loading indicator
           }
+          // The palette is darkened before use, so white labels always have
+          // enough contrast even for very light album covers.
+          const foreground = Colors.white;
           return ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
             child: GestureDetector(
               onTap: () {
                 context.push('/player');
               },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: (backgroundColor ?? const Color(0xFF202020)).withAlpha(255),
-                  borderRadius: BorderRadius.circular(50),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: EchoSurface(
+                  color: () {
+                    final base = backgroundColor ?? const Color(0xFF202020);
+                    return switch (GetIt.I<SettingsManager>().miniPlayerStyle) {
+                      'Glass' => base.withAlpha(215),
+                      'Gradient' => base.withAlpha(240),
+                      _ => base.withAlpha(255), // Solid
+                    };
+                  }(),
+                  radius: const BorderRadius.all(Radius.circular(50)),
+                  vibrancy: GetIt.I<SettingsManager>()
+                              .extra<bool>('glassMiniPlayer', true) &&
+                          GetIt.I<SettingsManager>().miniPlayerStyle == 'Glass'
+                      ? 1.3
+                      : 0.0,
+                  child: ClipRRect(
                   borderRadius: BorderRadius.circular(50),
                   child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -104,29 +139,26 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      MarqueeText(
                                         currentSong.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
-                                          color: Colors.white,
+                                          color: foreground,
                                         ),
                                       ),
                                       if (currentSong.artist != null ||
                                           currentSong.extras!['subtitle'] !=
                                               null)
-                                        Text(
+                                        MarqueeText(
                                           currentSong.artist ??
                                               currentSong
                                                   .extras!['subtitle'],
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             fontSize: 12,
                                             color:
-                                                Colors.white.withValues(alpha: 0.8),
+                                                foreground
+                                                    .withValues(alpha: 0.8),
                                           ),
                                         ),
                                     ],
@@ -155,7 +187,7 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     icon: const Icon(
                                       Icons.skip_previous,
                                       size: 24,
-                                      color: Colors.white,
+                                      color: foreground,
                                     ),
                                   );
                                 },
@@ -165,33 +197,42 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                 valueListenable:
                                     GetIt.I<MediaPlayer>().buttonState,
                                 builder: (context, buttonState, child) {
-                                  return (buttonState == ButtonState.loading)
-                                      ? const SizedBox(
+                                  return AnimatedBuilder(
+                                    animation: StemMixerService.instance,
+                                    builder: (context, _) {
+                                      final mixer = StemMixerService.instance;
+                                      final stems = mixer.state.stemsLoaded;
+                                      if (!stems &&
+                                          buttonState == ButtonState.loading) {
+                                        return const SizedBox(
                                           height: 24,
                                           width: 24,
                                           child: AdaptiveProgressRing(),
-                                        )
-                                      : AdaptiveIconButton(
-                                          onPressed: () {
-                                            GetIt.I<MediaPlayer>()
-                                                    .player
-                                                    .playing
-                                                ? GetIt.I<MediaPlayer>()
-                                                    .player
-                                                    .pause()
-                                                : GetIt.I<MediaPlayer>()
-                                                    .player
-                                                    .play();
-                                          },
-                                          icon: Icon(
-                                            buttonState ==
-                                                    ButtonState.playing
-                                                ? Icons.pause
-                                                : Icons.play_arrow,
-                                            size: 30, // Slightly smaller play button
-                                            color: Colors.white,
-                                          ),
                                         );
+                                      }
+                                      final playing = stems
+                                          ? mixer.isPlaying
+                                          : buttonState == ButtonState.playing;
+                                      return AdaptiveIconButton(
+                                        onPressed: () {
+                                          if (mixer.state.stemsLoaded) {
+                                            unawaited(mixer
+                                                .setPlaying(!mixer.isPlaying));
+                                          } else {
+                                            final p =
+                                                GetIt.I<MediaPlayer>().player;
+                                            unawaited(
+                                                p.playing ? p.pause() : p.play());
+                                          }
+                                        },
+                                        icon: Icon(
+                                          playing ? Icons.pause : Icons.play_arrow,
+                                          size: 30,
+                                          color: foreground,
+                                        ),
+                                      );
+                                    },
+                                  );
                                 },
                               ),
                               const SizedBox(width: 4),
@@ -210,16 +251,32 @@ class _BottomPlayerState extends State<BottomPlayer> {
                                     icon: const Icon(
                                       Icons.skip_next,
                                       size: 24,
-                                      color: Colors.white,
+                                      color: foreground,
                                     ),
                                   );
                                 },
+                              ),
+                              ValueListenableBuilder<CastDevice?>(
+                                valueListenable:
+                                    GetIt.I<CastService>().connected,
+                                builder: (context, device, _) =>
+                                    AdaptiveIconButton(
+                                  onPressed: () => context.push('/cast'),
+                                  icon: Icon(
+                                    device == null ? Icons.cast : Icons.cast_connected,
+                                    size: 20,
+                                    color: device == null
+                                        ? foreground.withValues(alpha: 0.7)
+                                        : Colors.greenAccent,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ],
                       ),
                     ),
+                  ),
                   ),
                 ),
               ),

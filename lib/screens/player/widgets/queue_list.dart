@@ -1,98 +1,182 @@
-import 'dart:io';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
+import 'package:Echo/services/settings_manager.dart';
 import 'package:get_it/get_it.dart';
 import 'package:Echo/generated/l10n.dart';
 import 'package:Echo/services/media_player.dart';
+import 'package:Echo/services/queue_filter.dart';
 import 'package:Echo/utils/song_thumbnail.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
-class QueueList extends StatelessWidget {
+/// Desktop port of the queue sheet (`ui/player/Queue.kt`) with the Android
+/// `QueueExt` / `RadioQueuePageFilter` features: search filtering and
+/// duplicate removal, plus reordering and swipe-to-remove.
+class QueueList extends StatefulWidget {
   const QueueList({super.key});
+
+  @override
+  State<QueueList> createState() => _QueueListState();
+}
+
+class _QueueListState extends State<QueueList> {
+  final _search = TextEditingController();
+  bool _hideDuplicates = false;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final mediaPlayer = GetIt.I<MediaPlayer>();
     final player = mediaPlayer.player;
 
-    return StreamBuilder(
-      stream: mediaPlayer.currentTrackStream,
-      builder: (context, snapshot) {
-        final sequence = snapshot.data?.sequence ?? [];
-        final currentIndex = snapshot.data?.currentIndex ?? 0;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.6),
+      ),
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+          child: SafeArea(
+            top: false,
+            child: StreamBuilder(
+              stream: mediaPlayer.currentTrackStream,
+              builder: (context, snapshot) {
+                var sequence = snapshot.data?.sequence ?? [];
+                final currentIndex = snapshot.data?.currentIndex ?? 0;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor.withAlpha(70),
-          ),
-          child: ClipRRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-              child: SafeArea(
-                top: false,
-                child: Column(
+                // Android QueueExt: remove duplicates / filter by query.
+                if (_hideDuplicates) {
+                  sequence = QueueFilter.dedupe(
+                    sequence,
+                    (s) => s.tag?.id ?? '',
+                  );
+                }
+                if (_search.text.trim().isNotEmpty) {
+                  sequence = QueueFilter.search(
+                    sequence,
+                    _search.text,
+                    titleOf: (s) => (s.tag as MediaItem?)?.title ?? '',
+                    artistOf: (s) => (s.tag as MediaItem?)?.artist ?? '',
+                  );
+                }
+
+                return Column(
                   children: [
-                    Expanded(
-                      child: ReorderableListView(
-                        onReorder: (oldIndex, newIndex) async {
-                          if (newIndex > oldIndex) newIndex -= 1;
-                          await player.moveAudioSource(oldIndex, newIndex);
-                        },
-                        children: [
-                          for (int i = 0; i < sequence.length; i++)
-                            QueueTile(
-                              key: Key(sequence[i].tag?.id ?? '$i'),
-                              index: i,
-                              isCurrent: i == currentIndex,
-                              source: sequence[i],
-                            ),
-                        ],
-                      ),
+                    _QueueHeader(
+                      count: sequence.length,
+                      player: player,
+                      search: _search,
+                      hideDuplicates: _hideDuplicates,
+                      onToggleDuplicates: () => setState(
+                          () => _hideDuplicates = !_hideDuplicates),
+                      onSearchChanged: (_) => setState(() {}),
                     ),
-                    if (Platform.isAndroid)
-                      StreamBuilder<bool>(
-                        stream: player.shuffleModeEnabledStream,
-                        builder: (context, snapshot) {
-                          final shuffle = snapshot.data ?? false;
-                          return Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton.icon(
-                                  style: ButtonStyle(
-                                    backgroundColor: WidgetStatePropertyAll(
-                                      shuffle
-                                          ? Colors.white
-                                          : Colors.white.withAlpha(50),
-                                    ),
-                                    foregroundColor: WidgetStatePropertyAll(
-                                      shuffle
-                                          ? Theme.of(context)
-                                              .scaffoldBackgroundColor
-                                          : Colors.white,
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    player.setShuffleModeEnabled(!shuffle);
-                                  },
-                                  icon: const Icon(Icons.shuffle_outlined),
-                                  label: Text(S.of(context).Shuffle),
-                                ),
-                              ],
+                    const Divider(height: 1),
+                    Expanded(
+                      child: sequence.isEmpty
+                          ? const Center(child: Text('Queue is empty'))
+                          : ReorderableListView.builder(
+                              buildDefaultDragHandles: false,
+                              itemCount: sequence.length,
+                              onReorder: (oldIndex, newIndex) async {
+                                if (newIndex > oldIndex) newIndex -= 1;
+                                await player.moveAudioSource(oldIndex, newIndex);
+                              },
+                              itemBuilder: (context, i) {
+                                return QueueTile(
+                                  key: ValueKey('queue-$i-${sequence[i].tag?.id}'),
+                                  index: i,
+                                  isCurrent: i == currentIndex,
+                                  source: sequence[i],
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
+                    ),
                   ],
-                ),
-              ),
+                );
+              },
             ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+class _QueueHeader extends StatelessWidget {
+  const _QueueHeader({
+    required this.count,
+    required this.player,
+    required this.search,
+    required this.hideDuplicates,
+    required this.onToggleDuplicates,
+    required this.onSearchChanged,
+  });
+
+  final int count;
+  final AudioPlayer player;
+  final TextEditingController search;
+  final bool hideDuplicates;
+  final VoidCallback onToggleDuplicates;
+  final ValueChanged<String> onSearchChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(
+                'Queue â€¢ $count',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Hide duplicates',
+                isSelected: hideDuplicates,
+                onPressed: onToggleDuplicates,
+                icon: const Icon(Icons.filter_alt_off),
+                color: hideDuplicates ? colorScheme.primary : null,
+              ),
+              StreamBuilder<bool>(
+                stream: player.shuffleModeEnabledStream,
+                builder: (context, snapshot) {
+                  final shuffle = snapshot.data ?? false;
+                  return IconButton(
+                    tooltip: S.of(context).Shuffle,
+                    isSelected: shuffle,
+                    onPressed: () => player.setShuffleModeEnabled(!shuffle),
+                    icon: const Icon(Icons.shuffle),
+                    color: shuffle ? colorScheme.primary : null,
+                  );
+                },
+              ),
+            ],
+          ),
+          TextField(
+            controller: search,
+            onChanged: onSearchChanged,
+            decoration: const InputDecoration(
+              hintText: 'Filter queueâ€¦',
+              prefixIcon: Icon(Icons.search, size: 18),
+              isDense: true,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -114,79 +198,85 @@ class QueueTile extends StatelessWidget {
     final player = GetIt.I<MediaPlayer>().player;
     final MediaItem? song = source.tag as MediaItem?;
 
-    if (song == null) return const SizedBox();
+    if (song == null) return const SizedBox.shrink();
 
-    return Dismissible(
-      key: Key(song.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        await player.removeAudioSourceAt(index);
-        return true;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final settings = GetIt.I<SettingsManager>();
+    final tile = GestureDetector(
+      onHorizontalDragEnd: (details) {
+        if (!settings.extra<bool>('swipeQueue', true)) return;
+        final v = details.primaryVelocity ?? 0;
+        if (v.abs() < 400) return;
+        if (v < 0) {
+          // Swipe left: play this track next.
+          final target = (player.currentIndex ?? -1) + 1;
+          if (target < player.sequence.length && index < player.sequence.length) {
+            player.moveAudioSource(index, target);
+          }
+        } else {
+          // Swipe right: move to the end of the queue.
+          if (index < player.sequence.length) {
+            player.moveAudioSource(index, player.sequence.length - 1);
+          }
+        }
       },
       child: ListTile(
-        key: Key(index.toString()),
-        title: Text(song.title, maxLines: 1),
-        leading: ArtworkWidget(song: song, isCurrent: isCurrent),
-        subtitle: Text(
-          song.artist ?? song.album ?? song.extras?['subtitle'] ?? '',
-          maxLines: 1,
-        ),
-        // trailing: const Icon(Icons.drag_handle),
-        onTap: () {
-          player.seek(Duration.zero, index: index);
-        },
-      ),
-    );
-  }
-}
-
-class ArtworkWidget extends StatelessWidget {
-  final MediaItem song;
-  final bool isCurrent;
-
-  const ArtworkWidget({
-    super.key,
-    required this.song,
-    required this.isCurrent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final double dp = MediaQuery.of(context).devicePixelRatio;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Stack(
+      selected: isCurrent,
+      selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SongThumbnail(
-            song: song.extras!,
-            dp: dp,
-            height: 50,
-            width: 50,
-            fit: BoxFit.fill,
-            errorWidget: (_, __, ___) => const Icon(Icons.music_note, size: 32),
+          ReorderableDragStartListener(
+            index: index,
+            child: const Icon(Icons.drag_handle),
           ),
-          if (isCurrent)
-            Container(
-              height: 50,
-              width: 50,
-              color: Colors.black.withOpacity(0.6),
-            ),
-          if (isCurrent)
-            const Positioned(
-              width: 34,
-              height: 34,
-              left: 8,
-              top: 8,
-              child: Center(
-                child: Icon(
-                  Icons.music_note_outlined,
-                  color: Colors.white,
-                ),
+          if (song.extras?['thumbnails'] is List &&
+              (song.extras!['thumbnails'] as List).isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SongThumbnail(
+                song: Map<String, dynamic>.from(song.extras!),
+                width: 44,
+                height: 44,
               ),
             ),
         ],
       ),
+      title: Text(
+        song.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: isCurrent ? colorScheme.primary : null,
+          fontWeight: isCurrent ? FontWeight.bold : null,
+        ),
+      ),
+      subtitle: song.artist != null
+          ? Text(song.artist!, maxLines: 1, overflow: TextOverflow.ellipsis)
+          : null,
+      trailing: IconButton(
+        icon: const Icon(Icons.remove_circle_outline),
+        tooltip: 'Remove from queue',
+        onPressed: () => player.removeAudioSourceAt(index),
+      ),
+      onTap: () => player.seek(Duration.zero, index: index),
+      ),
     );
+    if (settings.extra<bool>('swipeRemove', false)) {
+      return Dismissible(
+        key: ValueKey('queue-${song.id}-$index'),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          color: Colors.red.withValues(alpha: 0.7),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          child: const Icon(Icons.delete, color: Colors.white),
+        ),
+        onDismissed: (_) => player.removeAudioSourceAt(index),
+        child: tile,
+      );
+    }
+    return tile;
   }
 }

@@ -7,6 +7,7 @@ import '../../../../../utils/bottom_modals.dart';
 import 'cubit/download_playlist_cubit.dart';
 import 'widgets/download_playlist_header.dart';
 import 'widgets/download_song_tile.dart';
+import '../../../../../core/widgets/back_button.dart';
 
 class DownloadPlaylistPage extends StatelessWidget {
   const DownloadPlaylistPage({
@@ -63,6 +64,7 @@ class _PlaylistView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: playlist['type'] == 'SONGS'
             ? Text(S.of(context).Songs)
             : Text(playlist['title']),

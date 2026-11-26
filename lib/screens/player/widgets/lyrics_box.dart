@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get_it/get_it.dart';
 import 'package:Echo/models/lyrics_model.dart'; // Import the new model
 import 'package:Echo/services/lyrics.dart'; // Import the new service
 import 'package:Echo/services/media_player.dart';
+import 'package:Echo/services/settings_manager.dart';
+import 'package:Echo/services/stem_mixer_service.dart';
+import 'translation_dialog.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
-import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -28,7 +31,12 @@ class LyricsBox extends StatefulWidget {
 
 class _LyricsBoxState extends State<LyricsBox> {
   Future<Lyrics>? _fetchLyricsFuture;
+  /// Invalidates results from a previous track: a slow provider could otherwise
+  /// overwrite the current song's lyrics after a quick track change.
+  int _fetchGeneration = 0;
   bool _lyricsLoaded = false;
+  List<String>? _translatedLines;
+  Lyrics? _lyrics;
 
   @override
   void initState() {
@@ -65,28 +73,33 @@ class _LyricsBoxState extends State<LyricsBox> {
   }
 
   void _fetchLyrics() {
-    if (context.mounted) {
-      setState(() {
-        _fetchLyricsFuture = GetIt.I<LyricsService>().getLyrics(
-          title: widget.currentSong.title,
-          artist: widget.currentSong.artist,
-          album: widget.currentSong.album,
-          duration: widget.currentSong.duration?.inSeconds.toString(),
-        );
-        _lyricsLoaded = false;
-        _fetchLyricsFuture!.then((lyrics) {
-          _lyricsLoaded =
-              (lyrics.parsedLyrics?.lyrics.isNotEmpty ?? false) ||
-                  lyrics.lyricsPlain.isNotEmpty;
-          widget.onLyricsFound?.call(_lyricsLoaded);
-          _updateWakelock();
-        }).catchError((_) {
-          _lyricsLoaded = false;
-          widget.onLyricsFound?.call(false);
-          _updateWakelock();
-        });
-      });
-    }
+    if (!mounted) return;
+    final generation = ++_fetchGeneration;
+    setState(() {
+      _translatedLines = null;
+      _lyrics = null;
+      _lyricsLoaded = false;
+      _fetchLyricsFuture = GetIt.I<LyricsService>().getLyrics(
+        title: widget.currentSong.title,
+        artist: widget.currentSong.artist,
+        album: widget.currentSong.album,
+        duration: widget.currentSong.duration?.inSeconds.toString(),
+      );
+    });
+    _fetchLyricsFuture!.then((lyrics) {
+      if (!mounted || generation != _fetchGeneration) return;
+      _lyrics = lyrics;
+      _lyricsLoaded = (lyrics.parsedLyrics?.lyrics.isNotEmpty ?? false) ||
+          lyrics.lyricsPlain.isNotEmpty;
+      _maybeAutoRomanize(lyrics, generation);
+      widget.onLyricsFound?.call(_lyricsLoaded);
+      _updateWakelock();
+    }).catchError((_) {
+      if (!mounted || generation != _fetchGeneration) return;
+      _lyricsLoaded = false;
+      widget.onLyricsFound?.call(false);
+      _updateWakelock();
+    });
   }
 
   @override
@@ -96,29 +109,153 @@ class _LyricsBoxState extends State<LyricsBox> {
     super.dispose();
   }
 
+  /// Android's "Lyrics romanization": transliterate automatically after a
+  /// fetch when enabled. "Show romanized as main" is applied by the lyric
+  /// widgets when deciding which text to render first.
+  Future<void> _maybeAutoRomanize(Lyrics lyrics, int generation) async {
+    final settings = GetIt.I<SettingsManager>();
+    if (!settings.lyricsRomanization || !settings.translateLyrics) return;
+    final lines = lyrics.lyricsPlain
+        .split('\n')
+        .where((l) => l.trim().isNotEmpty)
+        .toList();
+    if (lines.isEmpty) return;
+    try {
+      final translated = await GetIt.I<LyricsService>().translateLyrics(
+        lines: lines,
+        targetLanguage: settings.translationLanguage,
+        mode: 'Romanized',
+        provider: settings.translationProvider,
+        apiKey: settings.translationApiKey,
+        baseUrl: settings.translationBaseUrl,
+        model: settings.translationModel,
+        deeplApiKey: settings.extra<String>('deeplApiKey', ''),
+        useStreaming: settings.translationStreaming,
+      );
+      if (mounted && generation == _fetchGeneration) {
+        setState(() => _translatedLines = translated);
+      }
+    } catch (_) {}
+  }
+
+  void _showTranslationDialog(Lyrics lyrics) {
+    final lines = <String>[
+      if (lyrics.lyricsPlain.isNotEmpty) ...lyrics.lyricsPlain.split('\n'),
+      ...?lyrics.parsedLyrics?.lyrics.map((l) => l.text),
+    ].where((l) => l.trim().isNotEmpty).toList();
+    if (lines.isEmpty) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => TranslationDialog(
+        lines: lines,
+        service: GetIt.I<LyricsService>(),
+        settings: GetIt.I<SettingsManager>(),
+        onResult: (translated) {
+          if (!mounted) return;
+          setState(() => _translatedLines = translated);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Center(
-        child: _fetchLyricsFuture != null
-            ? FutureBuilder<Lyrics>(
-                future: _fetchLyricsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    if (snapshot.data == null) {
-                      return const Text('No Lyrics Found (Null)');
-                    }
-                    return LoadedLyricsWidget(lyrics: snapshot.data!);
+      child: Stack(
+        children: [
+          GestureDetector(
+            onHorizontalDragEnd: (details) {
+              final s = GetIt.I<SettingsManager>();
+              if (!s.extra<bool>('lyricsSwipe', true)) return;
+              final v = details.primaryVelocity ?? 0;
+              if (v.abs() < 400) return;
+              final player = GetIt.I<MediaPlayer>().player;
+              if (v < 0) {
+                player.seekToNext();
+              } else {
+                player.seekToPrevious();
+              }
+            },
+            child: Center(
+            child: _fetchLyricsFuture != null
+                ? FutureBuilder<Lyrics>(
+                    future: _fetchLyricsFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        if (snapshot.data == null) {
+                          return const Text('No Lyrics Found (Null)');
+                        }
+                        return LoadedLyricsWidget(
+                          lyrics: snapshot.data!,
+                          translatedLines: _translatedLines,
+                        );
+                      }
+                      if (snapshot.hasError) {
+                        return const Text('No Lyrics Found');
+                      }
+                      return const ExpressiveLoadingIndicator();
+                    },
+                  )
+                : const ExpressiveLoadingIndicator(),
+            ),
+          ),
+          if (GetIt.I<SettingsManager>()
+              .extra<bool>('lyricsThumbPlayPause', true))
+            Positioned(
+              left: 0,
+              bottom: 0,
+              child: ValueListenableBuilder<ButtonState>(
+                valueListenable: GetIt.I<MediaPlayer>().buttonState,
+                builder: (context, state, _) => Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: IconButton(
+                    tooltip: state == ButtonState.playing ? 'Pausa' : 'Riproduci',
+                    icon: Icon(
+                      state == ButtonState.playing
+                          ? Icons.pause
+                          : Icons.play_arrow,
+                      color: Colors.white,
+                    ),
+                    onPressed: () => state == ButtonState.playing
+                        ? GetIt.I<MediaPlayer>().player.pause()
+                        : GetIt.I<MediaPlayer>().player.play(),
+                  ),
+                ),
+              ),
+            ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: IconButton(
+                tooltip: 'Translate lyrics',
+                onPressed: () {
+                  if (!GetIt.I<SettingsManager>().translateLyrics) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Abilita "Traduci testi" nelle impostazioni YT Music',
+                        ),
+                      ),
+                    );
+                    return;
                   }
-                  if (snapshot.hasError) {
-                    // return Text('Error: ${snapshot.error}');
-                    return const Text('No Lyrics Found');
-                  }
-                  return const ExpressiveLoadingIndicator();
+                  final lyrics = _lyrics;
+                  if (lyrics != null) _showTranslationDialog(lyrics);
                 },
-              )
-            : const ExpressiveLoadingIndicator(),
+                icon: const Icon(Icons.translate, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -126,19 +263,23 @@ class _LyricsBoxState extends State<LyricsBox> {
 
 class LoadedLyricsWidget extends StatelessWidget {
   final Lyrics lyrics;
+  final List<String>? translatedLines;
   const LoadedLyricsWidget({
     super.key,
     required this.lyrics,
+    this.translatedLines,
   });
 
   @override
   Widget build(BuildContext context) {
     if ((lyrics.parsedLyrics?.lyrics.isEmpty ?? true) &&
         lyrics.lyricsPlain.isNotEmpty) {
-      return PlainLyricsWidget(lyrics: lyrics);
+      return PlainLyricsWidget(
+          lyrics: lyrics, translatedLines: translatedLines);
     } else if (lyrics.parsedLyrics?.lyrics.isNotEmpty ?? false) {
       return SyncedLyricsWidget(
         lyrics: lyrics,
+        translatedLines: translatedLines,
       );
     }
     return const Center(
@@ -149,9 +290,11 @@ class LoadedLyricsWidget extends StatelessWidget {
 
 class PlainLyricsWidget extends StatelessWidget {
   final Lyrics lyrics;
+  final List<String>? translatedLines;
   const PlainLyricsWidget({
     super.key,
     required this.lyrics,
+    this.translatedLines,
   });
 
   @override
@@ -174,13 +317,24 @@ class PlainLyricsWidget extends StatelessWidget {
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
         child: SelectableText(
-          "\n${lyrics.lyricsPlain}\n",
+          () {
+            final settings = GetIt.I<SettingsManager>();
+            final hasTranslated = translatedLines != null &&
+                translatedLines!.isNotEmpty;
+            final swap = hasTranslated && settings.romanizeAsMain;
+            final primary =
+                swap ? translatedLines!.join('\n') : lyrics.lyricsPlain;
+            final secondary = swap
+                ? lyrics.lyricsPlain
+                : (hasTranslated ? translatedLines!.join('\n') : '');
+            return '\n$primary\n${secondary.isEmpty ? '' : '\n$secondary'}';
+          }(),
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 34,
+          style: TextStyle(
+            fontSize: GetIt.I<SettingsManager>().lyricsTextSize + 16,
             fontWeight: FontWeight.w800,
             color: Colors.white,
-            height: 1.5,
+            height: 1.4 + GetIt.I<SettingsManager>().extra<double>('lyricsLineSpacing', 8) / 40,
             letterSpacing: 0.2,
           ),
         ),
@@ -191,8 +345,10 @@ class PlainLyricsWidget extends StatelessWidget {
 
 class SyncedLyricsWidget extends StatefulWidget {
   final Lyrics lyrics;
+  final List<String>? translatedLines;
   const SyncedLyricsWidget({
     required this.lyrics,
+    this.translatedLines,
     super.key,
   });
 
@@ -236,20 +392,38 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
     try {
       _streamSubscription =
           GetIt.I<MediaPlayer>().player.positionStream.listen((event) {
-        if (mounted) {
-          duration = event;
-          final newIndex = _findCurrentLyricIndex();
-          // Only update if the lyric index actually changed
-          if (newIndex != _currentLyricIndex) {
-            setState(() {
-              _currentLyricIndex = newIndex;
-            });
-            _scrollToCurrentLyric(newIndex);
-          }
-        }
+        // Stem mode keeps the main player paused; follow the stem clock instead.
+        if (StemMixerService.instance.state.stemsLoaded) return;
+        _updatePosition(event);
       });
+      // The mixer ticks its own position while stems are active.
+      StemMixerService.instance.addListener(_onMixerChanged);
+      StemMixerService.instance.positionNotifier.addListener(_onMixerChanged);
     } catch (e) {
       print("Error attaching position stream: $e");
+    }
+  }
+
+  void _onMixerChanged() {
+    if (!mounted) return;
+    final mixer = StemMixerService.instance;
+    if (!mixer.state.stemsLoaded) {
+      _updatePosition(GetIt.I<MediaPlayer>().player.position);
+    } else {
+      _updatePosition(mixer.position);
+    }
+  }
+
+  void _updatePosition(Duration event) {
+    if (!mounted) return;
+    duration = event;
+    final newIndex = _findCurrentLyricIndex();
+    // Only update if the lyric index actually changed
+    if (newIndex != _currentLyricIndex) {
+      setState(() {
+        _currentLyricIndex = newIndex;
+      });
+      _scrollToCurrentLyric(newIndex);
     }
   }
 
@@ -258,10 +432,14 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
     _userScrollTimer?.cancel();
     _glowController.dispose();
     _streamSubscription?.cancel();
+    StemMixerService.instance.removeListener(_onMixerChanged);
+    StemMixerService.instance.positionNotifier.removeListener(_onMixerChanged);
     super.dispose();
   }
 
   void _scrollToCurrentLyric(int index) {
+    // Android's "Auto scroll lyrics" preference.
+    if (!GetIt.I<SettingsManager>().lyricsAutoScroll) return;
     if (_itemScrollController.isAttached && !_isUserScrolling) {
       _itemScrollController.scrollTo(
         index: index,
@@ -355,55 +533,105 @@ class _SyncedLyricsWidgetState extends State<SyncedLyricsWidget>
               // Only apply blur if not current and not too close to current (optional optimization)
               // For now, simpler is better: Opacity handle focus
               
+              // Geometry must NOT change when the active line changes:
+              // animating fontSize/weight/letterSpacing made every item
+              // re-measure and the list re-paginate ("justified" look).
+              final settings = GetIt.I<SettingsManager>();
+              const baseSize = 32.0;
+              final fontSize = baseSize + (settings.lyricsTextSize - 18) / 2;
+              final height = 1.3 + settings.extra<double>('lyricsLineSpacing', 8) / 40;
+              TextStyle style(double glow) => TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w700,
+                    height: height,
+                    letterSpacing: 0.0,
+                    color: isCurrent
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.35),
+                    shadows: isCurrent
+                        ? [
+                            Shadow(
+                              color: Colors.white.withValues(alpha: glow * 0.8),
+                              blurRadius: 15,
+                            ),
+                            Shadow(
+                              color: Colors.white.withValues(alpha: glow * 0.4),
+                              blurRadius: 30,
+                            ),
+                            Shadow(
+                              color: Colors.blueAccent.withValues(alpha: glow * 0.3),
+                              blurRadius: 50,
+                            ),
+                          ]
+                        : const [],
+                  );
+              Widget lyricLine(double glow) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(lyricText, textAlign: TextAlign.center, style: style(glow)),
+                      if (widget.translatedLines != null &&
+                          index < widget.translatedLines!.length)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            widget.translatedLines![index],
+                            textAlign: switch (GetIt.I<SettingsManager>().lyricsTextPosition) {
+             'Left' => TextAlign.left,
+             'Right' => TextAlign.right,
+             _ => TextAlign.center,
+           },
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white
+                                  .withValues(alpha: isCurrent ? 0.85 : 0.4),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+
+              final clickSeek =
+                  settings.extra<bool>('lyricsClickChange', true);
+              final blurSigma = !isCurrent
+                  ? (settings.extra<bool>('appleLyricsBlur', false)
+                      ? 1.6
+                      : settings.extra<bool>('standardLyricsBlur', false)
+                          ? 0.8
+                          : 0.0)
+                  : 0.0;
+              final animate = settings.extra<String>('lyricsAnimation', 'None') != 'None';
               return GestureDetector(
-                onTap: () => _seekToLyric(index),
+                onTap: clickSeek ? () => _seekToLyric(index) : null,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(vertical: 16.0, horizontal: 32),
-                  child: AnimatedBuilder(
-                    animation: _glowAnimation,
-                    builder: (context, child) {
-                      return AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 400),
+                  // Only the active line rebuilds on the glow tick.
+                  child: () {
+                    Widget line = isCurrent
+                        ? AnimatedBuilder(
+                            animation: _glowAnimation,
+                            builder: (context, _) => lyricLine(_glowAnimation.value),
+                          )
+                        : lyricLine(0);
+                    if (animate) {
+                      line = AnimatedScale(
+                        scale: isCurrent ? 1.05 : 1.0,
+                        duration: const Duration(milliseconds: 280),
                         curve: Curves.easeOutCubic,
-                        style: TextStyle(
-                          fontSize: isCurrent ? 38 : 28, // Large active, small inactive
-                          fontWeight:
-                              isCurrent ? FontWeight.w900 : FontWeight.w600,
-                          color: isCurrent
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.35), // Transparent inactive
-                          height: 1.4,
-                          letterSpacing: isCurrent ? 0.5 : -0.3,
-                          shadows: isCurrent
-                              ? [
-                                  // Spicy Lyrics Glow Effect
-                                  Shadow(
-                                    color: Colors.white.withValues(
-                                        alpha: _glowAnimation.value * 0.8),
-                                    blurRadius: 15,
-                                  ),
-                                  Shadow(
-                                    color: Colors.white.withValues(
-                                        alpha: _glowAnimation.value * 0.4),
-                                    blurRadius: 30,
-                                  ),
-                                  Shadow(
-                                    color: Colors.blueAccent.withValues(
-                                        alpha: _glowAnimation.value * 0.3),
-                                    blurRadius: 50,
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Text(
-                          lyricText,
-                          textAlign: TextAlign.center,
-                        ),
+                        child: line,
                       );
-                    },
-                  ),
+                    }
+                    if (blurSigma > 0) {
+                      line = ImageFiltered(
+                        imageFilter:
+                            ui.ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+                        child: line,
+                      );
+                    }
+                    return line;
+                  }(),
                 ),
               );
             },

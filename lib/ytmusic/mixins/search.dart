@@ -1,5 +1,7 @@
 import 'package:Echo/ytmusic/client.dart';
+import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:Echo/services/settings_manager.dart';
 
 import '../helpers.dart';
 import 'utils.dart';
@@ -162,9 +164,39 @@ mixin SearchMixin on YTClient {
             continuationContents['musicShelfContinuation']));
       }
 
-      result['sections'] = resultContents;
+      result['sections'] = _applyContentFilters(resultContents);
     }
     return result;
+  }
+
+  /// Android's content filters (HideExplicit / HideVideoSongs /
+  /// HideYouTubeShorts) applied to every search section.
+  List<Map<String, dynamic>> _applyContentFilters(
+      List<Map<String, dynamic>> sections) {
+    final s = GetIt.I<SettingsManager>();
+    if (!s.hideExplicit && !s.hideVideoSongs && !s.hideYouTubeShorts) {
+      return sections;
+    }
+    bool keep(dynamic item) {
+      if (item is! Map) return true;
+      if (s.hideExplicit && item['explicit'] == true) return false;
+      if (s.hideVideoSongs && item['type'] == 'VIDEO') return false;
+      if (s.hideYouTubeShorts) {
+        if (item['type'] == 'SHORTS' || item['type'] == 'REEL') return false;
+        final subtitle = item['subtitle']?.toString().toLowerCase() ?? '';
+        if (subtitle.contains('shorts')) return false;
+      }
+      return true;
+    }
+
+    return sections.map((section) {
+      final contents = section['contents'];
+      if (contents is! List) return section;
+      return {
+        ...section,
+        'contents': contents.where(keep).toList(),
+      };
+    }).toList();
   }
 
   Map<String, dynamic> _handleMusicCardShelfRenderer(Map item) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Echo/generated/l10n.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../generated/l10n.dart';
@@ -7,6 +8,7 @@ import '../../../../utils/bottom_modals.dart';
 import '../../../../services/bottom_message.dart';
 
 import 'cubit/privacy_cubit.dart';
+import '../../../../core/widgets/back_button.dart';
 
 class PrivacyPage extends StatelessWidget {
   const PrivacyPage({super.key});
@@ -48,7 +50,8 @@ class _PrivacyView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Privacy"),
+        leading: echoBackButton(context),
+        title: Text(S.of(context).Privacy),
       ),
       body: Center(
         child: Container(

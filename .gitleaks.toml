@@ -1,0 +1,21 @@
+title = "Echo Music Desktop gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+Public client identifiers used by YouTube's own clients. They are shipped in
+every YouTube app and are not credentials; the matching keys are rate-limited
+by Google, not secret. The Spotify client secret is NOT allowlisted.
+"""
+regexes = [
+  '''AIza[0-9A-Za-z_\-]{35}''',
+  '''O43z0dpjhgX20SCx4KAo''',
+  '''4ede44382bf14ac3ba1d97ad753b233f''',
+]
+paths = [
+  '''build/.*''',
+  '''\.dart_tool/.*''',
+  '''dist/.*''',
+]

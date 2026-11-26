@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Echo/generated/l10n.dart';
@@ -32,7 +31,7 @@ class YTMusicPage extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   children: [
-                    GroupTitle(title: "General"),
+                    GroupTitle(title: S.of(context).General),
 
                     /// Country
                     SettingTile(
@@ -144,7 +143,7 @@ class YTMusicPage extends StatelessWidget {
                       ),
                     ),
 
-                    GroupTitle(title: "Privacy"),
+                    GroupTitle(title: S.of(context).Privacy),
 
                     /// Personalised content
                     SettingSwitchTile(

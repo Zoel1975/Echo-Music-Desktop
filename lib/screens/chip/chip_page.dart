@@ -5,6 +5,7 @@ import 'package:Echo/screens/chip/cubit/chip_cubit.dart';
 import 'package:Echo/core/widgets/section_item.dart';
 import 'package:Echo/utils/internet_guard.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
+import '../../../core/widgets/back_button.dart';
 
 class ChipPage extends StatelessWidget {
   const ChipPage({
@@ -64,7 +65,8 @@ class _ChipPageState extends State<_ChipPage> {
       onInternetRestored: context.read<ChipCubit>().fetch,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.title),
+        leading: echoBackButton(context),
+        title: Text(widget.title),
         ),
         body: BlocBuilder<ChipCubit, ChipState>(
           builder: (context, state) {

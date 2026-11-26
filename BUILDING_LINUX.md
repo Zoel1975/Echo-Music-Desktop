@@ -1,6 +1,6 @@
 # Building Linux Packages for Echo Music
 
-This guide explains how to build Linux distribution packages (DEB, AppImage, RPM) for Echo Music Desktop.
+Build DEB, AppImage and RPM packages for Echo Music Desktop.
 
 ## Platform Limitation ⚠️
 

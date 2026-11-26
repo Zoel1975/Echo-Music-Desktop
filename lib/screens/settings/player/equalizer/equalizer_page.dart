@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -7,26 +9,45 @@ import 'package:Echo/screens/settings/player/equalizer/cubit/loudness_cubit.dart
 import 'package:Echo/screens/settings/player/equalizer/cubit/loudness_state.dart';
 import 'package:Echo/generated/l10n.dart';
 import 'package:Echo/screens/settings/widgets/setting_item.dart';
+import 'package:Echo/screens/settings/widgets/settings_list.dart';
+import 'package:Echo/services/axion_eq_service.dart';
+import 'package:Echo/services/eq_settings.dart';
 import 'package:Echo/services/media_player.dart';
 import 'package:Echo/services/settings_manager.dart';
 import 'package:Echo/themes/text_styles.dart';
 import 'package:Echo/utils/adaptive_widgets/slider.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:loading_indicator_m3e/loading_indicator_m3e.dart';
+import '../../../../../core/widgets/back_button.dart';
 
-class EqualizerPage extends StatelessWidget {
+class EqualizerPage extends StatefulWidget {
   const EqualizerPage({super.key});
 
-  Future<Widget> _build(BuildContext context) async {
-    final settings = GetIt.I<SettingsManager>();
-    final androidEq = GetIt.I<AndroidEqualizer>();
-    final params = await androidEq.parameters;
+  @override
+  State<EqualizerPage> createState() => _EqualizerPageState();
+}
 
-    final eqCubit = EqualizerCubit(
-      enabled: settings.equalizerEnabled,
-      minDb: params.minDecibels,
-      maxDb: params.maxDecibels,
-      bands: params.bands
+class _EqualizerPageState extends State<EqualizerPage> {
+  // Built once: recreating the cubits on every rebuild lost slider state.
+  late final Future<Widget> _view;
+
+  @override
+  void initState() {
+    super.initState();
+    _view = _build();
+  }
+
+  Future<Widget> _build() async {
+    final settings = GetIt.I<SettingsManager>();
+    final List<EqBand> bands;
+    final double minDb;
+    final double maxDb;
+
+    if (Platform.isAndroid) {
+      final params = await GetIt.I<AndroidEqualizer>().parameters;
+      minDb = params.minDecibels;
+      maxDb = params.maxDecibels;
+      bands = params.bands
           .map(
             (b) => EqBand(
               index: b.index,
@@ -34,18 +55,40 @@ class EqualizerPage extends StatelessWidget {
               gain: b.gain,
             ),
           )
-          .toList(),
-    );
-
-    final loudnessCubit = LoudnessCubit(
-      enabled: settings.loudnessEnabled,
-      targetGain: settings.loudnessTargetGain,
-    );
+          .toList();
+    } else {
+      // Desktop has no AndroidEqualizer in GetIt: expose the same 10 bands
+      // backed by the persisted EQ gains and mpv's equalizer filter.
+      minDb = -15.0;
+      maxDb = 15.0;
+      final gains =
+          EqSettings.savedGains(settings) ?? List<double>.filled(10, 0.0);
+      bands = List.generate(
+        10,
+        (i) => EqBand(
+          index: i,
+          centerFrequency: eqFrequencies[i],
+          gain: gains[i],
+        ),
+      );
+    }
 
     return MultiBlocProvider(
       providers: [
-        BlocProvider.value(value: eqCubit),
-        BlocProvider.value(value: loudnessCubit),
+        BlocProvider.value(
+          value: EqualizerCubit(
+            enabled: settings.equalizerEnabled,
+            minDb: minDb,
+            maxDb: maxDb,
+            bands: bands,
+          ),
+        ),
+        BlocProvider.value(
+          value: LoudnessCubit(
+            enabled: settings.loudnessEnabled,
+            targetGain: settings.loudnessTargetGain,
+          ),
+        ),
       ],
       child: const _EqualizerView(),
     );
@@ -54,8 +97,19 @@ class EqualizerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: _build(context),
+      future: _view,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Equalizer')),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('Errore equalizzatore: ${snapshot.error}'),
+              ),
+            ),
+          );
+        }
         if (!snapshot.hasData) {
           return const Scaffold(
             body: Center(child: ExpressiveLoadingIndicator()),
@@ -77,14 +131,14 @@ class _EqualizerView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: echoBackButton(context),
         title: Text(
           S.of(context).Loudness_And_Equalizer,
           style: mediumTextStyle(context, bold: false),
         ),
         centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      body: SettingsList(
         children: [
           /// LOUDNESS
           GroupTitle(title: "Loudness"),
@@ -107,9 +161,9 @@ class _EqualizerView extends StatelessWidget {
             child: BlocBuilder<LoudnessCubit, LoudnessState>(
               builder: (context, state) {
                 return Slider(
-                  min: -1,
-                  max: 1,
-                  value: state.targetGain,
+                  min: -10,
+                  max: 10,
+                  value: state.targetGain.clamp(-10.0, 10.0),
                   onChanged: state.enabled
                       ? (val) async {
                           context.read<LoudnessCubit>().setTargetGain(val);
@@ -163,13 +217,27 @@ class _EqualizerView extends StatelessWidget {
                                         .read<EqualizerCubit>()
                                         .setBandGain(band.index, val);
 
-                                    await settings.setEqualizerBandsGain(
-                                        band.index, val);
-
-                                    final params =
-                                        await GetIt.I<AndroidEqualizer>()
-                                            .parameters;
-                                    await params.bands[band.index].setGain(val);
+                                    if (Platform.isAndroid) {
+                                      await settings.setEqualizerBandsGain(
+                                          band.index, val);
+                                      final params =
+                                          await GetIt.I<AndroidEqualizer>()
+                                              .parameters;
+                                      await params.bands[band.index]
+                                          .setGain(val);
+                                    } else {
+                                      final gains = List<double>.from(
+                                        EqSettings.savedGains(settings) ??
+                                            List<double>.filled(10, 0.0),
+                                      );
+                                      while (gains.length < 10) {
+                                        gains.add(0.0);
+                                      }
+                                      gains[band.index] = val;
+                                      settings.equalizerBandsGain = gains;
+                                      EqSettings.apply(settings);
+                                      await mediaPlayer.reloadCurrentSource();
+                                    }
                                   },
                                 ),
                               ),
