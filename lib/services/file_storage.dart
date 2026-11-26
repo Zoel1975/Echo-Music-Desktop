@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -127,30 +128,42 @@ class FileStorage {
     }
   }
 
+  /// Windows-safe file name for a downloaded track. Keeps the true error
+  /// visible instead of hiding it behind a generic "File saving failed".
+  static String safeMusicFileName(Map song) {
+    var name = (song['title'] ?? song['videoId'] ?? 'track').toString();
+    name = name.replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), ' ');
+    name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Trailing dots and spaces are stripped by Windows and break writes.
+    name = name.replaceAll(RegExp(r'[. ]+$'), '');
+    if (name.length > 120) name = name.substring(0, 120).trimRight();
+    if (name.isEmpty) name = song['videoId']?.toString() ?? 'track';
+    const reserved = {
+      'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
+      'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4',
+      'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+    };
+    if (reserved.contains(name.toUpperCase())) name = '_$name';
+    return name;
+  }
+
   Future<File?> saveMusic(List<int> data, Map song, {extension = 'm4a'}) async {
-    String fileName = song['title'];
-    final RegExp avoid = RegExp(r'[\.\\\*\:\(\)\"\?#/;\|]');
-    fileName = fileName.replaceAll(avoid, '').replaceAll("'", '');
-    //fileName = Uri.decodeFull(fileName);
+    final fileName = safeMusicFileName(song);
     if (!(await requestPermissions())) return null;
-    Directory directory = await _getDirectory(storagePaths.musicPath);
+    final Directory directory = await _getDirectory(storagePaths.musicPath);
 
     File file = File(path.join(directory.path, '$fileName.$extension'));
-    int number = 1;
-    while (file.existsSync()) {
-      file = File((path.join(directory.path, '$fileName($number).$extension')));
+    var number = 1;
+    while (FileSystemEntity.typeSync(file.path) != FileSystemEntityType.notFound) {
+      file = File(path.join(directory.path, '$fileName($number).$extension'));
       number++;
     }
     try {
-      if (await file.exists()) {
-        await file.delete();
-      }
-      await file.writeAsBytes(data, flush: true);
-
       await file.writeAsBytes(data, flush: true);
       return file;
-    } catch (e) {
-      return null;
+    } catch (e, st) {
+      debugPrint('saveMusic failed for ${file.path}: $e\n$st');
+      rethrow;
     }
   }
 

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Echo/services/file_storage.dart';
+
 void main() {
   test('downloads use the same stream resolver as playback', () {
     final manager =
@@ -26,5 +28,28 @@ void main() {
     expect(feedback, contains('lastDownloadError'));
     expect(feedback, contains('DownloadComplete'));
     expect(feedback, contains('DownloadFailed'));
+  });
+
+  test('download file names are Windows-safe and errors are surfaced', () {
+    final name = FileStorage.safeMusicFileName({
+      'title': '  Signorina:Ciao? (con Drast*)/|"  ',
+      'videoId': 'VQi37P2N_WA',
+    });
+    expect(name, isNot(contains(':')));
+    expect(name, isNot(contains('?')));
+    expect(name, isNot(contains('*')));
+    expect(name, isNot(contains('/')));
+    expect(name, isNot(contains('\\')));
+    expect(name, isNot(contains('|')));
+    expect(name, isNot(contains('"')));
+    expect(name.trim(), name);
+    expect(FileStorage.safeMusicFileName({'title': 'CON'}), '_CON');
+    expect(FileStorage.safeMusicFileName({'title': ''}) != '', isTrue);
+
+    final storage =
+        File('lib/services/file_storage.dart').readAsStringSync();
+    expect(storage, contains('static String safeMusicFileName('));
+    expect(storage, contains('rethrow;'));
+    expect(storage, isNot(contains('      await file.writeAsBytes(data, flush: true);\n\n      await file.writeAsBytes')));
   });
 }
