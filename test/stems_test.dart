@@ -133,5 +133,13 @@ void main() {
         .readAsStringSync();
     expect(mini, contains('StemMixerService.instance'));
     expect(mini, contains('.setPlaying(!mixer.isPlaying)'));
+
+    expect(mixer, contains('ValueNotifier<Duration> positionNotifier'));
+    expect(mixer, contains('void _startPositionTimer()'));
+    expect(mixer, contains('Future<void> seek(Duration position)'));
+    expect(mixer, contains('Future<void> seekBy(Duration delta)'));
+    expect(player, contains('StemMixerService.instance.positionNotifier'));
+    expect(player, contains('mixer.seek(position)'));
+    expect(player, contains('mixer.seekBy('));
   });
 }

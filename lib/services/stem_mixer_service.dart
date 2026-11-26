@@ -59,6 +59,9 @@ class StemMixerService extends ChangeNotifier {
   String? _pendingVideoId;
   final List<AudioPlayer?> _players = List<AudioPlayer?>.filled(4, null);
   Timer? _syncTimer;
+  Timer? _positionTimer;
+  final ValueNotifier<Duration> positionNotifier =
+      ValueNotifier<Duration>(Duration.zero);
   StreamSubscription<bool>? _mainGuard;
   Future<void> _transition = Future.value();
   double _masterVolume = 1.0;
@@ -79,6 +82,40 @@ class StemMixerService extends ChangeNotifier {
       }).toList();
 
   bool get isPlaying => _players.any((p) => p?.playing ?? false);
+
+  /// The progress UI reads this while stem mode is active: the main player is
+  /// deliberately paused then, so its position stream never advances.
+  Duration get position => positionNotifier.value;
+  Duration? get totalDuration {
+    for (final player in _players) {
+      if (player?.duration != null) return player!.duration;
+    }
+    return null;
+  }
+
+  Future<void> seek(Duration position) async {
+    var target = position;
+    if (target < Duration.zero) target = Duration.zero;
+    final total = totalDuration;
+    if (total != null && target > total) target = total;
+    positionNotifier.value = target;
+    for (final player in _players) {
+      if (player == null) continue;
+      try {
+        await player.seek(target);
+      } catch (e) {
+        debugPrint('stem seek failed: $e');
+      }
+    }
+    // Keep the paused main player at the same point for a seamless exit.
+    if (GetIt.I.isRegistered<MediaPlayer>()) {
+      try {
+        await GetIt.I<MediaPlayer>().player.seek(target);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> seekBy(Duration delta) => seek(position + delta);
 
   /// Play/pause all four stem players together. Used by the Space shortcut so
   /// it controls the audible source instead of the muted main player.
@@ -283,6 +320,8 @@ class StemMixerService extends ChangeNotifier {
       _masterVolume = master;
       _state = _state.copyWith(stemsLoaded: true);
       await _installMainGuard(main.player);
+      positionNotifier.value = position;
+      _startPositionTimer();
       _startSyncTimer();
     } catch (e) {
       debugPrint('stem mode failed: $e');
@@ -320,6 +359,8 @@ class StemMixerService extends ChangeNotifier {
   Future<void> _exitPlayersOnly() async {
     await _mainGuard?.cancel();
     _mainGuard = null;
+    _positionTimer?.cancel();
+    _positionTimer = null;
     _syncTimer?.cancel();
     _syncTimer = null;
     final first = _players.firstWhere((p) => p != null, orElse: () => null);
@@ -352,6 +393,16 @@ class StemMixerService extends ChangeNotifier {
         }
       });
 
+  void _startPositionTimer() {
+    _positionTimer?.cancel();
+    _positionTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      final leader = _players.firstWhere((p) => p != null, orElse: () => null);
+      final pos = leader?.position;
+      if (pos == null) return;
+      if (pos != positionNotifier.value) positionNotifier.value = pos;
+    });
+  }
+
   void _startSyncTimer() {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(const Duration(seconds: 15), (_) {
@@ -372,8 +423,11 @@ class StemMixerService extends ChangeNotifier {
   void dispose() {
     _mainGuard?.cancel();
     _mainGuard = null;
+    _positionTimer?.cancel();
+    _positionTimer = null;
     _syncTimer?.cancel();
     _syncTimer = null;
+    positionNotifier.dispose();
     unawaited(_exitStemMode(resumeMain: false));
     super.dispose();
   }

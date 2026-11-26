@@ -26,6 +26,7 @@ The model is HT-Demucs (MIT), exported to ONNX by StemSplitio. No audio is uploa
 - Stems are produced from local or downloaded files only.
 - The separator writes four mono stem WAVs alongside the four-channel cache file.
 - Toggling stems only changes volume: no FFmpeg render and no audio-source reload. The four players are re-synced every 15 seconds if they drift.
+- The progress bar, seek bar and ±10 s buttons follow the stem players while stem mode is active; the paused original track stays at the same position for a seamless exit.
 - Muting all four stems is silent by design; use **Enable all** to reset.
 - Stem mode is global: once enabled it follows every separated track automatically. Each player transition is serialized so rapid skips or batch completions cannot leave stale decoders running.
 - A track counts as ready only when the four-channel cache **and** all four mono stems exist. Incomplete files are ignored and can be regenerated.

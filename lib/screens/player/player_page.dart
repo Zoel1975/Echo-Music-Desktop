@@ -711,15 +711,24 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
         const SizedBox(height: 30),
 
         // Progress Bar
-        ValueListenableBuilder(
-          valueListenable: mediaPlayer.progressBarState,
-          builder: (context, ProgressBarState value, child) {
+        ListenableBuilder(
+          listenable: Listenable.merge([
+            mediaPlayer.progressBarState,
+            StemMixerService.instance.positionNotifier,
+          ]),
+          builder: (context, _) {
+            final mixer = StemMixerService.instance;
+            final base = mediaPlayer.progressBarState.value;
+            final stems = mixer.state.stemsLoaded;
+            final current = stems ? mixer.position : base.current;
+            final total = stems ? (mixer.totalDuration ?? base.total) : base.total;
+            final buffered = stems ? Duration.zero : base.buffered;
             final sliderStyle = GetIt.I<SettingsManager>()
                 .extra<String>('sliderStyle', 'Default');
             if (sliderStyle == 'Wavy' || sliderStyle == 'Squiggly') {
-              final ratio = value.total.inMilliseconds > 0
-                  ? (value.current.inMilliseconds /
-                          value.total.inMilliseconds)
+              final ratio = total.inMilliseconds > 0
+                  ? (current.inMilliseconds /
+                          total.inMilliseconds)
                       .clamp(0.0, 1.0)
                   : 0.0;
               return Column(
@@ -727,23 +736,26 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
                   WavySlider(
                     value: ratio,
                     squiggly: sliderStyle == 'Squiggly',
-                    onChanged: (v) => mediaPlayer.player.seek(
-                      Duration(
-                        milliseconds:
-                            (v * value.total.inMilliseconds).round(),
-                      ),
-                    ),
+                    onChanged: (v) {
+                      final target =
+                          Duration(milliseconds: (v * total.inMilliseconds).round());
+                      if (stems) {
+                        unawaited(mixer.seek(target));
+                      } else {
+                        unawaited(mediaPlayer.player.seek(target));
+                      }
+                    },
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        value.current.toString().split('.').first,
+                        current.toString().split('.').first,
                         style: const TextStyle(
                             color: Colors.white, fontSize: 12),
                       ),
                       Text(
-                        value.total.toString().split('.').first,
+                        total.toString().split('.').first,
                         style: const TextStyle(
                             color: Colors.white, fontSize: 12),
                       ),
@@ -753,9 +765,9 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
               );
             }
             return ProgressBar(
-              progress: value.current,
-              total: value.total,
-              buffered: value.buffered,
+              progress: current,
+              total: total,
+              buffered: buffered,
               barHeight: 4,
               thumbRadius: GetIt.I<SettingsManager>()
                   .extra<double>('thumbRadius', 6)
@@ -766,7 +778,13 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
               progressBarColor: Colors.white,
               thumbColor: Colors.white,
               timeLabelTextStyle: const TextStyle(color: Colors.white),
-              onSeek: (value) => mediaPlayer.player.seek(value),
+              onSeek: (position) {
+                if (stems) {
+                  unawaited(mixer.seek(position));
+                } else {
+                  unawaited(mediaPlayer.player.seek(position));
+                }
+              },
             );
           },
         ),
@@ -804,10 +822,17 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
             // Seek back 10s
             if (showSeek)
               AdaptiveIconButton(
-                onPressed: () => mediaPlayer.player.seek(
-                    mediaPlayer.player.position -
-                        mediaPlayer.seekStep(const Duration(seconds: 10),
-                            progressive: progressive)),
+                onPressed: () {
+                  final mixer = StemMixerService.instance;
+                  final step = mediaPlayer.seekStep(const Duration(seconds: 10),
+                      progressive: progressive);
+                  if (mixer.state.stemsLoaded) {
+                    unawaited(mixer.seekBy(-step));
+                  } else {
+                    unawaited(mediaPlayer.player
+                        .seek(mediaPlayer.player.position - step));
+                  }
+                },
                 icon: Icon(
                   Icons.replay_10,
                   size: 28,
@@ -879,10 +904,17 @@ Widget _buildTitleAndControls(BuildContext context, {bool centered = false}) {
             // Seek forward 10s
             if (showSeek)
               AdaptiveIconButton(
-                onPressed: () => mediaPlayer.player.seek(
-                    mediaPlayer.player.position +
-                        mediaPlayer.seekStep(const Duration(seconds: 10),
-                            progressive: progressive)),
+                onPressed: () {
+                  final mixer = StemMixerService.instance;
+                  final step = mediaPlayer.seekStep(const Duration(seconds: 10),
+                      progressive: progressive);
+                  if (mixer.state.stemsLoaded) {
+                    unawaited(mixer.seekBy(step));
+                  } else {
+                    unawaited(mediaPlayer.player
+                        .seek(mediaPlayer.player.position + step));
+                  }
+                },
                 icon: Icon(
                   Icons.forward_10,
                   size: 28,

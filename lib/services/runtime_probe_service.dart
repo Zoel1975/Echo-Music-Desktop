@@ -1505,6 +1505,8 @@ class RuntimeProbeService {
       _json(request.response, 200, {
         'useStems': mixer.useStems,
         'enabled': mixer.state.enabled,
+        'progressMs': mixer.position.inMilliseconds,
+        'totalMs': mixer.totalDuration?.inMilliseconds,
         'players': mixer.debugPlayers,
       });
       return;
