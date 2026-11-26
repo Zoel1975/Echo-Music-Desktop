@@ -34,7 +34,7 @@ void main() {
     final mixerSrc =
         File('lib/services/stem_mixer_service.dart').readAsStringSync();
     expect(mixerSrc, contains('List<AudioPlayer?> _players'));
-    expect(mixerSrc, contains('Future<void> _enterStemMode()'));
+    expect(mixerSrc, contains('Future<void> _enterStemMode('));
     expect(mixerSrc, contains('player.setVolume('));
     expect(mixerSrc, isNot(contains('reloadCurrentSource')));
     expect(mixerSrc, isNot(contains('_renderMix')));
@@ -76,7 +76,7 @@ void main() {
     final mixer =
         File('lib/services/stem_mixer_service.dart').readAsStringSync();
     expect(mixer, contains('Future<void> _enqueue('));
-    expect(mixer, contains('Future<void> _enterPlayers()'));
+    expect(mixer, contains('Future<void> _enterPlayers('));
     expect(mixer, contains('Future<void> _exitPlayersOnly()'));
     expect(mixer, contains('orElse: () => null'));
     expect(mixer, contains('catchError'));

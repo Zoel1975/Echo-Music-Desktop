@@ -15,6 +15,9 @@ void main() {
     expect(service, contains('yt.search('));
     expect(service, contains('StreamResolver.instance.resolveVideo('));
     expect(service, contains('void _safeVideo('));
+    expect(service, contains('StemMixerService.instance.addListener('));
+    expect(service, contains('mutually exclusive'));
+    expect(service, contains('state.stemsLoaded'));
 
     final mixer =
         File('lib/services/stem_mixer_service.dart').readAsStringSync();

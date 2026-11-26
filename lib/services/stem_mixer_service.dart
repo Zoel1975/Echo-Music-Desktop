@@ -248,7 +248,7 @@ class StemMixerService extends ChangeNotifier {
     _stemPaths = List<String>.from(paths);
     _state = _state.copyWith(stemsLoaded: true);
     notifyListeners();
-    await _enterStemMode();
+    await _enterStemMode(forcePlay: true);
   }
 
   /// Called when a background separation finishes. During a playlist batch
@@ -286,7 +286,7 @@ class StemMixerService extends ChangeNotifier {
   /// Create all four players in a local list and publish them only after every
   /// source loaded successfully. A failure therefore cannot leave half of the
   /// slots pointing at disposed players.
-  Future<void> _enterPlayers() async {
+  Future<void> _enterPlayers({bool forcePlay = false}) async {
     final paths = _stemPaths;
     if (paths == null || paths.length != 4) return;
     if (_players.any((p) => p != null)) await _exitPlayersOnly();
@@ -296,7 +296,7 @@ class StemMixerService extends ChangeNotifier {
     // While stem mode is active the main player is deliberately kept paused,
     // so its playing flag alone would make every track change silent. Keep the
     // user's last audible intent instead.
-    final wasPlaying = main.player.playing || _wasPlaying;
+    final wasPlaying = forcePlay || main.player.playing || _wasPlaying;
     final master = main.player.volume;
     await main.player.pause();
     final created = <AudioPlayer>[];
@@ -344,7 +344,8 @@ class StemMixerService extends ChangeNotifier {
     }
   }
 
-  Future<void> _enterStemMode() => _enqueue(_enterPlayers);
+  Future<void> _enterStemMode({bool forcePlay = false}) =>
+      _enqueue(() => _enterPlayers(forcePlay: forcePlay));
 
   /// MediaPlayer starts the main track again on several async paths (queue
   /// restore, crossfade, playAll). Keep a single listener that pauses it for

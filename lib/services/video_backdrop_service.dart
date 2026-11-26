@@ -56,11 +56,23 @@ class VideoBackdropService extends ChangeNotifier {
 
   void attach() {
     _attached = true;
+    StemMixerService.instance.addListener(_onMixerChanged);
     onTrackChanged(_currentSong()?['videoId']?.toString());
+  }
+
+  /// Stems and the video beta are mutually exclusive: the video plugin makes
+  /// native calls on a timer and must never compete with four stem players.
+  void _onMixerChanged() {
+    if (!StemMixerService.instance.state.stemsLoaded) return;
+    _loopTimer?.cancel();
+    _loopTimer = null;
+    _disposeController();
+    notifyListeners();
   }
 
   void detach() {
     _attached = false;
+    StemMixerService.instance.removeListener(_onMixerChanged);
     _loopTimer?.cancel();
     _loopTimer = null;
     _disposeController();
@@ -136,7 +148,7 @@ class VideoBackdropService extends ChangeNotifier {
   }
 
   Future<void> _start(String videoId) async {
-    if (_busy) return;
+    if (_busy || StemMixerService.instance.state.stemsLoaded) return;
     _busy = true;
     _error = null;
     _disposeController();
