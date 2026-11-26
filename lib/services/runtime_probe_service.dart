@@ -39,6 +39,7 @@ import '../screens/shell/app_shell.dart';
 import 'stream_resolver.dart';
 import 'stem_mixer_service.dart';
 import 'stem_separation_queue.dart';
+import 'video_backdrop_service.dart';
 import 'update_service/update_service.dart';
 import '../screens/detail/playlist_page.dart';
 import '../ytmusic/helpers.dart';
@@ -1497,6 +1498,26 @@ class RuntimeProbeService {
       _json(request.response, 200, {
         'connected': cast.connected.value?.name,
         'status': cast.status.value,
+      });
+      return;
+    }
+    if (path == '/video/enable' && request.method == 'POST') {
+      final on = request.uri.queryParameters['on'] != '0';
+      GetIt.I<SettingsManager>().setExtra<bool>('videoBackdropBeta', on);
+      VideoBackdropService.instance.settingsChanged();
+      _json(request.response, 200, {
+        'enabled': VideoBackdropService.instance.enabled,
+        'hasVideo': VideoBackdropService.instance.hasVideo,
+        'error': VideoBackdropService.instance.error,
+      });
+      return;
+    }
+    if (path == '/video/status' && request.method == 'GET') {
+      _json(request.response, 200, {
+        'enabled': VideoBackdropService.instance.enabled,
+        'hasVideo': VideoBackdropService.instance.hasVideo,
+        'busy': VideoBackdropService.instance.busy,
+        'error': VideoBackdropService.instance.error,
       });
       return;
     }

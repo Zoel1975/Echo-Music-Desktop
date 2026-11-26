@@ -334,6 +334,8 @@
   "@BaseURL": {},
   "BitPerfectUSBDACOutput": "बिट-परफेक्ट USB DAC आउटपुट",
   "VideoBehindArtwork": "पूर्ण स्क्रीन में कवर के पीछे वीडियो",
+  "VideoBackdropBetaNote": "बीटा, डिफ़ॉल्ट रूप से बंद। पूर्ण स्क्रीन प्लेयर में म्यूट वीडियो गाने के साथ चलता है।",
+  "@VideoBackdropBetaNote": {},
   "@VideoBehindArtwork": {},
   "@BitPerfectUSBDACOutput": {},
   "BlendTheEndOfASongIntoTheNext": "गीत के अंत को अगले से मिलाएँ",

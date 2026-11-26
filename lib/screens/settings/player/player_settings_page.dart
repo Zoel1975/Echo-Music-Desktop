@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../generated/l10n.dart';
 import '../../../services/audio_device_service.dart';
 import '../../../services/settings_manager.dart';
+import '../../../services/video_backdrop_service.dart';
 import '../widgets/setting_item.dart';
 import '../widgets/settings_list.dart';
 import 'cubit/player_settings_cubit.dart';
@@ -343,13 +344,17 @@ class PlayerSettingsPage extends StatelessWidget {
                       feature: 'Direct UAC1/UAC2 driver bypass (Android audio '
                           'HAL only).',
                     ),
-                    _comingSoon(
-                      context,
+                    SettingSwitchTile(
                       title: S.of(context).VideoBehindArtwork,
-                      feature: 'Needs a Windows video decoder and a resolved '
-                          'YouTube video stream. This build uses the audio-only '
-                          'media_kit backend; enabling libmpv video output would '
-                          'risk the playback stability already achieved.',
+                      subtitle: S.of(context).VideoBackdropBetaNote,
+                      leading: const Icon(Icons.movie_outlined),
+                      value: GetIt.I<SettingsManager>()
+                          .extra<bool>('videoBackdropBeta', false),
+                      onChanged: (v) {
+                        GetIt.I<SettingsManager>()
+                            .setExtra<bool>('videoBackdropBeta', v);
+                        VideoBackdropService.instance.settingsChanged();
+                      },
                       isLast: true,
                     ),
                     const SizedBox(height: 100), // extra padding for miniplayer

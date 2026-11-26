@@ -277,6 +277,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "BaseURL": MessageLookupByLibrary.simpleMessage("URL base"),
     "BitPerfectUSBDACOutput": MessageLookupByLibrary.simpleMessage("Salida USB DAC bit-perfect"),
     "VideoBehindArtwork": MessageLookupByLibrary.simpleMessage("Vídeo detrás de la portada (pantalla completa)"),
+    "VideoBackdropBetaNote": MessageLookupByLibrary.simpleMessage("Beta, desactivada por defecto. El vídeo silenciado sigue la canción en el reproductor a pantalla completa."),
     "BlendTheEndOfASongIntoTheNext": MessageLookupByLibrary.simpleMessage("Mezclar el final de una canción con la siguiente"),
     "BlockedArtists": MessageLookupByLibrary.simpleMessage("Artistas bloqueados"),
     "CacheAndDownloads": MessageLookupByLibrary.simpleMessage("Caché y descargas"),

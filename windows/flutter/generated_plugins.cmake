@@ -11,6 +11,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   permission_handler_windows
   url_launcher_windows
   share_plus
+  video_player_win
   webview_flutter_windows
 )
 

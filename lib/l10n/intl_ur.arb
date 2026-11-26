@@ -334,6 +334,8 @@
   "@BaseURL": {},
   "BitPerfectUSBDACOutput": "بٹ پرفیکٹ USB DAC آؤٹ پٹ",
   "VideoBehindArtwork": "فل اسکرین پر آرٹ ورک کے پیچھے ویڈیو",
+  "VideoBackdropBetaNote": "بیٹا، بطور\tdefault بند۔ مکمل اسکرین پلیئر میں خاموش ویڈیو گانے کے ساتھ چلتا ہے۔",
+  "@VideoBackdropBetaNote": {},
   "@VideoBehindArtwork": {},
   "@BitPerfectUSBDACOutput": {},
   "BlendTheEndOfASongIntoTheNext": "گانے کے آخر کو اگلے سے ملائیں",

@@ -334,6 +334,8 @@
   "@BaseURL": {},
   "BitPerfectUSBDACOutput": "Bit-perfect USB DAC çıkışı",
   "VideoBehindArtwork": "Tam ekranda kapak arkasında video",
+  "VideoBackdropBetaNote": "Beta, varsayılan olarak kapalı. Sessiz video, tam ekran oynatıcıda şarkıyı takip eder.",
+  "@VideoBackdropBetaNote": {},
   "@VideoBehindArtwork": {},
   "@BitPerfectUSBDACOutput": {},
   "BlendTheEndOfASongIntoTheNext": "Bir şarkının sonunu sonrakine karıştır",

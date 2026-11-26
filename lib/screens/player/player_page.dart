@@ -33,6 +33,8 @@ import '../../services/media_player.dart';
 import '../../services/player_layout.dart';
 import '../../services/settings_manager.dart';
 import '../../services/stem_mixer_service.dart';
+import '../../services/video_backdrop_service.dart';
+import 'widgets/video_backdrop.dart';
 import '../../themes/dark.dart';
 import '../../utils/adaptive_widgets/adaptive_widgets.dart';
 import '../../utils/bottom_modals.dart' hide AnimatedBuilder;
@@ -77,15 +79,19 @@ class _PlayerPageState extends State<PlayerPage> {
     }
     currentSong = GetIt.I<MediaPlayer>().currentSongNotifier.value;
     GetIt.I<MediaPlayer>().currentSongNotifier.addListener(songListener);
+    VideoBackdropService.instance.attach();
   }
 
   @override
   dispose() {
     GetIt.I<MediaPlayer>().currentSongNotifier.removeListener(songListener);
+    VideoBackdropService.instance.detach();
     super.dispose();
   }
 
   void songListener() {
+    VideoBackdropService.instance
+        .onTrackChanged(GetIt.I<MediaPlayer>().currentSongNotifier.value?.id);
     if (currentSong != GetIt.I<MediaPlayer>().currentSongNotifier.value) {
       if (mounted) {
         setState(() {
@@ -233,6 +239,8 @@ class _PlayerPageState extends State<PlayerPage> {
                         child: const SizedBox.expand(),
                       ),
                     ),
+                    // Beta opt-in muted video behind the player canvas.
+                    const Positioned.fill(child: VideoBackdrop()),
 
                     // Optional Automix debug overlay (Android parity).
                     if (GetIt.I<SettingsManager>()

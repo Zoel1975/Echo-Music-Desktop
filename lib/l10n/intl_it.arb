@@ -334,6 +334,8 @@
   "@BaseURL": {},
   "BitPerfectUSBDACOutput": "Uscita USB DAC bit-perfect",
   "VideoBehindArtwork": "Video dietro la copertina (schermo intero)",
+  "VideoBackdropBetaNote": "Beta, disattivata di default. Il video muto segue il brano nel player a schermo intero.",
+  "@VideoBackdropBetaNote": {},
   "@VideoBehindArtwork": {},
   "@BitPerfectUSBDACOutput": {},
   "BlendTheEndOfASongIntoTheNext": "Fonde la fine di un brano nel successivo",

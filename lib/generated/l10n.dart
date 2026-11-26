@@ -1398,6 +1398,15 @@ class S {
     );
   }
 
+  String get VideoBackdropBetaNote {
+    return Intl.message(
+      "Beta, off by default. Muted video follows the song in the full-screen player.",
+      name: 'VideoBackdropBetaNote',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Blend the end of a song into the next`
   String get BlendTheEndOfASongIntoTheNext {
     return Intl.message(

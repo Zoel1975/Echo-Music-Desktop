@@ -86,11 +86,14 @@ service provides and requested at the pixel size actually displayed (including
 the display scale factor), so artwork stays sharp in grids and full-screen
 headers.
 
-A "Video behind artwork (full screen)" entry is listed under player settings as
-a future update. The Windows build uses an audio-only media kit backend: real
-video playback would require a video decoder plus YouTube video-stream
-resolution, and adding libmpv video output risks the playback stability already
-achieved. It is shown explicitly instead of being a silent no-op.
+A beta "Video behind artwork (full screen)" switch is available under player
+settings, off by default. When enabled, the full-screen player mirrors the Android app's canvas: it finds
+an official music video by title/artist, takes a five-second clip from its
+centre and loops it silently behind the artwork (album tracks whose "video" is
+a still cover are skipped). It is isolated from playback: the audio backend is
+untouched, the controller exists only while the player page is open, and any
+decoder or stream failure disables only the backdrop. Video availability
+depends on the codecs installed in Windows.
 
 ## Troubleshooting
 

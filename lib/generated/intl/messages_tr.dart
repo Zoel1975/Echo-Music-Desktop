@@ -265,6 +265,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "BaseURL": MessageLookupByLibrary.simpleMessage("Temel URL"),
     "BitPerfectUSBDACOutput": MessageLookupByLibrary.simpleMessage("Bit-perfect USB DAC çıkışı"),
     "VideoBehindArtwork": MessageLookupByLibrary.simpleMessage("Tam ekranda kapak arkasında video"),
+    "VideoBackdropBetaNote": MessageLookupByLibrary.simpleMessage("Beta, varsayılan olarak kapalı. Sessiz video, tam ekran oynatıcıda şarkıyı takip eder."),
     "BlendTheEndOfASongIntoTheNext": MessageLookupByLibrary.simpleMessage("Bir şarkının sonunu sonrakine karıştır"),
     "BlockedArtists": MessageLookupByLibrary.simpleMessage("Engellenen sanatçılar"),
     "CacheAndDownloads": MessageLookupByLibrary.simpleMessage("Önbellek ve indirmeler"),

@@ -267,6 +267,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "BaseURL": MessageLookupByLibrary.simpleMessage("بنیادی URL"),
     "BitPerfectUSBDACOutput": MessageLookupByLibrary.simpleMessage("بٹ پرفیکٹ USB DAC آؤٹ پٹ"),
     "VideoBehindArtwork": MessageLookupByLibrary.simpleMessage("فل اسکرین پر آرٹ ورک کے پیچھے ویڈیو"),
+    "VideoBackdropBetaNote": MessageLookupByLibrary.simpleMessage("بیٹا، بطور\tdefault بند۔ مکمل اسکرین پلیئر میں خاموش ویڈیو گانے کے ساتھ چلتا ہے۔"),
     "BlendTheEndOfASongIntoTheNext": MessageLookupByLibrary.simpleMessage("گانے کے آخر کو اگلے سے ملائیں"),
     "BlockedArtists": MessageLookupByLibrary.simpleMessage("بلاک شدہ فنکار"),
     "CacheAndDownloads": MessageLookupByLibrary.simpleMessage("کیش اور ڈاؤن لوڈز"),
